@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "course-1",
+      "description": "Abstract design representing a new product launch.",
+      "imageUrl": "https://picsum.photos/seed/101/600/400",
+      "imageHint": "product launch"
+    },
+    {
+      "id": "course-2",
+      "description": "Image of a person focused on a laptop, indicating advanced user training.",
+      "imageUrl": "https://picsum.photos/seed/102/600/400",
+      "imageHint": "user training"
+    },
+    {
+      "id": "course-3",
+      "description": "A close-up of computer code, representing a technical deep dive.",
+      "imageUrl": "https://picsum.photos/seed/103/600/400",
+      "imageHint": "code"
+    },
+    {
+      "id": "course-4",
+      "description": "A group of people collaborating around a whiteboard, for a sales strategy course.",
+      "imageUrl": "https://picsum.photos/seed/104/600/400",
+      "imageHint": "team collaboration"
+    },
+    {
+      "id": "course-5",
+      "description": "A person sketching on a tablet, for a design principles course.",
+      "imageUrl": "https://picsum.photos/seed/105/600/400",
+      "imageHint": "digital design"
+    }
+  ]
 }
