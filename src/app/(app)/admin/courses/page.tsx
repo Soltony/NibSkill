@@ -1,4 +1,8 @@
-import { courses } from "@/lib/data"
+
+"use client"
+
+import { useState } from "react"
+import { courses as initialCourses } from "@/lib/data"
 import {
   Table,
   TableBody,
@@ -24,8 +28,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { AddCourseDialog } from "@/components/add-course-dialog"
+import type { Course } from "@/lib/data"
 
 export default function CourseManagementPage() {
+  const [courses, setCourses] = useState<Course[]>(initialCourses)
+
+  const handleCourseAdded = (newCourse: Course) => {
+    setCourses((prevCourses) => [newCourse, ...prevCourses])
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -36,55 +48,61 @@ export default function CourseManagementPage() {
       </div>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>All Courses</CardTitle>
-                <CardDescription>A list of all training courses in the system.</CardDescription>
-            </div>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Course
-            </Button>
+          <div>
+            <CardTitle>All Courses</CardTitle>
+            <CardDescription>
+              A list of all training courses in the system.
+            </CardDescription>
+          </div>
+          <AddCourseDialog onCourseAdded={handleCourseAdded} />
         </CardHeader>
         <CardContent>
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>Course Title</TableHead>
-                    <TableHead>Associated Product</TableHead>
-                    <TableHead className="text-center">Modules</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead>
-                    <span className="sr-only">Actions</span>
-                    </TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Course Title</TableHead>
+                <TableHead>Associated Product</TableHead>
+                <TableHead className="text-center">Modules</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {courses.map((course) => (
+                <TableRow key={course.id}>
+                  <TableCell className="font-medium">{course.title}</TableCell>
+                  <TableCell>{course.product}</TableCell>
+                  <TableCell className="text-center">
+                    {course.modules.length}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline">Published</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          aria-haspopup="true"
+                          size="icon"
+                          variant="ghost"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Toggle menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem>Delete</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
                 </TableRow>
-                </TableHeader>
-                <TableBody>
-                {courses.map((course) => (
-                    <TableRow key={course.id}>
-                    <TableCell className="font-medium">{course.title}</TableCell>
-                    <TableCell>{course.product}</TableCell>
-                    <TableCell className="text-center">{course.modules.length}</TableCell>
-                    <TableCell className="text-center">
-                        <Badge variant="outline">Published</Badge>
-                    </TableCell>
-                    <TableCell>
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                            <DropdownMenuItem>Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                    </TableRow>
-                ))}
-                </TableBody>
-            </Table>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
