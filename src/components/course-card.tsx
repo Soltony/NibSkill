@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -11,10 +12,15 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import type { Course } from '@/lib/data';
+import { usePathname } from 'next/navigation';
 
 export function CourseCard({ course }: { course: Course }) {
+  const pathname = usePathname();
+  const isAdminView = pathname.startsWith('/admin');
+  const courseLink = isAdminView ? `/admin/courses/${course.id}` : `/courses/${course.id}`;
+
   return (
-    <Link href={`/courses/${course.id}`} className="block h-full transition-transform hover:scale-[1.02]">
+    <Link href={courseLink} className="block h-full transition-transform hover:scale-[1.02]">
       <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-xl">
         <CardHeader className="p-0">
           <div className="relative aspect-video">

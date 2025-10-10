@@ -1,4 +1,8 @@
-import { users, courses, liveSessions } from '@/lib/data';
+
+"use client";
+
+import { useState, useEffect } from 'react';
+import { users, courses as initialCourses, liveSessions } from '@/lib/data';
 import { CourseCard } from '@/components/course-card';
 import {
   Card,
@@ -10,9 +14,22 @@ import {
 import { Button } from '@/components/ui/button';
 import { Radio } from 'lucide-react';
 import Link from 'next/link';
+import type { Course } from '@/lib/data';
+
+const COURSES_STORAGE_KEY = "skillup-courses";
 
 export default function DashboardPage() {
   const currentUser = users.find(u => u.role === 'staff')!;
+  const [courses, setCourses] = useState<Course[]>([]);
+
+  useEffect(() => {
+    const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY);
+    if (storedCourses) {
+      setCourses(JSON.parse(storedCourses));
+    } else {
+      setCourses(initialCourses);
+    }
+  }, []);
 
   return (
     <div className="space-y-8">
