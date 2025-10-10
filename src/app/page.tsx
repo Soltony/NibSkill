@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -16,11 +17,15 @@ import { Logo } from '@/components/logo';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState('staff@skillup.com');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you'd perform authentication here
-    router.push('/dashboard');
+    if (email === 'admin@skillup.com') {
+      router.push('/admin/courses');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   return (
@@ -37,7 +42,14 @@ export default function LoginPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="name@company.com" defaultValue="staff@skillup.com" required />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="name@company.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required 
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -49,7 +61,7 @@ export default function LoginPage() {
               Sign In
             </Button>
             <p className="text-xs text-muted-foreground">
-              Use <span className="font-semibold">admin@skillup.com</span> to access admin features.
+              Use <button type="button" className="font-semibold" onClick={() => setEmail('admin@skillup.com')}>admin@skillup.com</button> to access admin features.
             </p>
           </CardFooter>
         </form>
