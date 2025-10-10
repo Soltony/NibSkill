@@ -2,7 +2,6 @@ import { liveSessions } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, User, Mic } from 'lucide-react';
-import { GenerateReminderDialog } from '@/components/generate-reminder-dialog';
 import { Badge } from '@/components/ui/badge';
 
 export default function LiveSessionsPage() {
@@ -42,7 +41,6 @@ export default function LiveSessionsPage() {
                 </div>
             </CardContent>
             <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-2">
-              <GenerateReminderDialog session={session} />
               <Button asChild>
                 <a href={session.joinUrl} target="_blank" rel="noopener noreferrer">
                     <Mic className="mr-2 h-4 w-4" />
