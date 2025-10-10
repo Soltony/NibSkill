@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { courses, quizzes, type Module } from '@/lib/data';
 import {
   Accordion,
@@ -24,10 +24,12 @@ const iconMap = {
   slides: <Presentation className="h-5 w-5 text-accent" />,
 };
 
-export default function CourseDetailPage({ params }: { params: { courseId: string } }) {
+export default function CourseDetailPage() {
+  const params = useParams();
+  const courseId = typeof params.courseId === 'string' ? params.courseId : '';
   const { toast } = useToast();
-  const course = courses.find((c) => c.id === params.courseId);
-  const quiz = quizzes.find((q) => q.courseId === params.courseId);
+  const course = courses.find((c) => c.id === courseId);
+  const quiz = quizzes.find((q) => q.courseId === courseId);
 
   const [modules, setModules] = useState<Module[]>([]);
   const [showQuiz, setShowQuiz] = useState(false);
