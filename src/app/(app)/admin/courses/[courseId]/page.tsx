@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Quiz } from '@/components/quiz';
 import { Video, FileText, Presentation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { UserContext } from '../../layout';
+import { UserContext } from '@/app/(app)/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 
 const iconMap = {
@@ -196,3 +196,5 @@ export default function CourseDetailPage() {
     </div>
   );
 }
+
+    
