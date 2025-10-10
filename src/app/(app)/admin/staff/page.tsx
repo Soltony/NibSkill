@@ -112,7 +112,7 @@ export default function StaffManagementPage() {
                     <Button>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Department
                     </Button>
-                </Header>
+                </CardHeader>
                 <CardContent>
                     <Table>
                         <TableHeader>
