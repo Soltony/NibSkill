@@ -55,7 +55,7 @@ export function AddQuizDialog({ courses, quizzes, onQuizAdded }: AddQuizDialogPr
   // Filter out courses that already have a quiz
   const availableCourses = courses.filter(c => !quizzes.some(q => q.courseId === c.id))
 
-  const onSubmit = (values: z.infer<typeof formSchema>>) => {
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
     const newQuiz: Quiz = {
       id: `quiz-${Date.now()}`,
       courseId: values.courseId,
