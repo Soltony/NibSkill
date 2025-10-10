@@ -18,6 +18,30 @@ import type { Course } from '@/lib/data';
 
 const COURSES_STORAGE_KEY = "skillup-courses";
 
+function ClientFormattedDate({ date }: { date: Date }) {
+  const [formattedDate, setFormattedDate] = useState("");
+
+  useEffect(() => {
+    setFormattedDate(
+      date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    );
+  }, [date]);
+
+  if (!formattedDate) {
+    return null; // or a loading skeleton
+  }
+
+  return <>{formattedDate}</>;
+}
+
+
 export default function DashboardPage() {
   const currentUser = users.find(u => u.role === 'staff')!;
   const [courses, setCourses] = useState<Course[]>([]);
@@ -68,14 +92,7 @@ export default function DashboardPage() {
                      <div>
                         <h3 className="font-semibold">{session.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {session.dateTime.toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          <ClientFormattedDate date={session.dateTime} />
                         </p>
                      </div>
                   </div>
