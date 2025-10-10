@@ -2,7 +2,7 @@
 "use client"
 
 import { useState } from "react"
-import { courses as initialCourses } from "@/lib/data"
+import { courses as initialCourses, products } from "@/lib/data"
 import {
   Table,
   TableBody,
@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { PlusCircle, MoreHorizontal } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,7 +54,7 @@ export default function CourseManagementPage() {
               A list of all training courses in the system.
             </CardDescription>
           </div>
-          <AddCourseDialog onCourseAdded={handleCourseAdded} />
+          <AddCourseDialog onCourseAdded={handleCourseAdded} products={products} />
         </CardHeader>
         <CardContent>
           <Table>
@@ -73,7 +73,7 @@ export default function CourseManagementPage() {
               {courses.map((course) => (
                 <TableRow key={course.id}>
                   <TableCell className="font-medium">{course.title}</TableCell>
-                  <TableCell>{course.product}</TableCell>
+                  <TableCell>{course.productName}</TableCell>
                   <TableCell className="text-center">
                     {course.modules.length}
                   </TableCell>

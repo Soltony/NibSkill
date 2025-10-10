@@ -29,6 +29,13 @@ export type User = {
   avatarUrl: string;
 };
 
+export type Product = {
+  id: string;
+  name: string;
+  description: string;
+  image: ImagePlaceholder;
+}
+
 export type Module = {
   id: string;
   title: string;
@@ -41,7 +48,8 @@ export type Course = {
   id: string;
   title: string;
   description: string;
-  product: string;
+  productId: string;
+  productName: string;
   image: ImagePlaceholder;
   modules: Module[];
   progress: number;
@@ -115,12 +123,40 @@ export const users: User[] = [
   },
 ];
 
+export const products: Product[] = [
+    {
+      id: 'prod-1',
+      name: 'FusionX',
+      description: 'The next generation of enterprise data analytics.',
+      image: PlaceHolderImages[0],
+    },
+    {
+      id: 'prod-2',
+      name: 'Centauri',
+      description: 'A powerful CRM for managing customer relationships.',
+      image: PlaceHolderImages[1],
+    },
+    {
+      id: 'prod-3',
+      name: 'Pulsar Engine',
+      description: 'A real-time 3D rendering engine for immersive experiences.',
+      image: PlaceHolderImages[2],
+    },
+    {
+        id: 'prod-4',
+        name: 'Nova Suite',
+        description: 'A comprehensive suite of productivity tools for modern teams.',
+        image: PlaceHolderImages[3],
+    }
+];
+
 export const courses: Course[] = [
   {
     id: 'course-1',
     title: 'New Product Launch: FusionX',
     description: 'Get up to speed with our latest flagship product, FusionX. This course covers all the new features and selling points.',
-    product: 'FusionX',
+    productId: 'prod-1',
+    productName: 'FusionX',
     image: PlaceHolderImages[0],
     progress: 33,
     modules: [
@@ -133,7 +169,8 @@ export const courses: Course[] = [
     id: 'course-2',
     title: 'Advanced User Training for Centauri',
     description: 'Become a power user of our Centauri platform. This course is for experienced users who want to master advanced functionalities.',
-    product: 'Centauri',
+    productId: 'prod-2',
+    productName: 'Centauri',
     image: PlaceHolderImages[1],
     progress: 0,
     modules: [
@@ -147,7 +184,8 @@ export const courses: Course[] = [
     id: 'course-3',
     title: 'Technical Deep Dive: Pulsar Engine',
     description: 'For our engineering team, a detailed look into the new Pulsar Engine, its capabilities, and how to build on top of it.',
-    product: 'Pulsar Engine',
+    productId: 'prod-3',
+    productName: 'Pulsar Engine',
     image: PlaceHolderImages[2],
     progress: 80,
     modules: [
@@ -162,7 +200,8 @@ export const courses: Course[] = [
     id: 'course-4',
     title: 'Sales Strategy for Nova Suite',
     description: 'Equip your sales team with the knowledge and strategies to effectively sell the Nova Suite to enterprise clients.',
-    product: 'Nova Suite',
+    productId: 'prod-4',
+    productName: 'Nova Suite',
     image: PlaceHolderImages[3],
     progress: 100,
     modules: [

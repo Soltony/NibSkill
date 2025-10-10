@@ -25,22 +25,30 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { PlusCircle } from "lucide-react"
-import type { Course } from "@/lib/data"
+import type { Course, Product } from "@/lib/data"
 import { PlaceHolderImages } from "@/lib/placeholder-images"
 import { useToast } from "@/hooks/use-toast"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
-  product: z.string().min(2, "Product must be at least 2 characters long."),
+  productId: z.string({ required_error: "Please select a product." }),
   description: z.string().min(10, "Description must be at least 10 characters long."),
 })
 
 type AddCourseDialogProps = {
   onCourseAdded: (course: Course) => void
+  products: Product[]
 }
 
-export function AddCourseDialog({ onCourseAdded }: AddCourseDialogProps) {
+export function AddCourseDialog({ onCourseAdded, products }: AddCourseDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -48,18 +56,24 @@ export function AddCourseDialog({ onCourseAdded }: AddCourseDialogProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
-      product: "",
       description: "",
     },
   })
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    const selectedProduct = products.find(p => p.id === values.productId)
+    if (!selectedProduct) {
+        toast({ title: "Error", description: "Selected product not found.", variant: "destructive" })
+        return
+    }
+
     const newCourse: Course = {
       id: `course-${Date.now()}`,
       title: values.title,
-      product: values.product,
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
       description: values.description,
-      image: PlaceHolderImages[4], // Using a default placeholder for now
+      image: selectedProduct.image, 
       modules: [],
       progress: 0,
     }
@@ -103,13 +117,22 @@ export function AddCourseDialog({ onCourseAdded }: AddCourseDialogProps) {
             />
             <FormField
               control={form.control}
-              name="product"
+              name="productId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Associated Product</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., FusionX" {...field} />
-                  </FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a product" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {products.map(product => (
+                                <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                   <FormMessage />
                 </FormItem>
               )}
