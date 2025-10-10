@@ -29,6 +29,7 @@ import {
   Radio,
   Users2,
   Package,
+  Settings,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { users } from '@/lib/data';
@@ -58,6 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true },
+    { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
   ];
   
   const allNavItems = isAdminView ? 
