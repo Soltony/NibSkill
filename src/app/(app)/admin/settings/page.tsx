@@ -44,6 +44,18 @@ import {
 import { MoreHorizontal, PlusCircle } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
+
 
 const USERS_STORAGE_KEY = "skillup-users"
 
@@ -77,6 +89,7 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<Role[]>(initialRoles)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
   const { toast } = useToast()
 
   useEffect(() => {
@@ -133,202 +146,248 @@ export default function SettingsPage() {
     form.reset()
   }
 
+  const handleConfirmDelete = () => {
+    if (roleToDelete) {
+      toast({
+        title: "Action Not Implemented",
+        description: "Deleting roles is not supported in this prototype.",
+        variant: "destructive"
+      });
+      setRoleToDelete(null);
+    }
+  };
+
+
   const permissionKeys = Object.keys(roles[0]?.permissions || {}) as (keyof Role['permissions'])[];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage application settings, users, and roles.
-        </p>
-      </div>
-      <Tabs defaultValue="user-management">
-        <TabsList>
-          <TabsTrigger value="user-management">User Management</TabsTrigger>
-          <TabsTrigger value="role-management">Role Management</TabsTrigger>
-          <TabsTrigger value="user-registration">User Registration</TabsTrigger>
-        </TabsList>
+    <>
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold font-headline">Settings</h1>
+          <p className="text-muted-foreground">
+            Manage application settings, users, and roles.
+          </p>
+        </div>
+        <Tabs defaultValue="user-management">
+          <TabsList>
+            <TabsTrigger value="user-management">User Management</TabsTrigger>
+            <TabsTrigger value="role-management">Role Management</TabsTrigger>
+            <TabsTrigger value="user-registration">User Registration</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="user-management">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>Assign roles to users in the system.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={user.role}
-                          onValueChange={(newRole: "admin" | "staff") =>
-                            handleRoleChange(user.id, newRole)
-                          }
-                        >
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="staff">Staff</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+          <TabsContent value="user-management">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>Assign roles to users in the system.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="role-management">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Roles</CardTitle>
-                <CardDescription>
-                  Define roles to control user access and permissions across the application.
-                </CardDescription>
-              </div>
-               <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Role
-              </Button>
-            </CardHeader>
-            <CardContent>
-               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[150px]">Role Name</TableHead>
-                    {permissionKeys.map(key => (
-                      <TableHead key={key} className="capitalize">{key}</TableHead>
-                    ))}
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {roles.map((role) => (
-                    <TableRow key={role.id}>
-                      <TableCell className="font-medium">{role.name}</TableCell>
-                      {permissionKeys.map(key => (
-                        <TableCell key={key}>
-                          <CrudPermissions permissions={role.permissions[key]} />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Actions</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="user-registration">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Registration</CardTitle>
-              <CardDescription>Add a new user to the system.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onRegisterUser)} className="space-y-6 max-w-lg">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="user@company.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Role</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a role" />
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={user.role}
+                            onValueChange={(newRole: "admin" | "staff") =>
+                              handleRoleChange(user.id, newRole)
+                            }
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select role" />
                             </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="staff">Staff</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Register User
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                            <SelectContent>
+                              <SelectItem value="staff">Staff</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      </Tabs>
-    </div>
+          <TabsContent value="role-management">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Roles</CardTitle>
+                  <CardDescription>
+                    Define roles to control user access and permissions across the application.
+                  </CardDescription>
+                </div>
+                <FeatureNotImplementedDialog
+                  title="Add New Role"
+                  description="In a full application, this would open a form to create a new role and define its permissions."
+                  triggerText="Add Role"
+                  triggerIcon={<PlusCircle className="mr-2 h-4 w-4" />}
+                />
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[150px]">Role Name</TableHead>
+                      {permissionKeys.map(key => (
+                        <TableHead key={key} className="capitalize">{key}</TableHead>
+                      ))}
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {roles.map((role) => (
+                      <TableRow key={role.id}>
+                        <TableCell className="font-medium">{role.name}</TableCell>
+                        {permissionKeys.map(key => (
+                          <TableCell key={key}>
+                            <CrudPermissions permissions={role.permissions[key]} />
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Actions</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <FeatureNotImplementedDialog
+                                title="Edit Role"
+                                description="This would open a form to modify the permissions for the selected role."
+                                isMenuItem={true}
+                              >
+                                Edit
+                              </FeatureNotImplementedDialog>
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onSelect={() => setRoleToDelete(role)}
+                              >
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="user-registration">
+            <Card>
+              <CardHeader>
+                <CardTitle>User Registration</CardTitle>
+                <CardDescription>Add a new user to the system.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onRegisterUser)} className="space-y-6 max-w-lg">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="John Doe" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="user@company.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Role</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a role" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="staff">Staff</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Register User
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <AlertDialog open={!!roleToDelete} onOpenChange={(open) => !open && setRoleToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. In a real application, this would permanently delete the 
+              role <span className="font-semibold">"{roleToDelete?.name}"</span>. 
+              This is a prototype, so no data will be changed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
+
+    
