@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -21,7 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { Quiz as QuizType } from '@/lib/data';
+import type { Quiz as QuizType, Question } from '@/lib/data';
+import { Input } from './ui/input';
 
 type Answers = {
   [questionId: string]: string;
@@ -32,16 +34,29 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
 
-  const handleAnswerChange = (questionId: string, optionId: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+  const handleAnswerChange = (questionId: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  const isAnswered = (q: Question) => {
+    if (q.type === 'fill-in-the-blank') {
+      return answers[q.id] && answers[q.id].trim() !== '';
+    }
+    return !!answers[q.id];
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
-      if (answers[q.id] === q.correctAnswerId) {
-        correctAnswers++;
+       if (q.type === 'fill-in-the-blank') {
+        if (answers[q.id]?.trim().toLowerCase() === q.correctAnswerId.trim().toLowerCase()) {
+          correctAnswers++;
+        }
+      } else {
+        if (answers[q.id] === q.correctAnswerId) {
+          correctAnswers++;
+        }
       }
     });
     const finalScore = Math.round((correctAnswers / quiz.questions.length) * 100);
@@ -49,7 +64,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
     setShowResult(true);
   };
 
-  const isSubmitDisabled = Object.keys(answers).length !== quiz.questions.length;
+  const isSubmitDisabled = quiz.questions.some(q => !isAnswered(q));
 
   return (
     <>
@@ -65,19 +80,42 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                 <p className="mb-4 font-semibold">
                   {index + 1}. {q.text}
                 </p>
-                <RadioGroup
-                  onValueChange={(value) => handleAnswerChange(q.id, value)}
-                  className="space-y-2"
-                >
-                  {q.options.map((opt) => (
-                    <div key={opt.id} className="flex items-center space-x-2">
-                      <RadioGroupItem value={opt.id} id={`${q.id}-${opt.id}`} />
-                      <Label htmlFor={`${q.id}-${opt.id}`} className="font-normal cursor-pointer">
-                        {opt.text}
-                      </Label>
+                {q.type === 'multiple-choice' && (
+                   <RadioGroup
+                    onValueChange={(value) => handleAnswerChange(q.id, value)}
+                    className="space-y-2"
+                  >
+                    {q.options.map((opt) => (
+                      <div key={opt.id} className="flex items-center space-x-2">
+                        <RadioGroupItem value={opt.id} id={`${q.id}-${opt.id}`} />
+                        <Label htmlFor={`${q.id}-${opt.id}`} className="font-normal cursor-pointer">
+                          {opt.text}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
+                 {q.type === 'true-false' && (
+                  <RadioGroup
+                    onValueChange={(value) => handleAnswerChange(q.id, value)}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id={`${q.id}-true`} />
+                      <Label htmlFor={`${q.id}-true`} className="font-normal cursor-pointer">True</Label>
                     </div>
-                  ))}
-                </RadioGroup>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id={`${q.id}-false`} />
+                      <Label htmlFor={`${q.id}-false`} className="font-normal cursor-pointer">False</Label>
+                    </div>
+                  </RadioGroup>
+                )}
+                 {q.type === 'fill-in-the-blank' && (
+                  <Input
+                    placeholder="Type your answer here..."
+                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                  />
+                )}
               </div>
             ))}
           </CardContent>

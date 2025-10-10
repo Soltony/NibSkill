@@ -69,9 +69,11 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
+  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank';
   options: { id: string; text: string }[];
-  correctAnswerId: string;
+  correctAnswerId: string; // Also used for true/false (value will be 'true' or 'false') and fill-in-the-blank (value is the answer)
 };
+
 
 export type Quiz = {
   id:string;
@@ -243,6 +245,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q1-1',
         text: 'What is the primary new capability of FusionX?',
+        type: 'multiple-choice',
         options: [
           { id: 'o1-1-1', text: 'AI-powered analytics' },
           { id: 'o1-1-2', text: 'Decentralized storage' },
@@ -254,6 +257,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q1-2',
         text: 'Which market segment is FusionX primarily targeting?',
+        type: 'multiple-choice',
         options: [
           { id: 'o1-2-1', text: 'Small businesses' },
           { id: 'o1-2-2', text: 'Enterprise clients' },
@@ -271,6 +275,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q4-1',
         text: 'What is a key part of the Nova Suite sales strategy?',
+        type: 'multiple-choice',
         options: [
           { id: 'o4-1-1', text: 'Focusing only on technical specs' },
           { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
