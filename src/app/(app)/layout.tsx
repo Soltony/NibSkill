@@ -59,6 +59,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true },
   ];
+  
+  const allNavItems = isAdminView ? 
+    [
+        { href: '/admin/courses', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true },
+        ...adminNavItems,
+        { href: '/admin/courses', icon: Radio, label: 'Live Sessions', adminOnly: true },
+    ]
+    : navItems;
+
 
   return (
     <UserContext.Provider value={userRole}>
@@ -69,37 +78,50 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <Link href={item.href}>
-                    <SidebarMenuButton
-                      isActive={pathname === item.href}
-                      tooltip={item.label}
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
-              ))}
-
-              {currentUser.role === 'admin' && (
-                <SidebarGroup>
-                  <SidebarGroupLabel>Admin</SidebarGroupLabel>
-                  {adminNavItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <Link href={item.href}>
+               {isAdminView ? (
+                 <>
+                  <SidebarGroup>
+                    <SidebarGroupLabel>Admin</SidebarGroupLabel>
+                    {adminNavItems.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                          <SidebarMenuButton
+                            isActive={pathname.startsWith(item.href)}
+                            tooltip={item.label}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarGroup>
+                   <SidebarMenuItem>
+                      <Link href={'/dashboard'}>
                         <SidebarMenuButton
-                          isActive={pathname.startsWith(item.href)}
-                          tooltip={item.label}
+                          isActive={pathname.startsWith('/dashboard')}
+                          tooltip={'Staff Dashboard'}
                         >
-                          <item.icon />
-                          <span>{item.label}</span>
+                          <LayoutDashboard />
+                          <span>Staff View</span>
                         </SidebarMenuButton>
                       </Link>
                     </SidebarMenuItem>
-                  ))}
-                </SidebarGroup>
+                 </>
+              ) : (
+                navItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <Link href={item.href}>
+                      <SidebarMenuButton
+                        isActive={pathname === item.href}
+                        tooltip={item.label}
+                      >
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                ))
               )}
             </SidebarMenu>
           </SidebarContent>
