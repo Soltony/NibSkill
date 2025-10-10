@@ -106,7 +106,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <p className="truncate font-semibold text-sm text-sidebar-foreground">{currentUser.name}</p>
                 <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
             </div>
-             <Link href="/">
+             <Link href="/login">
                 <SidebarMenuButton size="sm" variant="outline" className="h-8 w-8 bg-transparent hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground border-sidebar-border">
                     <LogOut />
                 </SidebarMenuButton>
