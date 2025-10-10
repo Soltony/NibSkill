@@ -52,6 +52,7 @@ export default function CourseManagementPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [products, setProducts] = useState<Product[]>([]);
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
   const { toast } = useToast();
 
 
@@ -69,19 +70,20 @@ export default function CourseManagementPage() {
     } else {
       setCourses(initialCourses)
     }
+    setIsLoaded(true);
   }, [])
 
   useEffect(() => {
-    if (courses.length > 0 || JSON.stringify(courses) !== JSON.stringify(initialCourses)) {
+    if (isLoaded) {
       localStorage.setItem(COURSES_STORAGE_KEY, JSON.stringify(courses))
     }
-  }, [courses])
+  }, [courses, isLoaded])
 
   useEffect(() => {
-    if (products.length > 0 || JSON.stringify(products) !== JSON.stringify(initialProducts)) {
+    if (isLoaded) {
       localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products))
     }
-  }, [products])
+  }, [products, isLoaded])
 
 
   const handleCourseAdded = (newCourse: Course) => {

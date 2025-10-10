@@ -27,6 +27,7 @@ const STORAGE_KEY = "skillup-products";
 
 export default function ProductManagementPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const storedProducts = localStorage.getItem(STORAGE_KEY);
@@ -35,13 +36,14 @@ export default function ProductManagementPage() {
     } else {
       setProducts(initialProducts);
     }
+    setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (products.length > 0 || JSON.stringify(products) !== JSON.stringify(initialProducts)) {
+    if (isLoaded) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
     }
-  }, [products]);
+  }, [products, isLoaded]);
 
   const handleProductAdded = (newProduct: Product) => {
     setProducts((prevProducts) => [newProduct, ...prevProducts])
