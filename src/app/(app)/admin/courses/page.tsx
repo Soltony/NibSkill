@@ -143,7 +143,7 @@ export default function CourseManagementPage() {
                 {courses.map((course) => (
                   <TableRow key={course.id}>
                     <TableCell className="font-medium">
-                        <Link href={`/courses/${course.id}`} className="hover:underline">
+                        <Link href={`/admin/courses/${course.id}`} className="hover:underline">
                             {course.title}
                         </Link>
                     </TableCell>
