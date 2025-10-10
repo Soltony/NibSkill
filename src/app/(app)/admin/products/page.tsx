@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { products as initialProducts } from "@/lib/data"
 import {
@@ -23,8 +23,25 @@ import { AddProductDialog } from "@/components/add-product-dialog"
 import { EditProductDialog } from "@/components/edit-product-dialog"
 import type { Product } from "@/lib/data"
 
+const STORAGE_KEY = "skillup-products";
+
 export default function ProductManagementPage() {
-  const [products, setProducts] = useState<Product[]>(initialProducts)
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const storedProducts = localStorage.getItem(STORAGE_KEY);
+    if (storedProducts) {
+      setProducts(JSON.parse(storedProducts));
+    } else {
+      setProducts(initialProducts);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (products.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+    }
+  }, [products]);
 
   const handleProductAdded = (newProduct: Product) => {
     setProducts((prevProducts) => [newProduct, ...prevProducts])

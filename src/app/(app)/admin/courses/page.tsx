@@ -1,8 +1,8 @@
 
 "use client"
 
-import { useState } from "react"
-import { courses as initialCourses, products } from "@/lib/data"
+import { useState, useEffect } from "react"
+import { courses as initialCourses, products as initialProducts, type Product } from "@/lib/data"
 import {
   Table,
   TableBody,
@@ -31,8 +31,41 @@ import {
 import { AddCourseDialog } from "@/components/add-course-dialog"
 import type { Course } from "@/lib/data"
 
+const PRODUCTS_STORAGE_KEY = "skillup-products";
+const COURSES_STORAGE_KEY = "skillup-courses";
+
 export default function CourseManagementPage() {
-  const [courses, setCourses] = useState<Course[]>(initialCourses)
+  const [courses, setCourses] = useState<Course[]>([])
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY)
+    if (storedProducts) {
+      setProducts(JSON.parse(storedProducts))
+    } else {
+      setProducts(initialProducts)
+    }
+
+    const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY)
+    if (storedCourses) {
+      setCourses(JSON.parse(storedCourses))
+    } else {
+      setCourses(initialCourses)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (courses.length > 0) {
+      localStorage.setItem(COURSES_STORAGE_KEY, JSON.stringify(courses))
+    }
+  }, [courses])
+
+  useEffect(() => {
+    if (products.length > 0) {
+      localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products))
+    }
+  }, [products])
+
 
   const handleCourseAdded = (newCourse: Course) => {
     setCourses((prevCourses) => [newCourse, ...prevCourses])
