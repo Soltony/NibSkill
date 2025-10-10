@@ -22,12 +22,11 @@ import {
 } from '@/components/ui/sidebar';
 import {
   BarChart,
-  BookOpen,
+  BookCopy,
   LayoutDashboard,
   LogOut,
   Radio,
-  Settings,
-  BookCopy
+  Users2
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { users } from '@/lib/data';
@@ -48,6 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const adminNavItems = [
     { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
+    { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true },
   ];
 

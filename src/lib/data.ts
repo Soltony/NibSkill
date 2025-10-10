@@ -1,12 +1,31 @@
+
 import type { ImagePlaceholder } from './placeholder-images';
 import { PlaceHolderImages } from './placeholder-images';
+
+export type District = {
+  id: string;
+  name: string;
+}
+
+export type Branch = {
+  id: string;
+  name: string;
+  districtId: string;
+}
+
+export type Department = {
+  id: string;
+  name: string;
+}
 
 export type User = {
   id: string;
   name: string;
   email: string;
   role: 'admin' | 'staff';
-  department: 'Engineering' | 'Sales' | 'Marketing' | 'HR';
+  department: string;
+  district: string;
+  branch: string;
   avatarUrl: string;
 };
 
@@ -52,6 +71,27 @@ export type Quiz = {
   questions: Question[];
 };
 
+export const districts: District[] = [
+  { id: 'dist-1', name: 'North Region' },
+  { id: 'dist-2', name: 'South Region' },
+  { id: 'dist-3', name: 'East Region' },
+  { id: 'dist-4', name: 'West Region' },
+];
+
+export const branches: Branch[] = [
+  { id: 'br-1', name: 'Main Office', districtId: 'dist-1' },
+  { id: 'br-2', name: 'Downtown Branch', districtId: 'dist-2' },
+  { id: 'br-3', name: 'Suburb Branch', districtId: 'dist-3' },
+  { id: 'br-4', name: 'Westside Office', districtId: 'dist-4' },
+];
+
+export const departments: Department[] = [
+    { id: 'dept-1', name: 'Engineering' },
+    { id: 'dept-2', name: 'Sales' },
+    { id: 'dept-3', name: 'Marketing' },
+    { id: 'dept-4', name: 'HR' },
+];
+
 export const users: User[] = [
   {
     id: 'user-1',
@@ -59,6 +99,8 @@ export const users: User[] = [
     email: 'staff@skillup.com',
     role: 'staff',
     department: 'Engineering',
+    district: 'North Region',
+    branch: 'Main Office',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
   },
   {
@@ -67,6 +109,8 @@ export const users: User[] = [
     email: 'admin@skillup.com',
     role: 'admin',
     department: 'HR',
+    district: 'South Region',
+    branch: 'Downtown Branch',
     avatarUrl: 'https://picsum.photos/seed/user2/100/100',
   },
 ];
