@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { users as initialUsers, type User } from "@/lib/data"
+import { users as initialUsers, roles as initialRoles, type User, type Role, type Permission } from "@/lib/data"
 import {
   Table,
   TableBody,
@@ -41,14 +41,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 
 const USERS_STORAGE_KEY = "skillup-users"
-
-const roles = [
-  { id: "admin", name: "Admin", permissions: ["Create/Edit/Delete Courses", "Manage Users & Roles", "View Analytics"] },
-  { id: "staff", name: "Staff", permissions: ["View Assigned Courses", "Take Quizzes", "View Dashboard"] },
-]
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -57,8 +54,28 @@ const registrationSchema = z.object({
   role: z.enum(["admin", "staff"]),
 })
 
+const CrudPermissions = ({ permissions }: { permissions: Permission }) => {
+  const letters: (keyof Permission)[] = ['c', 'r', 'u', 'd'];
+  return (
+    <div className="flex space-x-1 tracking-widest">
+      {letters.map(letter => (
+        <span 
+          key={letter} 
+          className={cn(
+            'font-mono font-bold',
+            permissions[letter] ? 'text-green-500' : 'text-muted-foreground/30'
+          )}
+        >
+          {letter.toUpperCase()}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export default function SettingsPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [roles, setRoles] = useState<Role[]>(initialRoles)
   const [isLoaded, setIsLoaded] = useState(false)
   const { toast } = useToast()
 
@@ -69,6 +86,9 @@ export default function SettingsPage() {
     } else {
       setUsers(initialUsers)
     }
+    // In a real app, roles would likely be fetched from a server
+    // For now, we'll just use the initial roles from the data file.
+    setRoles(initialRoles)
     setIsLoaded(true)
   }, [])
 
@@ -112,6 +132,8 @@ export default function SettingsPage() {
     toast({ title: "User Registered", description: `${values.name} has been added.` })
     form.reset()
   }
+
+  const permissionKeys = Object.keys(roles[0]?.permissions || {}) as (keyof Role['permissions'])[];
 
   return (
     <div className="space-y-8">
@@ -174,26 +196,55 @@ export default function SettingsPage() {
 
         <TabsContent value="role-management">
           <Card>
-            <CardHeader>
-              <CardTitle>Role Management</CardTitle>
-              <CardDescription>Define roles and their permissions within the application.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Roles</CardTitle>
+                <CardDescription>
+                  Define roles to control user access and permissions across the application.
+                </CardDescription>
+              </div>
+               <Button>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Role
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {roles.map((role) => (
-                <Card key={role.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{role.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-2">Permissions:</p>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      {role.permissions.map((permission, index) => (
-                        <li key={index}>{permission}</li>
+            <CardContent>
+               <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[150px]">Role Name</TableHead>
+                    {permissionKeys.map(key => (
+                      <TableHead key={key} className="capitalize">{key}</TableHead>
+                    ))}
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {roles.map((role) => (
+                    <TableRow key={role.id}>
+                      <TableCell className="font-medium">{role.name}</TableCell>
+                      {permissionKeys.map(key => (
+                        <TableCell key={key}>
+                          <CrudPermissions permissions={role.permissions[key]} />
+                        </TableCell>
                       ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              ))}
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Actions</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>

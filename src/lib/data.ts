@@ -45,7 +45,7 @@ export type Module = {
 };
 
 export type Course = {
-  id: string;
+  id:string;
   title: string;
   description: string;
   productId: string;
@@ -80,6 +80,25 @@ export type Quiz = {
   courseId: string;
   questions: Question[];
 };
+
+export type Permission = {
+  c: boolean;
+  r: boolean;
+  u: boolean;
+  d: boolean;
+}
+
+export type Role = {
+    id: 'admin' | 'staff';
+    name: string;
+    permissions: {
+        courses: Permission;
+        users: Permission;
+        analytics: Permission;
+        products: Permission;
+        quizzes: Permission;
+    }
+}
 
 export const districts: District[] = [
   { id: 'dist-1', name: 'North Region' },
@@ -214,6 +233,31 @@ export const courses: Course[] = [
   },
 ];
 
+export const roles: Role[] = [
+  { 
+    id: "admin", 
+    name: "Admin", 
+    permissions: {
+      courses: { c: true, r: true, u: true, d: true },
+      users: { c: true, r: true, u: true, d: true },
+      analytics: { c: false, r: true, u: false, d: false },
+      products: { c: true, r: true, u: true, d: true },
+      quizzes: { c: true, r: true, u: true, d: true },
+    } 
+  },
+  { 
+    id: "staff", 
+    name: "Staff", 
+    permissions: {
+      courses: { c: false, r: true, u: false, d: false },
+      users: { c: false, r: false, u: false, d: false },
+      analytics: { c: false, r: false, u: false, d: false },
+      products: { c: false, r: false, u: false, d: false },
+      quizzes: { c: false, r: true, u: false, d: false },
+    }
+  },
+]
+
 export const liveSessions: LiveSession[] = [
   {
     id: 'ls-1',
@@ -256,15 +300,13 @@ export const quizzes: Quiz[] = [
       },
       {
         id: 'q1-2',
-        text: 'Which market segment is FusionX primarily targeting?',
-        type: 'multiple-choice',
+        text: 'FusionX is primarily targeting enterprise clients.',
+        type: 'true-false',
         options: [
-          { id: 'o1-2-1', text: 'Small businesses' },
-          { id: 'o1-2-2', text: 'Enterprise clients' },
-          { id: 'o1-2-3', text: 'Individual consumers' },
-          { id: 'o1-2-4', text: 'Educational institutions' },
+            { id: 'true', text: 'True' },
+            { id: 'false', text: 'False' },
         ],
-        correctAnswerId: 'o1-2-2',
+        correctAnswerId: 'true',
       },
     ],
   },
