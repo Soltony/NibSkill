@@ -30,6 +30,7 @@ import {
   Users2,
   Package,
   Settings,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { users } from '@/lib/data';
@@ -57,6 +58,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const adminNavItems = [
     { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
     { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true },
     { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
