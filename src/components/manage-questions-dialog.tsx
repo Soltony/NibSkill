@@ -159,7 +159,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
             <ScrollArea className="h-[60vh] p-4 border rounded-md">
               <div className="space-y-8">
                 {fields.map((question, qIndex) => (
-                  <div key={question.id} className="p-4 border rounded-lg space-y-4 relative bg-muted/20">
+                  <div key={question.id} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
                      <FormField
                       control={form.control}
                       name={`questions.${qIndex}.text`}
@@ -185,7 +185,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
                                   className="space-y-2"
                               >
                                   {(form.watch(`questions.${qIndex}.options`)).map((option, oIndex) => (
-                                      <div key={option.id} className="flex items-center gap-2 group">
+                                      <div key={option.id} className="flex items-center gap-2 group/option">
                                           <RadioGroupItem value={option.id} id={option.id} />
                                           <Label htmlFor={option.id} className="font-normal flex-1 cursor-pointer">
                                               <FormField
@@ -201,7 +201,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
                                                   )}
                                               />
                                           </Label>
-                                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => removeOption(qIndex, oIndex)}>
+                                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover/option:opacity-100" onClick={() => removeOption(qIndex, oIndex)}>
                                             <Trash2 className="h-4 w-4 text-destructive"/>
                                           </Button>
                                       </div>
@@ -251,8 +251,8 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
 
                     <FormMessage>{form.formState.errors.questions?.[qIndex]?.correctAnswerId?.message}</FormMessage>
 
-                    <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => remove(qIndex)}>
-                        <Trash2 className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => remove(qIndex)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 ))}
