@@ -203,7 +203,7 @@ export default function SettingsPage() {
                   Define roles to control user access and permissions across the application.
                 </CardDescription>
               </div>
-               <Button disabled>
+               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Role
               </Button>
             </CardHeader>
@@ -236,8 +236,8 @@ export default function SettingsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <DropdownMenuItem disabled>Edit</DropdownMenuItem>
-                            <DropdownMenuItem disabled className="text-destructive">Delete</DropdownMenuItem>
+                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
