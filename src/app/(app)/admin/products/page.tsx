@@ -38,7 +38,7 @@ export default function ProductManagementPage() {
   }, []);
 
   useEffect(() => {
-    if (products.length > 0) {
+    if (products.length > 0 || JSON.stringify(products) !== JSON.stringify(initialProducts)) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
     }
   }, [products]);

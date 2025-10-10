@@ -78,7 +78,7 @@ export default function CourseManagementPage() {
   }, [courses])
 
   useEffect(() => {
-    if (products.length > 0) {
+    if (products.length > 0 || JSON.stringify(products) !== JSON.stringify(initialProducts)) {
       localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products))
     }
   }, [products])
