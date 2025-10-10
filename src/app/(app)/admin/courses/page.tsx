@@ -2,6 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { courses as initialCourses, products as initialProducts, type Product } from "@/lib/data"
 import {
   Table,
@@ -139,7 +140,11 @@ export default function CourseManagementPage() {
               <TableBody>
                 {courses.map((course) => (
                   <TableRow key={course.id}>
-                    <TableCell className="font-medium">{course.title}</TableCell>
+                    <TableCell className="font-medium">
+                        <Link href={`/courses/${course.id}`} className="hover:underline">
+                            {course.title}
+                        </Link>
+                    </TableCell>
                     <TableCell>{course.productName}</TableCell>
                     <TableCell className="text-center">
                       {course.modules.length}
