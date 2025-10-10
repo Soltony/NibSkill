@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -21,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { AddProductDialog } from "@/components/add-product-dialog"
+import { EditProductDialog } from "@/components/edit-product-dialog"
 import type { Product } from "@/lib/data"
 
 export default function ProductManagementPage() {
@@ -28,6 +28,12 @@ export default function ProductManagementPage() {
 
   const handleProductAdded = (newProduct: Product) => {
     setProducts((prevProducts) => [newProduct, ...prevProducts])
+  }
+
+  const handleProductUpdated = (updatedProduct: Product) => {
+    setProducts((prevProducts) =>
+      prevProducts.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+    )
   }
 
   return (
@@ -78,7 +84,7 @@ export default function ProductManagementPage() {
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.description}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm">Edit</Button>
+                    <EditProductDialog product={product} onProductUpdated={handleProductUpdated} />
                   </TableCell>
                 </TableRow>
               ))}
