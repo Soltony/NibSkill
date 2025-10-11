@@ -183,7 +183,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
                       name={`questions.${qIndex}.text`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Question {qIndex + 1} ({question.type.replace('-', ' ')})</FormLabel>
+                          <FormLabel>Question {qIndex + 1} ({question.type?.replace('-', ' ')})</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter question text" {...field} />
                           </FormControl>
@@ -302,3 +302,5 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
     </Dialog>
   )
 }
+
+    
