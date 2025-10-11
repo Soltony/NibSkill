@@ -118,16 +118,23 @@ export default function LiveSessionsPage() {
 
     const handleAttend = (sessionId: string) => {
         setSessions(prevSessions => {
-            return prevSessions.map(session => {
+            let attendanceMarked = false;
+            const newSessions = prevSessions.map(session => {
                 if (session.id === sessionId) {
                     const attendees = session.attendees || [];
                     if (!attendees.includes(staffUser.id)) {
-                        toast({ title: "Attendance Marked", description: "Your attendance has been recorded." });
+                        attendanceMarked = true;
                         return { ...session, attendees: [...attendees, staffUser.id] };
                     }
                 }
                 return session;
             });
+
+            if (attendanceMarked) {
+                toast({ title: "Attendance Marked", description: "Your attendance has been recorded." });
+            }
+
+            return newSessions;
         });
     }
 
