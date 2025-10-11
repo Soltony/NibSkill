@@ -84,7 +84,7 @@ export default function LiveSessionsPage() {
 
     useEffect(() => {
         const storedSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
-        const allSessions = storedSessions ? JSON.parse(storedSessions).map((s: LiveSession) => ({...s, dateTime: new Date(s.dateTime)})) : initialLiveSessions;
+        const allSessions = storedSessions ? JSON.parse(storedSessions).map((s: any) => ({...s, dateTime: new Date(s.dateTime)})) : initialLiveSessions;
         
         const now = new Date();
         const upcoming = allSessions.filter((s: LiveSession) => new Date(s.dateTime) >= now).sort((a: LiveSession, b: LiveSession) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
