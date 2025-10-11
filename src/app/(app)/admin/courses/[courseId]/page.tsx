@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { courses as initialCourses, quizzes, type Module, type Course } from '@/lib/data';
+import { courses as initialCourses, quizzes as initialQuizzes, type Module, type Course, type Quiz as QuizType } from '@/lib/data';
 import {
   Accordion,
   AccordionContent,
@@ -16,10 +16,12 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Quiz } from '@/components/quiz';
-import { Video, FileText, Presentation } from 'lucide-react';
+import { Video, FileText, Presentation, ExternalLink, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserContext } from '@/app/(app)/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
+import { EditModuleDialog } from '@/components/edit-module-dialog';
+import { ModuleContent } from '@/components/module-content';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -28,6 +30,7 @@ const iconMap = {
 };
 
 const COURSES_STORAGE_KEY = "skillup-courses";
+const QUIZZES_STORAGE_KEY = "skillup-quizzes";
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -37,8 +40,9 @@ export default function CourseDetailPage() {
   
   const [course, setCourse] = useState<Course | undefined>();
   const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [allQuizzes, setAllQuizzes] = useState<QuizType[]>([]);
 
-  const quiz = useMemo(() => quizzes.find((q) => q.courseId === courseId), [courseId]);
+  const quiz = useMemo(() => allQuizzes.find((q) => q.courseId === courseId), [courseId, allQuizzes]);
 
   const [showQuiz, setShowQuiz] = useState(false);
 
@@ -47,6 +51,9 @@ export default function CourseDetailPage() {
     const coursesSource = storedCourses ? JSON.parse(storedCourses) : initialCourses;
     setAllCourses(coursesSource);
     setCourse(coursesSource.find((c: Course) => c.id === courseId));
+    
+    const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
+    setAllQuizzes(storedQuizzes ? JSON.parse(storedQuizzes) : initialQuizzes);
   }, [courseId]);
 
   useEffect(() => {
@@ -94,6 +101,19 @@ export default function CourseDetailPage() {
       return updatedCourse;
     });
   };
+  
+  const handleModuleUpdated = (updatedModule: Module) => {
+    setCourse(prevCourse => {
+      if (!prevCourse) return undefined;
+      const newModules = prevCourse.modules.map(m => m.id === updatedModule.id ? updatedModule : m);
+      const updatedCourse = { ...prevCourse, modules: newModules };
+      
+      setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
+
+      return updatedCourse;
+    });
+  };
+
 
   const handleStartQuiz = () => {
     if (allModulesCompleted) {
@@ -158,15 +178,25 @@ export default function CourseDetailPage() {
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-md">
-                        <p>Placeholder for module content. This could be an embedded video, a PDF viewer, or slides.</p>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id={`complete-${module.id}`}
-                                checked={module.isCompleted}
-                                onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
-                            />
-                            <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
+                    <div className="space-y-4 p-4 bg-muted/50 rounded-md">
+                        <ModuleContent module={module} />
+                        <div className="flex items-center justify-between pt-4 border-t">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={`complete-${module.id}`}
+                                    checked={module.isCompleted}
+                                    onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
+                                />
+                                <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
+                            </div>
+                            {userRole === 'admin' && (
+                                <EditModuleDialog module={module} onModuleUpdated={handleModuleUpdated}>
+                                    <Button variant="ghost" size="sm">
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Edit Module
+                                    </Button>
+                                </EditModuleDialog>
+                            )}
                         </div>
                     </div>
                     </AccordionContent>
@@ -181,10 +211,14 @@ export default function CourseDetailPage() {
             )}
 
             <div className="mt-8 text-center">
-                <Button size="lg" onClick={handleStartQuiz} disabled={!allModulesCompleted}>
-                    Take Quiz
-                </Button>
-                {!allModulesCompleted && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
+                {quiz ? (
+                    <Button size="lg" onClick={handleStartQuiz} disabled={!allModulesCompleted}>
+                        Take Quiz
+                    </Button>
+                ) : (
+                    <p className="text-muted-foreground">Quiz not available for this course.</p>
+                )}
+                {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
             </div>
         </>
       ) : quiz ? (
@@ -196,5 +230,3 @@ export default function CourseDetailPage() {
     </div>
   );
 }
-
-    

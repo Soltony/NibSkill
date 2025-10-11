@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Quiz } from '@/components/quiz';
 import { Video, FileText, Presentation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ModuleContent } from '@/components/module-content';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -144,15 +145,17 @@ export default function CourseDetailPage() {
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-md">
-                        <p>Placeholder for module content. This could be an embedded video, a PDF viewer, or slides.</p>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox
-                                id={`complete-${module.id}`}
-                                checked={module.isCompleted}
-                                onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
-                            />
-                            <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
+                      <div className="space-y-4 p-4 bg-muted/50 rounded-md">
+                        <ModuleContent module={module} />
+                        <div className="flex items-center justify-between pt-4 border-t">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={`complete-${module.id}`}
+                                    checked={module.isCompleted}
+                                    onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
+                                />
+                                <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
+                            </div>
                         </div>
                     </div>
                     </AccordionContent>

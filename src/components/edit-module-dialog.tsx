@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -31,7 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PlusCircle } from "lucide-react"
 import type { Module } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Textarea } from "./ui/textarea"
@@ -44,55 +43,61 @@ const formSchema = z.object({
   content: z.string().url("Please enter a valid URL."),
 })
 
-type AddModuleDialogProps = {
-  onModuleAdded: (module: Module) => void
+type EditModuleDialogProps = {
+  module: Module
+  onModuleUpdated: (module: Module) => void
+  children: React.ReactNode
 }
 
-export function AddModuleDialog({ onModuleAdded }: AddModuleDialogProps) {
+export function EditModuleDialog({ module, onModuleUpdated, children }: EditModuleDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
-      duration: 10,
-      description: "",
-      content: "",
+      title: module.title,
+      type: module.type,
+      duration: module.duration,
+      description: module.description,
+      content: module.content,
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const newModule: Module = {
-      id: `mod-${Date.now()}`,
-      title: values.title,
-      type: values.type,
-      duration: values.duration,
-      description: values.description,
-      content: values.content,
-      isCompleted: false,
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        title: module.title,
+        type: module.type,
+        duration: module.duration,
+        description: module.description,
+        content: module.content,
+      })
     }
-    onModuleAdded(newModule)
+  }, [open, module, form])
+
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    const updatedModule: Module = {
+      ...module,
+      ...values
+    }
+    onModuleUpdated(updatedModule)
     toast({
-      title: "Module Added",
-      description: `The module "${newModule.title}" has been added.`,
+      title: "Module Updated",
+      description: `The module "${updatedModule.title}" has been updated.`,
     })
     setOpen(false)
-    form.reset()
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Module
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add New Module</DialogTitle>
+          <DialogTitle>Edit Module</DialogTitle>
           <DialogDescription>
-            Fill in the details for the new course module.
+            Update the details for this course module.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -110,7 +115,7 @@ export function AddModuleDialog({ onModuleAdded }: AddModuleDialogProps) {
                 </FormItem>
               )}
             />
-            <FormField
+             <FormField
                 control={form.control}
                 name="description"
                 render={({ field }) => (
@@ -130,7 +135,7 @@ export function AddModuleDialog({ onModuleAdded }: AddModuleDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Module Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                               <SelectTrigger>
                                   <SelectValue placeholder="Select a type" />
@@ -174,7 +179,7 @@ export function AddModuleDialog({ onModuleAdded }: AddModuleDialogProps) {
                 )}
             />
             <DialogFooter>
-              <Button type="submit">Add Module</Button>
+              <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>
         </Form>
