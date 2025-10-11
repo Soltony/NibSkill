@@ -57,6 +57,13 @@ export type Course = {
   progress: number;
 };
 
+export type LearningPath = {
+  id: string;
+  title: string;
+  description: string;
+  courseIds: string[];
+}
+
 export type LiveSession = {
   id: string;
   title: string;
@@ -256,6 +263,15 @@ export const courses: Course[] = [
         { id: 'm4-3', title: 'Handling Objections', type: 'pdf', duration: 15, isCompleted: true },
     ],
   },
+];
+
+export const learningPaths: LearningPath[] = [
+    {
+        id: 'lp-1',
+        title: 'New Hire Onboarding',
+        description: 'The essential courses for all new hires to get up to speed with company products and culture.',
+        courseIds: ['course-1', 'course-4']
+    }
 ];
 
 export const roles: Role[] = [

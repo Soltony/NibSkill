@@ -32,6 +32,7 @@ import {
   Settings,
   ClipboardCheck,
   Award,
+  BookMarked,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { users } from '@/lib/data';
@@ -53,12 +54,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
     { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
   ];
 
   const adminNavItems = [
     { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
     { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true },
@@ -119,7 +122,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <SidebarMenuItem key={item.href}>
                     <Link href={item.href}>
                       <SidebarMenuButton
-                        isActive={pathname === item.href}
+                        isActive={pathname.startsWith(item.href)}
                         tooltip={item.label}
                       >
                         <item.icon />
