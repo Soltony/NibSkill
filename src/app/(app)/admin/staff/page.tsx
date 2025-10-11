@@ -1,5 +1,6 @@
 
-import { districts, branches, departments } from "@/lib/data"
+"use client"
+import { districts as initialDistricts, branches as initialBranches, departments as initialDepartments } from "@/lib/data"
 import {
   Table,
   TableBody,
@@ -8,7 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -18,8 +18,17 @@ import {
 } from "@/components/ui/card"
 import { PlusCircle } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
+import { useState, useEffect } from "react"
+import type { District, Branch, Department } from "@/lib/data"
 
 export default function StaffManagementPage() {
+  // In a real app, this would be fetched from a server.
+  // For the prototype, we just use the static data.
+  const [districts, setDistricts] = useState<District[]>(initialDistricts)
+  const [branches, setBranches] = useState<Branch[]>(initialBranches)
+  const [departments, setDepartments] = useState<Department[]>(initialDepartments)
+
   return (
     <div className="space-y-8">
       <div>
@@ -41,9 +50,12 @@ export default function StaffManagementPage() {
                         <CardTitle>All Districts</CardTitle>
                         <CardDescription>A list of all registered districts.</CardDescription>
                     </div>
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add District
-                    </Button>
+                    <FeatureNotImplementedDialog
+                        title="Add New District"
+                        description="In a full application, this would open a form to create a new organizational district."
+                        triggerText="Add District"
+                        triggerIcon={<PlusCircle className="mr-2 h-4 w-4" />}
+                    />
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -58,7 +70,15 @@ export default function StaffManagementPage() {
                             <TableRow key={district.id}>
                             <TableCell className="font-medium">{district.name}</TableCell>
                             <TableCell className="text-right">
-                                <Button variant="outline" size="sm">Edit</Button>
+                                <FeatureNotImplementedDialog
+                                    title="Edit District"
+                                    description="This would open a form to modify the district name."
+                                    isMenuItem={false}
+                                    triggerVariant="outline"
+                                    triggerSize="sm"
+                                >
+                                    Edit
+                                </FeatureNotImplementedDialog>
                             </TableCell>
                             </TableRow>
                         ))}
@@ -74,9 +94,12 @@ export default function StaffManagementPage() {
                         <CardTitle>All Branches</CardTitle>
                         <CardDescription>A list of all registered branches.</CardDescription>
                     </div>
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add Branch
-                    </Button>
+                     <FeatureNotImplementedDialog
+                        title="Add New Branch"
+                        description="In a full application, this would open a form to create a new branch and assign it to a district."
+                        triggerText="Add Branch"
+                        triggerIcon={<PlusCircle className="mr-2 h-4 w-4" />}
+                    />
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -93,7 +116,15 @@ export default function StaffManagementPage() {
                                 <TableCell className="font-medium">{branch.name}</TableCell>
                                 <TableCell>{districts.find(d => d.id === branch.districtId)?.name}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="outline" size="sm">Edit</Button>
+                                    <FeatureNotImplementedDialog
+                                        title="Edit Branch"
+                                        description="This would open a form to modify the branch details."
+                                        isMenuItem={false}
+                                        triggerVariant="outline"
+                                        triggerSize="sm"
+                                    >
+                                        Edit
+                                    </FeatureNotImplementedDialog>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -109,9 +140,12 @@ export default function StaffManagementPage() {
                         <CardTitle>All Departments</CardTitle>
                         <CardDescription>A list of all registered departments.</CardDescription>
                     </div>
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add Department
-                    </Button>
+                    <FeatureNotImplementedDialog
+                        title="Add New Department"
+                        description="In a full application, this would open a form to create a new department."
+                        triggerText="Add Department"
+                        triggerIcon={<PlusCircle className="mr-2 h-4 w-4" />}
+                    />
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -126,7 +160,15 @@ export default function StaffManagementPage() {
                             <TableRow key={department.id}>
                                 <TableCell className="font-medium">{department.name}</TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="outline" size="sm">Edit</Button>
+                                    <FeatureNotImplementedDialog
+                                        title="Edit Department"
+                                        description="This would open a form to modify the department name."
+                                        isMenuItem={false}
+                                        triggerVariant="outline"
+                                        triggerSize="sm"
+                                    >
+                                        Edit
+                                    </FeatureNotImplementedDialog>
                                 </TableCell>
                             </TableRow>
                         ))}

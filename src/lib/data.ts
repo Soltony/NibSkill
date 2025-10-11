@@ -97,6 +97,7 @@ export type Role = {
         analytics: Permission;
         products: Permission;
         quizzes: Permission;
+        staff: Permission;
     }
 }
 
@@ -243,6 +244,7 @@ export const roles: Role[] = [
       analytics: { c: false, r: true, u: false, d: false },
       products: { c: true, r: true, u: true, d: true },
       quizzes: { c: true, r: true, u: true, d: true },
+      staff: { c: true, r: true, u: true, d: true },
     } 
   },
   { 
@@ -254,6 +256,7 @@ export const roles: Role[] = [
       analytics: { c: false, r: false, u: false, d: false },
       products: { c: false, r: false, u: false, d: false },
       quizzes: { c: false, r: true, u: false, d: false },
+      staff: { c: false, r: false, u: false, d: false },
     }
   },
 ]
@@ -307,6 +310,13 @@ export const quizzes: Quiz[] = [
             { id: 'false', text: 'False' },
         ],
         correctAnswerId: 'true',
+      },
+       {
+        id: 'q1-3',
+        text: 'What technology powers the new analytics features? ______ Learning.',
+        type: 'fill-in-the-blank',
+        options: [],
+        correctAnswerId: 'Machine',
       },
     ],
   },
