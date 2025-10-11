@@ -18,7 +18,12 @@ import {
 const SESSIONS_STORAGE_KEY = "skillup-live-sessions"
 
 const SessionCard = ({ session }: { session: LiveSession }) => {
-    const isPast = new Date(session.dateTime) < new Date();
+    const now = new Date();
+    const sessionTime = new Date(session.dateTime);
+    const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // Assuming 1-hour duration
+
+    const isPast = now > endTime;
+    const isLive = now >= sessionTime && now <= endTime;
     
     return (
         <Card className="flex flex-col">
@@ -27,10 +32,14 @@ const SessionCard = ({ session }: { session: LiveSession }) => {
                 <Badge variant="secondary" className="w-fit mb-2">{session.platform}</Badge>
                 {isPast ? (
                     <Badge variant="outline">Past</Badge>
-                ) : (
+                ) : isLive ? (
                     <Badge variant="destructive" className="animate-pulse">
                         <Radio className="mr-1 h-3 w-3"/>
-                        Live Soon
+                        Live Now
+                    </Badge>
+                ) : (
+                    <Badge variant="secondary">
+                        Upcoming
                     </Badge>
                 )}
               </div>
@@ -81,18 +90,32 @@ const SessionCard = ({ session }: { session: LiveSession }) => {
 export default function LiveSessionsPage() {
     const [upcomingSessions, setUpcomingSessions] = useState<LiveSession[]>([]);
     const [pastSessions, setPastSessions] = useState<LiveSession[]>([]);
+    const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
         const storedSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
         const allSessions = storedSessions ? JSON.parse(storedSessions).map((s: any) => ({...s, dateTime: new Date(s.dateTime)})) : initialLiveSessions;
         
         const now = new Date();
-        const upcoming = allSessions.filter((s: LiveSession) => new Date(s.dateTime) >= now).sort((a: LiveSession, b: LiveSession) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
-        const past = allSessions.filter((s: LiveSession) => new Date(s.dateTime) < now).sort((a: LiveSession, b: LiveSession) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+        const upcoming = allSessions.filter((s: LiveSession) => {
+            const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
+            return now < endTime;
+        }).sort((a: LiveSession, b: LiveSession) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+
+        const past = allSessions.filter((s: LiveSession) => {
+            const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
+            return now > endTime;
+        }).sort((a: LiveSession, b: LiveSession) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
         setUpcomingSessions(upcoming);
         setPastSessions(past);
+        setIsLoaded(true);
     }, []);
+
+    if (!isLoaded) {
+      // You can return a loading spinner here
+      return <div>Loading sessions...</div>;
+    }
 
   return (
     <div className="space-y-8">

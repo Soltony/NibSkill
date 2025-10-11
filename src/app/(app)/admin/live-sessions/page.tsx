@@ -77,10 +77,11 @@ export default function LiveSessionManagementPage() {
     }
   }
 
-  const getStatus = (dateTime: Date): { text: "Upcoming" | "Past" | "Live", variant: "default" | "secondary" | "destructive" } => {
+  const getStatus = (dateTime: Date): { text: "Upcoming" | "Past" | "Live", variant: "default" | "secondary" | "destructive" | "outline" } => {
     const now = new Date();
     const sessionTime = new Date(dateTime);
     const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // Assuming 1-hour duration
+    
     if (now < sessionTime) return { text: "Upcoming", variant: "secondary" };
     if (now > endTime) return { text: "Past", variant: "outline" };
     return { text: "Live", variant: "destructive" };
