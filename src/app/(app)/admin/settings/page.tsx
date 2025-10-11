@@ -116,7 +116,7 @@ export default function SettingsPage() {
     }
   });
 
-  const { fields: regFields, reset: resetRegFields } = useFieldArray({
+  const { fields: regFields } = useFieldArray({
     control: registrationFieldsForm.control,
     name: "fields"
   });
@@ -147,12 +147,13 @@ export default function SettingsPage() {
   useEffect(() => {
     if(!isLoaded) return;
     const currentSettings = registrationFieldsForm.getValues('fields');
-    const newAvailableFields = availableFields.map(af => {
+    const newFieldSettings = availableFields.map(af => {
         const existing = currentSettings.find(cs => cs.id === af.id);
         return existing || { ...af, enabled: false, required: false };
     });
-    resetRegFields(newAvailableFields);
-  }, [availableFields, isLoaded, resetRegFields, registrationFieldsForm])
+    // Reset the entire form's `fields` array
+    registrationFieldsForm.reset({ fields: newFieldSettings });
+  }, [availableFields, isLoaded, registrationFieldsForm])
 
 
   useEffect(() => {
@@ -174,7 +175,7 @@ export default function SettingsPage() {
   }, [availableFields, isLoaded]);
 
   const onRegistrationFieldsSubmit = (values: z.infer<typeof registrationFieldsSchema>) => {
-    localStorage.setItem(REGISTRATION_FIELDS_STORAGE_KEY, JSON.stringify(values.fields));
+    localStorage.setItem(REGISTRATION_FIELDS_STORAGE_KEY + "-settings", JSON.stringify(values.fields));
     toast({
         title: "Settings Saved",
         description: "Your registration form settings have been updated.",
@@ -612,3 +613,5 @@ export default function SettingsPage() {
     </>
   )
 }
+
+    
