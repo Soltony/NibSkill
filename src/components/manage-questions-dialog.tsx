@@ -302,5 +302,3 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
     </Dialog>
   )
 }
-
-    
