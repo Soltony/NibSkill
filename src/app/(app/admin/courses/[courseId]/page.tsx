@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Quiz } from '@/components/quiz';
 import { Video, FileText, Presentation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { UserContext } from '@/app/(app)/layout';
+import { AddModuleDialog } from '@/components/add-module-dialog';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -31,6 +33,7 @@ const QUIZZES_STORAGE_KEY = "skillup-quizzes";
 export default function CourseDetailPage() {
   const params = useParams();
   const courseId = typeof params.courseId === 'string' ? params.courseId : '';
+  const userRole = useContext(UserContext);
   const { toast } = useToast();
   
   const [course, setCourse] = useState<Course | undefined>();
@@ -46,14 +49,18 @@ export default function CourseDetailPage() {
     const coursesSource = storedCourses ? JSON.parse(storedCourses) : initialCourses;
     setAllCourses(coursesSource);
     setCourse(coursesSource.find((c: Course) => c.id === courseId));
-
+    
     const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
     setAllQuizzes(storedQuizzes ? JSON.parse(storedQuizzes) : initialQuizzes);
   }, [courseId]);
 
   useEffect(() => {
-    if (allCourses.length > 0) {
-      localStorage.setItem(COURSES_STORAGE_KEY, JSON.stringify(allCourses));
+    // Only save if allCourses has been loaded
+    if(allCourses.length > 0) {
+      const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY);
+      if (JSON.stringify(allCourses) !== storedCourses) {
+        localStorage.setItem(COURSES_STORAGE_KEY, JSON.stringify(allCourses));
+      }
     }
   }, [allCourses]);
 
@@ -75,6 +82,17 @@ export default function CourseDetailPage() {
       if (!prevCourse) return undefined;
       const newModules = prevCourse.modules.map(m => m.id === moduleId ? { ...m, isCompleted: completed } : m);
       const updatedCourse = { ...prevCourse, modules: newModules };
+      
+      setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
+
+      return updatedCourse;
+    });
+  };
+
+  const handleModuleAdded = (newModule: Module) => {
+    setCourse(prevCourse => {
+      if (!prevCourse) return undefined;
+      const updatedCourse = { ...prevCourse, modules: [...prevCourse.modules, newModule] };
       
       setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
 
@@ -129,6 +147,7 @@ export default function CourseDetailPage() {
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold font-headline">Course Modules</h2>
+        {userRole === 'admin' && <AddModuleDialog onModuleAdded={handleModuleAdded} />}
       </div>
 
       {!showQuiz ? (
@@ -162,6 +181,7 @@ export default function CourseDetailPage() {
             {course.modules.length === 0 && (
               <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">
                 <p>No modules have been added to this course yet.</p>
+                {userRole === 'admin' && <p>Click "Add Module" to get started.</p>}
               </div>
             )}
 
