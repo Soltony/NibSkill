@@ -203,6 +203,10 @@ export const users: User[] = [
     avatarUrl: 'https://picsum.photos/seed/user2/100/100',
     completedCourses: []
   },
+  { id: 'user-3', name: 'Samira Khan', email: 'samira.khan@example.com', avatarUrl: 'https://picsum.photos/seed/user3/100/100', role: 'staff', coursesCompleted: 12, department: 'Engineering', district: 'North Region', branch: 'Main Office' },
+  { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', coursesCompleted: 10, department: 'Sales', district: 'South Region', branch: 'Downtown Branch' },
+  { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', coursesCompleted: 9, department: 'Engineering', district: 'North Region', branch: 'Main Office' },
+  { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', coursesCompleted: 8, department: 'Marketing', district: 'East Region', branch: 'Suburb Branch' },
 ];
 
 export const products: Product[] = [
@@ -417,6 +421,23 @@ export const quizzes: Quiz[] = [
   },
 ];
 
+const detailedProgressReport = [
+    ...users.map(user => {
+        return courses.map(course => ({
+            userId: user.id,
+            userName: user.name,
+            userEmail: user.email,
+            department: user.department,
+            district: user.district,
+            branch: user.branch,
+            courseId: course.id,
+            courseTitle: course.title,
+            progress: user.id === 'user-1' && course.id === 'course-1' ? 33 : (user.completedCourses?.find(cc => cc.courseId === course.id) ? 100 : Math.floor(Math.random() * 80)),
+        }));
+    }).flat()
+];
+
+
 export const analyticsData = {
   kpis: {
     totalUsers: 142,
@@ -484,7 +505,8 @@ export const analyticsData = {
       correctAttempts: 130,
       incorrectAttempts: 2,
     },
-  ]
+  ],
+  detailedProgressReport,
 };
 
 export const notifications: Notification[] = [
@@ -510,5 +532,3 @@ export const notifications: Notification[] = [
         isRead: true,
     },
 ];
-
-

@@ -1,5 +1,8 @@
 
-import { analyticsData } from "@/lib/data"
+"use client"
+
+import { useState, useMemo } from 'react';
+import { analyticsData, departments, districts, branches } from "@/lib/data"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, Award, Medal, HelpCircle } from "lucide-react"
 import { AnalyticsCharts } from "@/components/analytics-charts"
@@ -15,6 +18,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 const rankIcons = [
     <Medal key="gold" className="h-6 w-6 text-yellow-500" />,
@@ -23,7 +28,35 @@ const rankIcons = [
 ];
 
 export default function AnalyticsPage() {
-  const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement, quizQuestionAnalysis } = analyticsData
+  const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement, quizQuestionAnalysis, detailedProgressReport } = analyticsData
+  
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [districtFilter, setDistrictFilter] = useState('all');
+  const [branchFilter, setBranchFilter] = useState('all');
+
+  const filteredReport = useMemo(() => {
+    return detailedProgressReport.filter(item => {
+        const departmentMatch = departmentFilter === 'all' || item.department === departmentFilter;
+        const districtMatch = districtFilter === 'all' || item.district === districtFilter;
+        const branchMatch = branchFilter === 'all' || item.branch === branchFilter;
+        return departmentMatch && districtMatch && branchMatch;
+    });
+  }, [detailedProgressReport, departmentFilter, districtFilter, branchFilter]);
+
+  const resetFilters = () => {
+    setDepartmentFilter('all');
+    setDistrictFilter('all');
+    setBranchFilter('all');
+  }
+
+  const availableBranches = useMemo(() => {
+    if (districtFilter === 'all') return branches;
+    const district = districts.find(d => d.name === districtFilter);
+    return branches.filter(b => b.districtId === district?.id);
+  }, [districtFilter]);
+  
+  // Disable branch filter if selected district has no branches
+  const isBranchFilterDisabled = availableBranches.length === 0;
 
   return (
     <div className="space-y-8">
@@ -156,6 +189,82 @@ export default function AnalyticsPage() {
             </Card>
         </div>
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle>Detailed Progress Report</CardTitle>
+          <CardDescription>
+            Filterable report of course progress for every staff member.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex flex-wrap items-center gap-4">
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by Department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={districtFilter} onValueChange={(value) => { setDistrictFilter(value); setBranchFilter('all'); }}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by District" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Districts</SelectItem>
+                {districts.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={branchFilter} onValueChange={setBranchFilter} disabled={isBranchFilterDisabled}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by Branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                 {availableBranches.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="ghost" onClick={resetFilters}>Reset Filters</Button>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Staff Member</TableHead>
+                <TableHead>Course</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>District</TableHead>
+                <TableHead>Branch</TableHead>
+                <TableHead className="w-[150px]">Progress</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredReport.length > 0 ? filteredReport.map((item, index) => (
+                <TableRow key={`${item.userId}-${item.courseId}-${index}`}>
+                  <TableCell className="font-medium">{item.userName}</TableCell>
+                  <TableCell>{item.courseTitle}</TableCell>
+                  <TableCell>{item.department}</TableCell>
+                  <TableCell>{item.district}</TableCell>
+                  <TableCell>{item.branch}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Progress value={item.progress} className="h-2" />
+                      <span className="text-muted-foreground font-mono text-sm">{item.progress}%</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )) : (
+                <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                        No results match your filters.
+                    </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
       
       <Card>
         <CardHeader>
