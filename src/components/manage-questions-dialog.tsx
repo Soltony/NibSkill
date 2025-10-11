@@ -121,7 +121,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
           text: "",
           type: 'fill-in-the-blank',
           options: [],
-          correctAnswerId: "", // This will hold the correct answer text
+          correctAnswerId: "",
         };
         break;
     }
