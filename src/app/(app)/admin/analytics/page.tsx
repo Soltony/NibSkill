@@ -1,10 +1,10 @@
 
 "use client"
 
-import { useState, useMemo } from 'react';
-import { analyticsData, departments, districts, branches } from "@/lib/data"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, Award, Medal, HelpCircle } from "lucide-react"
+import { useState, useMemo, useEffect } from 'react';
+import { analyticsData, departments, districts, branches, courses as allCourses } from "@/lib/data"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, Award, Medal, HelpCircle, Search } from "lucide-react"
 import { AnalyticsCharts } from "@/components/analytics-charts"
 import {
   Table,
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const rankIcons = [
     <Medal key="gold" className="h-6 w-6 text-yellow-500" />,
@@ -27,26 +28,46 @@ const rankIcons = [
     <Medal key="bronze" className="h-6 w-6 text-amber-700" />,
 ];
 
+const ITEMS_PER_PAGE = 10;
+
 export default function AnalyticsPage() {
   const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement, quizQuestionAnalysis, detailedProgressReport } = analyticsData
   
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [districtFilter, setDistrictFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('all');
+  const [courseFilter, setCourseFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredReport = useMemo(() => {
     return detailedProgressReport.filter(item => {
         const departmentMatch = departmentFilter === 'all' || item.department === departmentFilter;
         const districtMatch = districtFilter === 'all' || item.district === districtFilter;
         const branchMatch = branchFilter === 'all' || item.branch === branchFilter;
-        return departmentMatch && districtMatch && branchMatch;
+        const courseMatch = courseFilter === 'all' || item.courseId === courseFilter;
+        const searchMatch = searchTerm === '' || 
+                            item.userName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            item.courseTitle.toLowerCase().includes(searchTerm.toLowerCase());
+        return departmentMatch && districtMatch && branchMatch && courseMatch && searchMatch;
     });
-  }, [detailedProgressReport, departmentFilter, districtFilter, branchFilter]);
+  }, [detailedProgressReport, departmentFilter, districtFilter, branchFilter, courseFilter, searchTerm]);
+  
+  const totalPages = Math.ceil(filteredReport.length / ITEMS_PER_PAGE);
+  const paginatedReport = filteredReport.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    // Reset to first page whenever filters change
+    setCurrentPage(1);
+  }, [departmentFilter, districtFilter, branchFilter, courseFilter, searchTerm]);
+
 
   const resetFilters = () => {
     setDepartmentFilter('all');
     setDistrictFilter('all');
     setBranchFilter('all');
+    setCourseFilter('all');
+    setSearchTerm('');
   }
 
   const availableBranches = useMemo(() => {
@@ -55,7 +76,6 @@ export default function AnalyticsPage() {
     return branches.filter(b => b.districtId === district?.id);
   }, [districtFilter]);
   
-  // Disable branch filter if selected district has no branches
   const isBranchFilterDisabled = availableBranches.length === 0;
 
   return (
@@ -198,9 +218,27 @@ export default function AnalyticsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 flex flex-wrap items-center gap-4">
+          <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="relative col-span-full lg:col-span-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search by staff or course..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                />
+            </div>
+            <Select value={courseFilter} onValueChange={setCourseFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Course" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Courses</SelectItem>
+                {allCourses.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger>
                 <SelectValue placeholder="Filter by Department" />
               </SelectTrigger>
               <SelectContent>
@@ -209,7 +247,7 @@ export default function AnalyticsPage() {
               </SelectContent>
             </Select>
             <Select value={districtFilter} onValueChange={(value) => { setDistrictFilter(value); setBranchFilter('all'); }}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger>
                 <SelectValue placeholder="Filter by District" />
               </SelectTrigger>
               <SelectContent>
@@ -218,7 +256,7 @@ export default function AnalyticsPage() {
               </SelectContent>
             </Select>
             <Select value={branchFilter} onValueChange={setBranchFilter} disabled={isBranchFilterDisabled}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger>
                 <SelectValue placeholder="Filter by Branch" />
               </SelectTrigger>
               <SelectContent>
@@ -226,7 +264,7 @@ export default function AnalyticsPage() {
                  {availableBranches.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button variant="ghost" onClick={resetFilters}>Reset Filters</Button>
+             <Button variant="ghost" onClick={resetFilters} className="lg:col-start-5">Reset Filters</Button>
           </div>
           <Table>
             <TableHeader>
@@ -240,7 +278,7 @@ export default function AnalyticsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredReport.length > 0 ? filteredReport.map((item, index) => (
+              {paginatedReport.length > 0 ? paginatedReport.map((item, index) => (
                 <TableRow key={`${item.userId}-${item.courseId}-${index}`}>
                   <TableCell className="font-medium">{item.userName}</TableCell>
                   <TableCell>{item.courseTitle}</TableCell>
@@ -264,6 +302,20 @@ export default function AnalyticsPage() {
             </TableBody>
           </Table>
         </CardContent>
+        <CardFooter className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+                Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredReport.length)} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredReport.length)} of {filteredReport.length} entries.
+            </div>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>
+                    Previous
+                </Button>
+                <span className="text-sm font-medium">{currentPage} / {totalPages > 0 ? totalPages : 1}</span>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages || totalPages === 0}>
+                    Next
+                </Button>
+            </div>
+        </CardFooter>
       </Card>
       
       <Card>
