@@ -385,4 +385,23 @@ export const analyticsData = {
     { range: '80-89%', count: 45 },
     { range: '90-100%', count: 35 },
   ],
+  leaderboard: [
+    { id: 'user-3', name: 'Samira Khan', avatarUrl: 'https://picsum.photos/seed/user3/100/100', coursesCompleted: 12, department: 'Engineering' },
+    { id: 'user-4', name: 'David Chen', avatarUrl: 'https://picsum.photos/seed/user4/100/100', coursesCompleted: 10, department: 'Sales' },
+    { id: 'user-5', name: 'Emily White', avatarUrl: 'https://picsum.photos/seed/user5/100/100', coursesCompleted: 9, department: 'Engineering' },
+    { id: 'user-6', name: 'Michael Brown', avatarUrl: 'https://picsum.photos/seed/user6/100/100', coursesCompleted: 8, department: 'Marketing' },
+    { id: 'user-1', name: 'Alex Johnson', avatarUrl: 'https://picsum.photos/seed/user1/100/100', coursesCompleted: 7, department: 'Engineering' },
+  ],
+  courseEngagement: {
+    mostCompleted: [
+        { id: 'course-4', title: 'Sales Strategy for Nova Suite', completionRate: 98 },
+        { id: 'course-1', title: 'New Product Launch: FusionX', completionRate: 95 },
+        { id: 'course-3', title: 'Technical Deep Dive: Pulsar Engine', completionRate: 91 },
+    ],
+    leastCompleted: [
+        { id: 'course-x', title: 'Legacy Systems 101', completionRate: 45 },
+        { id: 'course-y', title: 'Advanced Compliance Training', completionRate: 52 },
+        { id: 'course-2', title: 'Advanced User Training for Centauri', completionRate: 61 },
+    ]
+  }
 };

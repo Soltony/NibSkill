@@ -1,18 +1,38 @@
+
 import { analyticsData } from "@/lib/data"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Target, CheckCircle } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, Award } from "lucide-react"
 import { AnalyticsCharts } from "@/components/analytics-charts"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
+import { Badge } from "@/components/ui/badge"
 
 export default function AnalyticsPage() {
-  const { kpis, completionByDept, scoresDistribution } = analyticsData
+  const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement } = analyticsData
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Analytics Dashboard</h1>
-        <p className="text-muted-foreground">
-          Insights into your team's learning and development progress.
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+            <h1 className="text-3xl font-bold font-headline">Analytics Dashboard</h1>
+            <p className="text-muted-foreground">
+              Insights into your team's learning and development progress.
+            </p>
+        </div>
+        <FeatureNotImplementedDialog
+            title="Generate Report"
+            description="In a full application, this would generate a comprehensive CSV report of all analytics data for offline analysis and distribution to department heads."
+            triggerText="Download Report"
+            triggerIcon={<Download className="mr-2 h-4 w-4" />}
+        />
       </div>
       
       <div className="grid gap-4 md:grid-cols-3">
@@ -46,6 +66,84 @@ export default function AnalyticsPage() {
             <p className="text-xs text-muted-foreground">On first attempt</p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Staff Leaderboard</CardTitle>
+            <CardDescription>Top performers based on courses completed.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rank</TableHead>
+                  <TableHead>Staff Member</TableHead>
+                  <TableHead className="text-center">Courses Completed</TableHead>
+                  <TableHead>Department</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboard.map((user, index) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{index + 1}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                            <AvatarImage src={user.avatarUrl} alt={user.name} />
+                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{user.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">{user.coursesCompleted}</TableCell>
+                    <TableCell>{user.department}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <TrendingUp className="h-5 w-5 text-green-500" />
+                        Most Completed Courses
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ul className="space-y-3">
+                       {courseEngagement.mostCompleted.map(course => (
+                         <li key={course.id} className="flex justify-between items-center text-sm">
+                            <span className="font-medium">{course.title}</span>
+                            <Badge variant="secondary">{course.completionRate}%</Badge>
+                         </li>
+                       ))}
+                    </ul>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <TrendingDown className="h-5 w-5 text-red-500" />
+                        Least Completed Courses
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ul className="space-y-3">
+                       {courseEngagement.leastCompleted.map(course => (
+                         <li key={course.id} className="flex justify-between items-center text-sm">
+                            <span className="font-medium">{course.title}</span>
+                            <Badge variant="outline">{course.completionRate}%</Badge>
+                         </li>
+                       ))}
+                    </ul>
+                </CardContent>
+            </Card>
+        </div>
       </div>
 
       <AnalyticsCharts 
