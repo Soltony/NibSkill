@@ -35,6 +35,7 @@ import {
 import type { LiveSession } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { format } from 'date-fns'
+import { Wand2 } from "lucide-react"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -59,6 +60,8 @@ export function EditLiveSessionDialog({ session, onSessionUpdated }: EditLiveSes
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   })
+  
+  const watchedPlatform = form.watch("platform");
 
   useEffect(() => {
     if (open) {
@@ -69,6 +72,23 @@ export function EditLiveSessionDialog({ session, onSessionUpdated }: EditLiveSes
       })
     }
   }, [open, session, form])
+
+  const handleGenerateLink = () => {
+    let url = "";
+    if (watchedPlatform === "Zoom") {
+        const meetingId = Math.floor(1000000000 + Math.random() * 9000000000);
+        url = `https://your-company.zoom.us/j/${meetingId}`;
+    } else if (watchedPlatform === "Google Meet") {
+        const chars = 'abcdefghijklmnopqrstuvwxyz';
+        const code = Array.from({ length: 11 }, (_, i) => {
+            if (i === 3 || i === 8) return '-';
+            return chars[Math.floor(Math.random() * chars.length)];
+        }).join('');
+        url = `https://meet.google.com/${code}`;
+    }
+    form.setValue("joinUrl", url, { shouldValidate: true });
+  }
+
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const updatedSession: LiveSession = {
@@ -190,9 +210,15 @@ export function EditLiveSessionDialog({ session, onSessionUpdated }: EditLiveSes
               render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel>Join URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} />
-                  </FormControl>
+                  <div className="flex gap-2">
+                    <FormControl>
+                        <Input placeholder="https://..." {...field} />
+                    </FormControl>
+                    <Button type="button" variant="outline" onClick={handleGenerateLink} disabled={!watchedPlatform}>
+                        <Wand2 className="mr-2 h-4 w-4" />
+                        Generate
+                    </Button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

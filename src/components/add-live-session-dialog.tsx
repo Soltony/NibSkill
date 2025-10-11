@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PlusCircle } from "lucide-react"
+import { PlusCircle, Wand2 } from "lucide-react"
 import type { LiveSession } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 
@@ -68,6 +68,24 @@ export function AddLiveSessionDialog({ onSessionAdded }: AddLiveSessionDialogPro
       recordingUrl: "",
     },
   })
+
+  const watchedPlatform = form.watch("platform");
+
+  const handleGenerateLink = () => {
+    let url = "";
+    if (watchedPlatform === "Zoom") {
+        const meetingId = Math.floor(1000000000 + Math.random() * 9000000000);
+        url = `https://your-company.zoom.us/j/${meetingId}`;
+    } else if (watchedPlatform === "Google Meet") {
+        const chars = 'abcdefghijklmnopqrstuvwxyz';
+        const code = Array.from({ length: 11 }, (_, i) => {
+            if (i === 3 || i === 8) return '-';
+            return chars[Math.floor(Math.random() * chars.length)];
+        }).join('');
+        url = `https://meet.google.com/${code}`;
+    }
+    form.setValue("joinUrl", url, { shouldValidate: true });
+  }
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const newSession: LiveSession = {
@@ -192,9 +210,15 @@ export function AddLiveSessionDialog({ onSessionAdded }: AddLiveSessionDialogPro
               render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel>Join URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} />
-                  </FormControl>
+                   <div className="flex gap-2">
+                        <FormControl>
+                            <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <Button type="button" variant="outline" onClick={handleGenerateLink} disabled={!watchedPlatform}>
+                            <Wand2 className="mr-2 h-4 w-4" />
+                            Generate
+                        </Button>
+                   </div>
                   <FormMessage />
                 </FormItem>
               )}
