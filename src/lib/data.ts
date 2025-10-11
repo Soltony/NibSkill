@@ -28,6 +28,7 @@ export type User = {
   branch: string;
   avatarUrl: string;
   phoneNumber?: string;
+  completedCourses?: { courseId: string; completionDate: Date; score: number }[];
 };
 
 export type Product = {
@@ -151,6 +152,9 @@ export const users: User[] = [
     district: 'North Region',
     branch: 'Main Office',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
+    completedCourses: [
+      { courseId: 'course-4', completionDate: new Date('2024-05-10'), score: 100 }
+    ]
   },
   {
     id: 'user-2',
@@ -161,6 +165,7 @@ export const users: User[] = [
     district: 'South Region',
     branch: 'Downtown Branch',
     avatarUrl: 'https://picsum.photos/seed/user2/100/100',
+    completedCourses: []
   },
 ];
 

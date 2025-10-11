@@ -31,6 +31,7 @@ import {
   Package,
   Settings,
   ClipboardCheck,
+  Award,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { users } from '@/lib/data';
@@ -61,6 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
     { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
   ];
   
