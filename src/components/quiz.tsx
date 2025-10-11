@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -24,7 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Quiz as QuizType, Question } from '@/lib/data';
 import { Input } from './ui/input';
-import { Award, Frown } from 'lucide-react';
+import { Award, Frown, BookCopy } from 'lucide-react';
 
 type Answers = {
   [questionId: string]: string;
@@ -155,8 +156,19 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                 {passed ? "Excellent work! You've successfully passed the assessment." : "Good effort! Please review the materials and try again."}
             </p>
           </div>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={onComplete}>Close</AlertDialogAction>
+          <AlertDialogFooter className="sm:justify-center">
+            {passed && (
+                <Button asChild>
+                    <Link href={`/courses/${quiz.courseId}/certificate`}>
+                        <Award className="mr-2 h-4 w-4" />
+                        View Certificate
+                    </Link>
+                </Button>
+            )}
+             <Button variant="outline" onClick={onComplete}>
+                <BookCopy className="mr-2 h-4 w-4" />
+                {passed ? 'Back to Course' : 'Review and Retry'}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
