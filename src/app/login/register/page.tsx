@@ -32,7 +32,8 @@ import {
   users as initialUsers,
   districts as initialDistricts,
   branches as initialBranches,
-  departments as initialDepartments
+  departments as initialDepartments,
+  initialRegistrationFields
 } from "@/lib/data";
 import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,13 +43,6 @@ const REGISTRATION_FIELDS_STORAGE_KEY = "skillup-registration-fields";
 const DISTRICTS_STORAGE_KEY = "skillup-districts";
 const BRANCHES_STORAGE_KEY = "skillup-branches";
 const DEPARTMENTS_STORAGE_KEY = "skillup-departments";
-
-const initialRegistrationFields: RegistrationField[] = [
-    { id: 'phoneNumber', label: 'Phone Number', enabled: false, required: false },
-    { id: 'department', label: 'Department', enabled: false, required: false },
-    { id: 'district', label: 'District', enabled: false, required: false },
-    { id: 'branch', label: 'Branch', enabled: false, required: false },
-];
 
 const baseSchema = z.object({
   name: z.string().min(2, "Name is required"),

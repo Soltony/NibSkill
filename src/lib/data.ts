@@ -103,11 +103,21 @@ export type Role = {
 }
 
 export type RegistrationField = {
-  id: 'phoneNumber' | 'department' | 'district' | 'branch';
+  id: string; // Changed to string to allow more flexibility
   label: string;
   enabled: boolean;
   required: boolean;
 }
+
+// To add more fields to the registration form, add them to this array.
+// The `id` must be a unique string, and it will be used as the key in the form data.
+export const initialRegistrationFields: RegistrationField[] = [
+    { id: 'phoneNumber', label: 'Phone Number', enabled: true, required: false },
+    { id: 'department', label: 'Department', enabled: true, required: true },
+    { id: 'district', label: 'District', enabled: true, required: true },
+    { id: 'branch', label: 'Branch', enabled: true, required: true },
+]
+
 
 export const districts: District[] = [
   { id: 'dist-1', name: 'North Region' },

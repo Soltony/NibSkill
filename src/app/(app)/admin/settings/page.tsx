@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { users as initialUsers, roles as initialRoles, type User, type Role, type Permission } from "@/lib/data"
+import { users as initialUsers, roles as initialRoles, type User, type Role, type Permission, initialRegistrationFields } from "@/lib/data"
 import {
   Table,
   TableBody,
@@ -62,13 +62,6 @@ import type { RegistrationField } from "@/lib/data"
 const USERS_STORAGE_KEY = "skillup-users"
 const ROLES_STORAGE_KEY = "skillup-roles";
 const REGISTRATION_FIELDS_STORAGE_KEY = "skillup-registration-fields";
-
-const initialRegistrationFields: RegistrationField[] = [
-    { id: 'phoneNumber', label: 'Phone Number', enabled: false, required: false },
-    { id: 'department', label: 'Department', enabled: false, required: false },
-    { id: 'district', label: 'District', enabled: false, required: false },
-    { id: 'branch', label: 'Branch', enabled: false, required: false },
-]
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -134,6 +127,8 @@ export default function SettingsPage() {
     const storedRegistrationFields = localStorage.getItem(REGISTRATION_FIELDS_STORAGE_KEY);
     if (storedRegistrationFields) {
         registrationFieldsForm.reset({ fields: JSON.parse(storedRegistrationFields) });
+    } else {
+        registrationFieldsForm.reset({ fields: initialRegistrationFields });
     }
 
     setIsLoaded(true)
@@ -517,5 +512,3 @@ export default function SettingsPage() {
     </>
   )
 }
-
-    
