@@ -63,24 +63,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   ];
 
   const adminNavItems = [
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
     { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
     { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
     { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
     { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
-    { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true, exact: true },
     { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
     { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
     { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
   ];
   
-  const allNavItems = isAdminView ? 
-    [
-        { href: '/admin/courses', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true },
-        ...adminNavItems,
-    ]
-    : navItems;
+  const allNavItems = isAdminView ? adminNavItems : navItems;
 
   const isLinkActive = (path: string, exact?: boolean) => {
     if (exact) {

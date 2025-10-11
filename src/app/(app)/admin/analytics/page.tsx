@@ -33,7 +33,7 @@ export default function AnalyticsPage() {
     <div className="space-y-8">
       <div className="flex justify-between items-start">
         <div>
-            <h1 className="text-3xl font-bold font-headline">Analytics Dashboard</h1>
+            <h1 className="text-3xl font-bold font-headline">Dashboard</h1>
             <p className="text-muted-foreground">
               High-level insights into your team's learning and development.
             </p>
