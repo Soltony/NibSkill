@@ -34,6 +34,7 @@ import {
   Award,
   BookMarked,
   User,
+  FilePieChart,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { users } from '@/lib/data';
@@ -68,7 +69,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
     { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
-    { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true },
+    { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true, exact: true },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
     { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
     { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
   ];
@@ -79,6 +81,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         ...adminNavItems,
     ]
     : navItems;
+
+  const isLinkActive = (path: string, exact?: boolean) => {
+    if (exact) {
+        return pathname === path;
+    }
+    return pathname.startsWith(path);
+  }
 
 
   return (
@@ -98,7 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       <SidebarMenuItem key={item.href}>
                         <Link href={item.href}>
                           <SidebarMenuButton
-                            isActive={pathname.startsWith(item.href)}
+                            isActive={isLinkActive(item.href, item.exact)}
                             tooltip={item.label}
                           >
                             <item.icon />
@@ -111,7 +120,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                    <SidebarMenuItem>
                       <Link href={'/dashboard'}>
                         <SidebarMenuButton
-                          isActive={pathname.startsWith('/dashboard')}
+                          isActive={isLinkActive('/dashboard')}
                           tooltip={'Staff Dashboard'}
                         >
                           <LayoutDashboard />
@@ -125,7 +134,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <SidebarMenuItem key={item.href}>
                     <Link href={item.href}>
                       <SidebarMenuButton
-                        isActive={pathname.startsWith(item.href)}
+                        isActive={isLinkActive(item.href)}
                         tooltip={item.label}
                       >
                         <item.icon />
@@ -164,7 +173,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="flex-1">
                   <h1 className="text-lg font-semibold md:text-xl font-headline">
                       {
-                          [...navItems, ...adminNavItems].find(item => pathname.startsWith(item.href))?.label
+                          [...navItems, ...adminNavItems].find(item => isLinkActive(item.href, item.exact))?.label
                       }
                   </h1>
               </div>
