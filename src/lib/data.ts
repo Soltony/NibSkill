@@ -449,7 +449,37 @@ export const analyticsData = {
         { id: 'course-y', title: 'Advanced Compliance Training', completionRate: 52 },
         { id: 'course-2', title: 'Advanced User Training for Centauri', completionRate: 61 },
     ]
-  }
+  },
+  quizQuestionAnalysis: [
+    {
+      questionId: 'q1-1',
+      courseTitle: 'New Product Launch: FusionX',
+      questionText: 'What is the primary new capability of FusionX?',
+      correctAttempts: 110,
+      incorrectAttempts: 15,
+    },
+    {
+      questionId: 'q1-2',
+      courseTitle: 'New Product Launch: FusionX',
+      questionText: 'FusionX is primarily targeting enterprise clients.',
+      correctAttempts: 120,
+      incorrectAttempts: 5,
+    },
+    {
+      questionId: 'q1-3',
+      courseTitle: 'New Product Launch: FusionX',
+      questionText: 'What technology powers the new analytics features? ...',
+      correctAttempts: 95,
+      incorrectAttempts: 30,
+    },
+     {
+      questionId: 'q4-1',
+      courseTitle: 'Sales Strategy for Nova Suite',
+      questionText: 'What is a key part of the Nova Suite sales strategy?',
+      correctAttempts: 130,
+      incorrectAttempts: 2,
+    },
+  ]
 };
 
 export const notifications: Notification[] = [
@@ -475,6 +505,3 @@ export const notifications: Notification[] = [
         isRead: true,
     },
 ];
-
-
-

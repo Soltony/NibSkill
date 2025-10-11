@@ -1,7 +1,7 @@
 
 import { analyticsData } from "@/lib/data"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, Award, Medal } from "lucide-react"
+import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, Award, Medal, HelpCircle } from "lucide-react"
 import { AnalyticsCharts } from "@/components/analytics-charts"
 import {
   Table,
@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 
 const rankIcons = [
     <Medal key="gold" className="h-6 w-6 text-yellow-500" />,
@@ -22,7 +23,7 @@ const rankIcons = [
 ];
 
 export default function AnalyticsPage() {
-  const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement } = analyticsData
+  const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement, quizQuestionAnalysis } = analyticsData
 
   return (
     <div className="space-y-8">
@@ -155,6 +156,50 @@ export default function AnalyticsPage() {
             </Card>
         </div>
       </div>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+                <HelpCircle className="h-6 w-6 text-primary" />
+                Quiz Question Analysis
+            </CardTitle>
+            <CardDescription>
+                Identify which questions are most challenging for your staff.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+             <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Question</TableHead>
+                        <TableHead>Course</TableHead>
+                        <TableHead className="w-[250px]">Correct Answer Rate</TableHead>
+                        <TableHead className="text-right">Total Attempts</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {quizQuestionAnalysis.map((item) => {
+                        const total = item.correctAttempts + item.incorrectAttempts;
+                        const correctRate = total > 0 ? (item.correctAttempts / total) * 100 : 0;
+                        return (
+                            <TableRow key={item.questionId}>
+                                <TableCell className="font-medium max-w-sm truncate">{item.questionText}</TableCell>
+                                <TableCell>{item.courseTitle}</TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <Progress value={correctRate} className="h-2"/>
+                                        <span className="text-muted-foreground font-mono text-sm">{correctRate.toFixed(1)}%</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-right font-mono">{total}</TableCell>
+                            </TableRow>
+                        );
+                    })}
+                </TableBody>
+             </Table>
+        </CardContent>
+      </Card>
+
 
       <AnalyticsCharts 
         completionByDept={completionByDept} 
