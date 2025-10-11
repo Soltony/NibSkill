@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { users as initialUsers, roles as initialRoles, type User, type Role, type Permission } from "@/lib/data"
@@ -55,16 +55,34 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
-
+import { Switch } from "@/components/ui/switch"
+import type { RegistrationField } from "@/lib/data"
 
 const USERS_STORAGE_KEY = "skillup-users"
 const ROLES_STORAGE_KEY = "skillup-roles";
+const REGISTRATION_FIELDS_STORAGE_KEY = "skillup-registration-fields";
+
+const initialRegistrationFields: RegistrationField[] = [
+    { id: 'phoneNumber', label: 'Phone Number', enabled: false, required: false },
+    { id: 'department', label: 'Department', enabled: false, required: false },
+    { id: 'district', label: 'District', enabled: false, required: false },
+    { id: 'branch', label: 'Branch', enabled: false, required: false },
+]
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["admin", "staff"]),
+})
+
+const registrationFieldsSchema = z.object({
+    fields: z.array(z.object({
+        id: z.string(),
+        label: z.string(),
+        enabled: z.boolean(),
+        required: z.boolean(),
+    }))
 })
 
 const CrudPermissions = ({ permissions }: { permissions: Permission }) => {
@@ -93,19 +111,28 @@ export default function SettingsPage() {
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
   const { toast } = useToast()
 
+  const registrationFieldsForm = useForm<z.infer<typeof registrationFieldsSchema>>({
+    resolver: zodResolver(registrationFieldsSchema),
+    defaultValues: {
+      fields: initialRegistrationFields
+    }
+  });
+
+  const { fields: regFields, update: updateRegField } = useFieldArray({
+    control: registrationFieldsForm.control,
+    name: "fields"
+  });
+
   useEffect(() => {
     const storedUsers = localStorage.getItem(USERS_STORAGE_KEY)
-    if (storedUsers) {
-      setUsers(JSON.parse(storedUsers))
-    } else {
-      setUsers(initialUsers)
-    }
+    setUsers(storedUsers ? JSON.parse(storedUsers) : initialUsers)
     
     const storedRoles = localStorage.getItem(ROLES_STORAGE_KEY)
-    if (storedRoles) {
-      setRoles(JSON.parse(storedRoles))
-    } else {
-      setRoles(initialRoles)
+    setRoles(storedRoles ? JSON.parse(storedRoles) : initialRoles)
+
+    const storedRegistrationFields = localStorage.getItem(REGISTRATION_FIELDS_STORAGE_KEY);
+    if (storedRegistrationFields) {
+        registrationFieldsForm.reset({ fields: JSON.parse(storedRegistrationFields) });
     }
 
     setIsLoaded(true)
@@ -122,6 +149,14 @@ export default function SettingsPage() {
       localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles))
     }
   }, [roles, isLoaded])
+
+  const onRegistrationFieldsSubmit = (values: z.infer<typeof registrationFieldsSchema>) => {
+    localStorage.setItem(REGISTRATION_FIELDS_STORAGE_KEY, JSON.stringify(values.fields));
+    toast({
+        title: "Settings Saved",
+        description: "Your registration form settings have been updated.",
+    });
+  }
 
   const handleRoleChange = (userId: string, newRole: "admin" | "staff") => {
     setUsers(
@@ -152,6 +187,7 @@ export default function SettingsPage() {
       department: "Unassigned",
       district: "Unassigned",
       branch: "Unassigned",
+      phoneNumber: "",
     }
     setUsers([...users, newUser])
     toast({ title: "User Registered", description: `${values.name} has been added.` })
@@ -194,6 +230,7 @@ export default function SettingsPage() {
             <TabsTrigger value="user-management">User Management</TabsTrigger>
             <TabsTrigger value="role-management">Role Management</TabsTrigger>
             <TabsTrigger value="user-registration">User Registration</TabsTrigger>
+            <TabsTrigger value="registration-settings">Registration</TabsTrigger>
           </TabsList>
 
           <TabsContent value="user-management">
@@ -387,6 +424,76 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+           <TabsContent value="registration-settings">
+            <Card>
+              <Form {...registrationFieldsForm}>
+                <form onSubmit={registrationFieldsForm.handleSubmit(onRegistrationFieldsSubmit)}>
+                  <CardHeader>
+                    <CardTitle>Registration Form Settings</CardTitle>
+                    <CardDescription>
+                      Choose which fields to include in the staff self-registration form.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Field</TableHead>
+                          <TableHead className="text-center">Show on Form</TableHead>
+                          <TableHead className="text-center">Make Required</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {regFields.map((field, index) => (
+                            <TableRow key={field.id}>
+                                <TableCell className="font-medium">{field.label}</TableCell>
+                                <TableCell className="text-center">
+                                    <FormField
+                                        control={registrationFieldsForm.control}
+                                        name={`fields.${index}.enabled`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <Switch
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <FormField
+                                        control={registrationFieldsForm.control}
+                                        name={`fields.${index}.required`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <Switch
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                        disabled={!registrationFieldsForm.watch(`fields.${index}.enabled`)}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                   <CardFooter>
+                     <Button type="submit">Save Settings</Button>
+                  </CardFooter>
+                </form>
+              </Form>
+            </Card>
+          </TabsContent>
+
         </Tabs>
       </div>
 
@@ -409,5 +516,3 @@ export default function SettingsPage() {
     </>
   )
 }
-
-    

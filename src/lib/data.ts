@@ -27,6 +27,7 @@ export type User = {
   district: string;
   branch: string;
   avatarUrl: string;
+  phoneNumber?: string;
 };
 
 export type Product = {
@@ -89,7 +90,7 @@ export type Permission = {
 }
 
 export type Role = {
-    id: 'admin' | 'staff';
+    id: 'admin' | 'staff' | string;
     name: string;
     permissions: {
         courses: Permission;
@@ -99,6 +100,13 @@ export type Role = {
         quizzes: Permission;
         staff: Permission;
     }
+}
+
+export type RegistrationField = {
+  id: 'phoneNumber' | 'department' | 'district' | 'branch';
+  label: string;
+  enabled: boolean;
+  required: boolean;
 }
 
 export const districts: District[] = [

@@ -26,14 +26,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from "@/lib/data";
+import type { User, RegistrationField, District, Branch, Department } from "@/lib/data";
 import Link from "next/link";
-import { users as initialUsers } from "@/lib/data";
+import {
+  users as initialUsers,
+  districts as initialDistricts,
+  branches as initialBranches,
+  departments as initialDepartments
+} from "@/lib/data";
 import { PlusCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const USERS_STORAGE_KEY = "skillup-users";
+const REGISTRATION_FIELDS_STORAGE_KEY = "skillup-registration-fields";
+const DISTRICTS_STORAGE_KEY = "skillup-districts";
+const BRANCHES_STORAGE_KEY = "skillup-branches";
+const DEPARTMENTS_STORAGE_KEY = "skillup-departments";
 
-const registrationSchema = z.object({
+const initialRegistrationFields: RegistrationField[] = [
+    { id: 'phoneNumber', label: 'Phone Number', enabled: false, required: false },
+    { id: 'department', label: 'Department', enabled: false, required: false },
+    { id: 'district', label: 'District', enabled: false, required: false },
+    { id: 'branch', label: 'Branch', enabled: false, required: false },
+];
+
+const baseSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -44,14 +61,41 @@ export default function RegisterPage() {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [registrationFields, setRegistrationFields] = useState<RegistrationField[]>(initialRegistrationFields);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  
+  const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
 
   useEffect(() => {
     const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    if (storedUsers) {
-      setUsers(JSON.parse(storedUsers));
-    } else {
-      setUsers(initialUsers);
-    }
+    setUsers(storedUsers ? JSON.parse(storedUsers) : initialUsers);
+
+    const storedRegistrationFields = localStorage.getItem(REGISTRATION_FIELDS_STORAGE_KEY);
+    const fields = storedRegistrationFields ? JSON.parse(storedRegistrationFields) : initialRegistrationFields;
+    setRegistrationFields(fields);
+    
+    const storedDistricts = localStorage.getItem(DISTRICTS_STORAGE_KEY);
+    setDistricts(storedDistricts ? JSON.parse(storedDistricts) : initialDistricts);
+    
+    const storedBranches = localStorage.getItem(BRANCHES_STORAGE_KEY);
+    setBranches(storedBranches ? JSON.parse(storedBranches) : initialBranches);
+
+    const storedDepartments = localStorage.getItem(DEPARTMENTS_STORAGE_KEY);
+    setDepartments(storedDepartments ? JSON.parse(storedDepartments) : initialDepartments);
+    
+    // Build dynamic schema
+    let schema = baseSchema as z.ZodObject<any>;
+    fields.filter((f: RegistrationField) => f.enabled).forEach((field: RegistrationField) => {
+        if (field.required) {
+            schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
+        } else {
+            schema = schema.extend({ [field.id]: z.string().optional() });
+        }
+    });
+    setDynamicSchema(schema as any);
+
     setIsLoaded(true);
   }, []);
 
@@ -61,25 +105,30 @@ export default function RegisterPage() {
     }
   }, [users, isLoaded]);
 
-  const form = useForm<z.infer<typeof registrationSchema>>({
-    resolver: zodResolver(registrationSchema),
+  const form = useForm<z.infer<typeof dynamicSchema>>({
+    resolver: zodResolver(dynamicSchema),
     defaultValues: {
       name: "",
       email: "",
       password: "",
+      phoneNumber: "",
+      department: "",
+      district: "",
+      branch: "",
     },
   });
 
-  const onRegisterUser = (values: z.infer<typeof registrationSchema>) => {
+  const onRegisterUser = (values: z.infer<typeof dynamicSchema>) => {
     const newUser: User = {
       id: `user-${Date.now()}`,
       name: values.name,
       email: values.email,
       role: "staff",
       avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-      department: "Unassigned",
-      district: "Unassigned",
-      branch: "Unassigned",
+      department: values.department || "Unassigned",
+      district: values.district ? districts.find(d => d.id === values.district)?.name || "Unassigned" : "Unassigned",
+      branch: values.branch ? branches.find(b => b.id === values.branch)?.name || "Unassigned" : "Unassigned",
+      phoneNumber: values.phoneNumber || "",
     };
     setUsers([...users, newUser]);
     toast({
@@ -88,6 +137,11 @@ export default function RegisterPage() {
     });
     router.push("/login");
   };
+
+  const getField = (id: string) => registrationFields.find(f => f.id === id);
+
+  const selectedDistrict = form.watch('district');
+  const availableBranches = branches.filter(b => b.districtId === selectedDistrict);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-secondary p-4">
@@ -141,6 +195,81 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
+              {getField('phoneNumber')?.enabled && (
+                <FormField
+                    control={form.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                        <Input placeholder="(123) 456-7890" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+              )}
+               {getField('department')?.enabled && (
+                <FormField
+                    control={form.control}
+                    name="department"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Department</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger><SelectValue placeholder="Select a department" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+              )}
+               {getField('district')?.enabled && (
+                <FormField
+                    control={form.control}
+                    name="district"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>District</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                                <SelectTrigger><SelectValue placeholder="Select a district" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {districts.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+              )}
+               {getField('branch')?.enabled && (
+                <FormField
+                    control={form.control}
+                    name="branch"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Branch</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDistrict}>
+                            <FormControl>
+                                <SelectTrigger><SelectValue placeholder={selectedDistrict ? "Select a branch" : "Select a district first"} /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {availableBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+              )}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full">
