@@ -175,6 +175,11 @@ export default function AnalyticsPage() {
           </Card>
         </Link>
       
+        <AnalyticsCharts 
+            completionByDept={completionByDept} 
+            scoresDistribution={scoresDistribution}
+        />
+        
       <Card>
         <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -218,10 +223,6 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
 
-      <AnalyticsCharts 
-        completionByDept={completionByDept} 
-        scoresDistribution={scoresDistribution}
-      />
     </div>
   )
 }
