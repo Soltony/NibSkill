@@ -161,16 +161,18 @@ export default function StaffManagementPage() {
                           <TableHeader>
                               <TableRow>
                                   <TableHead>District Name</TableHead>
-                                  <TableHead className="text-right w-[140px]">Actions</TableHead>
+                                  <TableHead className="text-right">Actions</TableHead>
                               </TableRow>
                           </TableHeader>
                           <TableBody>
                           {districts.map((district) => (
                               <TableRow key={district.id}>
                                 <TableCell className="font-medium">{district.name}</TableCell>
-                                <TableCell className="text-right space-x-2">
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
                                     <EditDistrictDialog district={district} onDistrictUpdated={handleDistrictUpdated} />
                                     <Button variant="destructive-outline" size="sm" onClick={() => setItemToDelete({ type: 'district', data: district })}>Delete</Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                           ))}
@@ -194,7 +196,7 @@ export default function StaffManagementPage() {
                           <TableRow>
                               <TableHead>Branch Name</TableHead>
                               <TableHead>District</TableHead>
-                              <TableHead className="text-right w-[140px]">Actions</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -202,9 +204,11 @@ export default function StaffManagementPage() {
                           <TableRow key={branch.id}>
                               <TableCell className="font-medium">{branch.name}</TableCell>
                               <TableCell>{districts.find(d => d.id === branch.districtId)?.name}</TableCell>
-                              <TableCell className="text-right space-x-2">
-                                <EditBranchDialog branch={branch} districts={districts} onBranchUpdated={handleBranchUpdated} />
-                                <Button variant="destructive-outline" size="sm" onClick={() => setItemToDelete({ type: 'branch', data: branch })}>Delete</Button>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <EditBranchDialog branch={branch} districts={districts} onBranchUpdated={handleBranchUpdated} />
+                                  <Button variant="destructive-outline" size="sm" onClick={() => setItemToDelete({ type: 'branch', data: branch })}>Delete</Button>
+                                </div>
                               </TableCell>
                           </TableRow>
                       ))}
@@ -227,16 +231,18 @@ export default function StaffManagementPage() {
                       <TableHeader>
                           <TableRow>
                               <TableHead>Department Name</TableHead>
-                              <TableHead className="text-right w-[140px]">Actions</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                       </TableHeader>
                       <TableBody>
                       {departments.map((department) => (
                           <TableRow key={department.id}>
                               <TableCell className="font-medium">{department.name}</TableCell>
-                              <TableCell className="text-right space-x-2">
-                                <EditDepartmentDialog department={department} onDepartmentUpdated={handleDepartmentUpdated} />
-                                <Button variant="destructive-outline" size="sm" onClick={() => setItemToDelete({ type: 'department', data: department })}>Delete</Button>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <EditDepartmentDialog department={department} onDepartmentUpdated={handleDepartmentUpdated} />
+                                  <Button variant="destructive-outline" size="sm" onClick={() => setItemToDelete({ type: 'department', data: department })}>Delete</Button>
+                                </div>
                               </TableCell>
                           </TableRow>
                       ))}
