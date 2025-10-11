@@ -42,7 +42,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import {
@@ -58,6 +58,7 @@ import {
 import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
 import { Switch } from "@/components/ui/switch"
 import type { RegistrationField } from "@/lib/data"
+import { AddFieldDialog } from "@/components/add-field-dialog"
 
 const USERS_STORAGE_KEY = "skillup-users"
 const ROLES_STORAGE_KEY = "skillup-roles";
@@ -105,14 +106,17 @@ export default function SettingsPage() {
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
   const { toast } = useToast()
 
+  const [availableFields, setAvailableFields] = useState<RegistrationField[]>(initialRegistrationFields);
+  const [fieldToDelete, setFieldToDelete] = useState<RegistrationField | null>(null);
+
   const registrationFieldsForm = useForm<z.infer<typeof registrationFieldsSchema>>({
     resolver: zodResolver(registrationFieldsSchema),
     defaultValues: {
-      fields: initialRegistrationFields
+      fields: []
     }
   });
 
-  const { fields: regFields, update: updateRegField } = useFieldArray({
+  const { fields: regFields, reset: resetRegFields } = useFieldArray({
     control: registrationFieldsForm.control,
     name: "fields"
   });
@@ -123,16 +127,33 @@ export default function SettingsPage() {
     
     const storedRoles = localStorage.getItem(ROLES_STORAGE_KEY)
     setRoles(storedRoles ? JSON.parse(storedRoles) : initialRoles)
+    
+    // Load available fields first
+    const storedAvailable = localStorage.getItem(REGISTRATION_FIELDS_STORAGE_KEY);
+    const avFields = storedAvailable ? JSON.parse(storedAvailable) : initialRegistrationFields;
+    setAvailableFields(avFields);
 
-    const storedRegistrationFields = localStorage.getItem(REGISTRATION_FIELDS_STORAGE_KEY);
-    if (storedRegistrationFields) {
-        registrationFieldsForm.reset({ fields: JSON.parse(storedRegistrationFields) });
+    // Then load their enabled/required settings, defaulting from available fields if not set
+    const storedSettings = localStorage.getItem(REGISTRATION_FIELDS_STORAGE_KEY + "-settings");
+    if (storedSettings) {
+        registrationFieldsForm.reset({ fields: JSON.parse(storedSettings) });
     } else {
-        registrationFieldsForm.reset({ fields: initialRegistrationFields });
+        registrationFieldsForm.reset({ fields: avFields });
     }
 
     setIsLoaded(true)
   }, [])
+  
+  useEffect(() => {
+    if(!isLoaded) return;
+    const currentSettings = registrationFieldsForm.getValues('fields');
+    const newAvailableFields = availableFields.map(af => {
+        const existing = currentSettings.find(cs => cs.id === af.id);
+        return existing || { ...af, enabled: false, required: false };
+    });
+    resetRegFields(newAvailableFields);
+  }, [availableFields, isLoaded, resetRegFields, registrationFieldsForm])
+
 
   useEffect(() => {
     if (isLoaded) {
@@ -145,6 +166,12 @@ export default function SettingsPage() {
       localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles))
     }
   }, [roles, isLoaded])
+
+  useEffect(() => {
+    if (isLoaded) {
+        localStorage.setItem(REGISTRATION_FIELDS_STORAGE_KEY, JSON.stringify(availableFields));
+    }
+  }, [availableFields, isLoaded]);
 
   const onRegistrationFieldsSubmit = (values: z.infer<typeof registrationFieldsSchema>) => {
     localStorage.setItem(REGISTRATION_FIELDS_STORAGE_KEY, JSON.stringify(values.fields));
@@ -208,6 +235,21 @@ export default function SettingsPage() {
       setRoleToDelete(null);
     }
   };
+  
+  const handleFieldAdded = (newField: { id: string, label: string }) => {
+    setAvailableFields(prev => [...prev, { ...newField, enabled: false, required: false }]);
+  };
+
+  const handleConfirmDeleteField = () => {
+    if (fieldToDelete) {
+        setAvailableFields(prev => prev.filter(f => f.id !== fieldToDelete.id));
+        toast({
+            title: "Field Deleted",
+            description: `The field "${fieldToDelete.label}" has been removed.`,
+        });
+        setFieldToDelete(null);
+    }
+  };
 
 
   const permissionKeys = Object.keys(roles[0]?.permissions || {}) as (keyof Role['permissions'])[];
@@ -222,7 +264,7 @@ export default function SettingsPage() {
           </p>
         </div>
         <Tabs defaultValue="user-management">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="user-management">User Management</TabsTrigger>
             <TabsTrigger value="role-management">Role Management</TabsTrigger>
             <TabsTrigger value="user-registration">User Registration</TabsTrigger>
@@ -421,75 +463,117 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-           <TabsContent value="registration-settings">
-            <Card>
-              <Form {...registrationFieldsForm}>
-                <form onSubmit={registrationFieldsForm.handleSubmit(onRegistrationFieldsSubmit)}>
-                  <CardHeader>
-                    <CardTitle>Registration Form Settings</CardTitle>
-                    <CardDescription>
-                      Choose which fields to include in the staff self-registration form.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Field</TableHead>
-                          <TableHead className="text-center">Show on Form</TableHead>
-                          <TableHead className="text-center">Make Required</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {regFields.map((field, index) => (
-                            <TableRow key={field.id}>
-                                <TableCell className="font-medium">{field.label}</TableCell>
-                                <TableCell className="text-center">
-                                    <FormField
-                                        control={registrationFieldsForm.control}
-                                        name={`fields.${index}.enabled`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                    <Switch
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <FormField
-                                        control={registrationFieldsForm.control}
-                                        name={`fields.${index}.required`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormControl>
-                                                    <Switch
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                        disabled={!registrationFieldsForm.watch(`fields.${index}.enabled`)}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                   <CardFooter>
-                     <Button type="submit">Save Settings</Button>
-                  </CardFooter>
-                </form>
-              </Form>
-            </Card>
+          <TabsContent value="registration-settings">
+             <Tabs defaultValue="fields">
+                <TabsList>
+                    <TabsTrigger value="fields">Form Fields</TabsTrigger>
+                    <TabsTrigger value="manage-fields">Manage Fields</TabsTrigger>
+                </TabsList>
+                <TabsContent value="fields">
+                    <Card>
+                    <Form {...registrationFieldsForm}>
+                        <form onSubmit={registrationFieldsForm.handleSubmit(onRegistrationFieldsSubmit)}>
+                        <CardHeader>
+                            <CardTitle>Registration Form Settings</CardTitle>
+                            <CardDescription>
+                            Choose which fields to include in the staff self-registration form.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <Table>
+                            <TableHeader>
+                                <TableRow>
+                                <TableHead>Field</TableHead>
+                                <TableHead className="text-center">Show on Form</TableHead>
+                                <TableHead className="text-center">Make Required</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {regFields.map((field, index) => (
+                                    <TableRow key={field.id}>
+                                        <TableCell className="font-medium">{field.label}</TableCell>
+                                        <TableCell className="text-center">
+                                            <FormField
+                                                control={registrationFieldsForm.control}
+                                                name={`fields.${index}.enabled`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormControl>
+                                                            <Switch
+                                                                checked={field.value}
+                                                                onCheckedChange={field.onChange}
+                                                            />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <FormField
+                                                control={registrationFieldsForm.control}
+                                                name={`fields.${index}.required`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormControl>
+                                                            <Switch
+                                                                checked={field.value}
+                                                                onCheckedChange={field.onChange}
+                                                                disabled={!registrationFieldsForm.watch(`fields.${index}.enabled`)}
+                                                            />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                            </Table>
+                        </CardContent>
+                        <CardFooter>
+                            <Button type="submit">Save Settings</Button>
+                        </CardFooter>
+                        </form>
+                    </Form>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="manage-fields">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                           <div>
+                             <CardTitle>Manage Custom Fields</CardTitle>
+                             <CardDescription>Add or remove fields available to the registration form.</CardDescription>
+                           </div>
+                           <AddFieldDialog onFieldAdded={handleFieldAdded} />
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Field Label</TableHead>
+                                        <TableHead>Field ID</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {availableFields.map(field => (
+                                        <TableRow key={field.id}>
+                                            <TableCell>{field.label}</TableCell>
+                                            <TableCell><code className="text-xs bg-muted p-1 rounded">{field.id}</code></TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" onClick={() => setFieldToDelete(field)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+             </Tabs>
           </TabsContent>
-
         </Tabs>
       </div>
 
@@ -506,6 +590,22 @@ export default function SettingsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={!!fieldToDelete} onOpenChange={(open) => !open && setFieldToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this field?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the 
+              field <span className="font-semibold">"{fieldToDelete?.label}"</span> and remove it from the registration form settings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteField}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

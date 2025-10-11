@@ -1,0 +1,111 @@
+
+"use client"
+
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { PlusCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+
+const formSchema = z.object({
+  label: z.string().min(2, "Label must be at least 2 characters."),
+  id: z.string().min(2, "ID must be at least 2 characters.").regex(/^[a-zA-Z0-9_]+$/, "ID can only contain letters, numbers, and underscores."),
+})
+
+type AddFieldDialogProps = {
+  onFieldAdded: (field: { id: string; label: string }) => void
+}
+
+export function AddFieldDialog({ onFieldAdded }: AddFieldDialogProps) {
+  const [open, setOpen] = useState(false)
+  const { toast } = useToast()
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      label: "",
+      id: "",
+    },
+  })
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    onFieldAdded(values)
+    toast({
+      title: "Field Added",
+      description: `The field "${values.label}" is now available.`,
+    })
+    setOpen(false)
+    form.reset()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <PlusCircle className="mr-2 h-4 w-4" /> Add Field
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Add Custom Field</DialogTitle>
+          <DialogDescription>
+            Create a new field to be used in the registration form.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            <FormField
+              control={form.control}
+              name="label"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Field Label</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Employee ID" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Field ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., employeeId" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="submit">Create Field</Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  )
+}
