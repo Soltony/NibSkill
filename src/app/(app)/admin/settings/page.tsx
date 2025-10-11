@@ -58,6 +58,7 @@ import { FeatureNotImplementedDialog } from "@/components/feature-not-implemente
 
 
 const USERS_STORAGE_KEY = "skillup-users"
+const ROLES_STORAGE_KEY = "skillup-roles";
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -99,9 +100,14 @@ export default function SettingsPage() {
     } else {
       setUsers(initialUsers)
     }
-    // In a real app, roles would likely be fetched from a server
-    // For now, we'll just use the initial roles from the data file.
-    setRoles(initialRoles)
+    
+    const storedRoles = localStorage.getItem(ROLES_STORAGE_KEY)
+    if (storedRoles) {
+      setRoles(JSON.parse(storedRoles))
+    } else {
+      setRoles(initialRoles)
+    }
+
     setIsLoaded(true)
   }, [])
 
@@ -110,6 +116,12 @@ export default function SettingsPage() {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
     }
   }, [users, isLoaded])
+  
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles))
+    }
+  }, [roles, isLoaded])
 
   const handleRoleChange = (userId: string, newRole: "admin" | "staff") => {
     setUsers(
@@ -148,11 +160,19 @@ export default function SettingsPage() {
 
   const handleConfirmDelete = () => {
     if (roleToDelete) {
-      toast({
-        title: "Action Not Implemented",
-        description: "Deleting roles is not supported in this prototype.",
-        variant: "destructive"
-      });
+      if (roleToDelete.id === 'admin' || roleToDelete.id === 'staff') {
+        toast({
+          title: "Cannot Delete Core Role",
+          description: `The "${roleToDelete.name}" role is essential to the application and cannot be deleted.`,
+          variant: "destructive"
+        });
+      } else {
+        setRoles(prevRoles => prevRoles.filter(r => r.id !== roleToDelete!.id));
+        toast({
+          title: "Role Deleted",
+          description: `The role "${roleToDelete.name}" has been deleted.`,
+        });
+      }
       setRoleToDelete(null);
     }
   };
@@ -231,7 +251,7 @@ export default function SettingsPage() {
                 </div>
                 <FeatureNotImplementedDialog
                   title="Add New Role"
-                  description="In a full application, this would open a form to create a new role and define its permissions."
+                  description="Adding new roles is not supported in this prototype. In a full application, this would open a form to create a new role and define its permissions, which would require code changes to be recognized by the system."
                   triggerText="Add Role"
                   triggerIcon={<PlusCircle className="mr-2 h-4 w-4" />}
                 />
@@ -267,7 +287,7 @@ export default function SettingsPage() {
                             <DropdownMenuContent>
                               <FeatureNotImplementedDialog
                                 title="Edit Role"
-                                description="This would open a form to modify the permissions for the selected role."
+                                description="Editing roles is not supported in this prototype, as permissions are hard-coded into the application logic. Changes here would not reflect in actual user capabilities."
                                 isMenuItem={true}
                               >
                                 Edit
@@ -375,9 +395,9 @@ export default function SettingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. In a real application, this would permanently delete the 
+              This action cannot be undone. This will permanently delete the 
               role <span className="font-semibold">"{roleToDelete?.name}"</span>. 
-              This is a prototype, so no data will be changed.
+              Core roles (Admin, Staff) cannot be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
