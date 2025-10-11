@@ -18,6 +18,13 @@ export type Department = {
   name: string;
 }
 
+export type Badge = {
+    id: string;
+    title: string;
+    description: string;
+    icon: string; // Using string for icon name from lucide-react
+}
+
 export type User = {
   id: string;
   name: string;
@@ -29,6 +36,7 @@ export type User = {
   avatarUrl: string;
   phoneNumber?: string;
   completedCourses?: { courseId: string; completionDate: Date; score: number }[];
+  badges?: Badge[];
 };
 
 export type Product = {
@@ -157,6 +165,13 @@ export const departments: Department[] = [
     { id: 'dept-4', name: 'HR' },
 ];
 
+export const badges: Badge[] = [
+    { id: 'badge-1', title: 'First Steps', description: 'Complete your first course.', icon: 'Footprints' },
+    { id: 'badge-2', title: 'Course Connoisseur', description: 'Complete 5 courses.', icon: 'BookOpenCheck' },
+    { id: 'badge-3', title: 'Top Learner', description: 'Finish in the top 3 on the leaderboard.', icon: 'Trophy' },
+    { id: 'badge-4', title: 'Perfect Score', description: 'Get a 100% on a quiz.', icon: 'Target' },
+]
+
 export const users: User[] = [
   {
     id: 'user-1',
@@ -169,7 +184,8 @@ export const users: User[] = [
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
     completedCourses: [
       { courseId: 'course-4', completionDate: new Date('2024-05-10'), score: 100 }
-    ]
+    ],
+    badges: [badges[0], badges[3]]
   },
   {
     id: 'user-2',
@@ -453,3 +469,4 @@ export const notifications: Notification[] = [
         isRead: true,
     },
 ];
+

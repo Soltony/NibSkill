@@ -33,6 +33,7 @@ import {
   ClipboardCheck,
   Award,
   BookMarked,
+  User,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { users } from '@/lib/data';
@@ -57,6 +58,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
     { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
     { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
+    { href: '/profile', icon: User, label: 'My Profile', adminOnly: false },
   ];
 
   const adminNavItems = [

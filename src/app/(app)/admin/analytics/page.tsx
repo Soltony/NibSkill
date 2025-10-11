@@ -1,7 +1,7 @@
 
 import { analyticsData } from "@/lib/data"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, Award } from "lucide-react"
+import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, Award, Medal } from "lucide-react"
 import { AnalyticsCharts } from "@/components/analytics-charts"
 import {
   Table,
@@ -14,6 +14,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
 import { Badge } from "@/components/ui/badge"
+
+const rankIcons = [
+    <Medal key="gold" className="h-6 w-6 text-yellow-500" />,
+    <Medal key="silver" className="h-6 w-6 text-slate-400" />,
+    <Medal key="bronze" className="h-6 w-6 text-amber-700" />,
+];
 
 export default function AnalyticsPage() {
   const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement } = analyticsData
@@ -87,7 +93,11 @@ export default function AnalyticsPage() {
               <TableBody>
                 {leaderboard.map((user, index) => (
                   <TableRow key={user.id}>
-                    <TableCell className="font-medium">{index + 1}</TableCell>
+                    <TableCell className="font-medium text-center">
+                        <div className="flex justify-center items-center">
+                            {index < 3 ? rankIcons[index] : index + 1}
+                        </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
