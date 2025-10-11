@@ -81,6 +81,7 @@ export type LiveSession = {
   dateTime: Date;
   platform: 'Zoom' | 'Google Meet';
   joinUrl: string;
+  recordingUrl?: string;
 };
 
 export type Question = {
@@ -116,6 +117,7 @@ export type Role = {
         products: Permission;
         quizzes: Permission;
         staff: Permission;
+        liveSessions: Permission;
     }
 }
 
@@ -309,6 +311,7 @@ export const roles: Role[] = [
       products: { c: true, r: true, u: true, d: true },
       quizzes: { c: true, r: true, u: true, d: true },
       staff: { c: true, r: true, u: true, d: true },
+      liveSessions: { c: true, r: true, u: true, d: true },
     } 
   },
   { 
@@ -321,6 +324,7 @@ export const roles: Role[] = [
       products: { c: false, r: false, u: false, d: false },
       quizzes: { c: false, r: true, u: false, d: false },
       staff: { c: false, r: false, u: false, d: false },
+      liveSessions: { c: false, r: true, u: false, d: false },
     }
   },
 ]
@@ -335,6 +339,7 @@ export const liveSessions: LiveSession[] = [
     dateTime: new Date(new Date().getTime() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
     platform: 'Zoom',
     joinUrl: '#',
+    recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
   },
   {
     id: 'ls-2',
@@ -342,9 +347,10 @@ export const liveSessions: LiveSession[] = [
     description: 'A hands-on workshop for developers. Follow along as we build a mini-application using the Pulsar Engine.',
     speaker: 'John Smith, Principal Engineer',
     keyTakeaways: 'Practical experience with the Pulsar SDK, tips for efficient development, and a complete sample project to take away.',
-    dateTime: new Date(new Date().getTime() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+    dateTime: new Date(new Date().getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
     platform: 'Google Meet',
     joinUrl: '#',
+    recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
   },
 ];
 
@@ -469,5 +475,6 @@ export const notifications: Notification[] = [
         isRead: true,
     },
 ];
+
 
 

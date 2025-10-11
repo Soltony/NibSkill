@@ -1,56 +1,145 @@
-import { liveSessions } from '@/lib/data';
+
+"use client"
+
+import { useState, useEffect } from "react"
+import { liveSessions as initialLiveSessions, type LiveSession } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, User, Mic } from 'lucide-react';
+import { Calendar, Clock, Mic, Video, Radio, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import Link from "next/link";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 
-export default function LiveSessionsPage() {
-  return (
-    <div className="space-y-8">
-       <div>
-        <h1 className="text-3xl font-bold font-headline">Live Training Sessions</h1>
-        <p className="text-muted-foreground">
-          Engage with experts in real-time and get your questions answered.
-        </p>
-      </div>
+const SESSIONS_STORAGE_KEY = "skillup-live-sessions"
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {liveSessions.map((session) => (
-          <Card key={session.id} className="flex flex-col">
+const SessionCard = ({ session }: { session: LiveSession }) => {
+    const isPast = new Date(session.dateTime) < new Date();
+    
+    return (
+        <Card className="flex flex-col">
             <CardHeader>
-              <Badge variant="secondary" className="w-fit mb-2">{session.platform}</Badge>
-              <CardTitle className="font-headline text-2xl">{session.title}</CardTitle>
+              <div className="flex items-center justify-between">
+                <Badge variant="secondary" className="w-fit mb-2">{session.platform}</Badge>
+                {isPast ? (
+                    <Badge variant="outline">Past</Badge>
+                ) : (
+                    <Badge variant="destructive" className="animate-pulse">
+                        <Radio className="mr-1 h-3 w-3"/>
+                        Live Soon
+                    </Badge>
+                )}
+              </div>
+              <CardTitle className="font-headline text-xl pt-2">{session.title}</CardTitle>
               <CardDescription>{session.description}</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 space-y-4">
-               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <User className="h-4 w-4"/>
-                  <span>{session.speaker}</span>
-               </div>
+            <CardContent className="flex-1 space-y-3">
                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4"/>
-                  <span>{session.dateTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                  <span>{new Date(session.dateTime).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
                </div>
                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4"/>
-                  <span>{session.dateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>{new Date(session.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                </div>
                 <div>
-                    <h4 className="font-semibold mb-2">Key Takeaways:</h4>
+                    <h4 className="font-semibold mb-1">Key Takeaways:</h4>
                     <p className="text-sm text-muted-foreground">{session.keyTakeaways}</p>
                 </div>
             </CardContent>
-            <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-2">
-              <Button asChild>
-                <a href={session.joinUrl} target="_blank" rel="noopener noreferrer">
-                    <Mic className="mr-2 h-4 w-4" />
-                    Join Session
-                </a>
-              </Button>
+            <CardFooter>
+                {isPast ? (
+                    session.recordingUrl ? (
+                         <Button asChild className="w-full">
+                            <a href={session.recordingUrl} target="_blank" rel="noopener noreferrer">
+                                <Video className="mr-2 h-4 w-4" />
+                                Watch Recording
+                            </a>
+                        </Button>
+                    ) : (
+                         <Button variant="outline" disabled className="w-full">
+                            Recording Unavailable
+                        </Button>
+                    )
+                ) : (
+                     <Button asChild className="w-full">
+                        <a href={session.joinUrl} target="_blank" rel="noopener noreferrer">
+                            <Mic className="mr-2 h-4 w-4" />
+                            Join Session
+                        </a>
+                    </Button>
+                )}
             </CardFooter>
           </Card>
-        ))}
+    )
+}
+
+export default function LiveSessionsPage() {
+    const [upcomingSessions, setUpcomingSessions] = useState<LiveSession[]>([]);
+    const [pastSessions, setPastSessions] = useState<LiveSession[]>([]);
+
+    useEffect(() => {
+        const storedSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
+        const allSessions = storedSessions ? JSON.parse(storedSessions).map((s: LiveSession) => ({...s, dateTime: new Date(s.dateTime)})) : initialLiveSessions;
+        
+        const now = new Date();
+        const upcoming = allSessions.filter((s: LiveSession) => new Date(s.dateTime) >= now).sort((a: LiveSession, b: LiveSession) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+        const past = allSessions.filter((s: LiveSession) => new Date(s.dateTime) < now).sort((a: LiveSession, b: LiveSession) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+
+        setUpcomingSessions(upcoming);
+        setPastSessions(past);
+    }, []);
+
+  return (
+    <div className="space-y-8">
+       <div>
+        <h1 className="text-3xl font-bold font-headline">Live Training</h1>
+        <p className="text-muted-foreground">
+          Engage with experts in real-time, or catch up on past recordings.
+        </p>
       </div>
+
+       <Tabs defaultValue="upcoming" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="upcoming">
+                <Radio className="mr-2 h-4 w-4"/>
+                Upcoming Sessions
+            </TabsTrigger>
+            <TabsTrigger value="past">
+                <Video className="mr-2 h-4 w-4"/>
+                Past Recordings
+            </TabsTrigger>
+        </TabsList>
+        <TabsContent value="upcoming">
+            {upcomingSessions.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
+                    {upcomingSessions.map(session => <SessionCard key={session.id} session={session} />)}
+                </div>
+            ) : (
+                <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-lg mt-6">
+                    <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary/50" />
+                    <p className="text-lg font-medium">No upcoming sessions scheduled.</p>
+                    <p>Check back soon for new live training opportunities!</p>
+                </div>
+            )}
+        </TabsContent>
+        <TabsContent value="past">
+             {pastSessions.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
+                    {pastSessions.map(session => <SessionCard key={session.id} session={session} />)}
+                </div>
+            ) : (
+                <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-lg mt-6">
+                    <p className="text-lg font-medium">No past recordings available yet.</p>
+                    <p>Once a live session has ended, the recording will appear here.</p>
+                </div>
+            )}
+        </TabsContent>
+        </Tabs>
     </div>
   );
 }

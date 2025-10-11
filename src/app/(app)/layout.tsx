@@ -66,6 +66,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
     { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics', icon: BarChart, label: 'Analytics', adminOnly: true },
     { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
@@ -76,7 +77,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     [
         { href: '/admin/courses', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true },
         ...adminNavItems,
-        { href: '/admin/courses', icon: Radio, label: 'Live Sessions', adminOnly: true },
     ]
     : navItems;
 
