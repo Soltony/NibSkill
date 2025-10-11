@@ -38,6 +38,7 @@ import { Logo } from '@/components/logo';
 import { users } from '@/lib/data';
 import { Separator } from '@/components/ui/separator';
 import React from 'react';
+import { NotificationCenter } from '@/components/notification-center';
 
 const staffUser = users.find(u => u.role === 'staff')!;
 const adminUser = users.find(u => u.role === 'admin')!;
@@ -165,6 +166,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       }
                   </h1>
               </div>
+              <NotificationCenter />
           </header>
           <main className="flex-1 p-4 lg:p-6">{children}</main>
         </SidebarInset>

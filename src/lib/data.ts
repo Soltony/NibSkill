@@ -118,6 +118,14 @@ export type RegistrationField = {
   required: boolean;
 }
 
+export type Notification = {
+    id: string;
+    title: string;
+    description: string;
+    createdAt: Date;
+    isRead: boolean;
+};
+
 // To add more fields to the registration form, add them to this array.
 // The `id` must be a unique string, and it will be used as the key in the form data.
 export const initialRegistrationFields: RegistrationField[] = [
@@ -421,3 +429,27 @@ export const analyticsData = {
     ]
   }
 };
+
+export const notifications: Notification[] = [
+    {
+        id: 'notif-1',
+        title: 'Live Session Reminder',
+        description: 'Live Q&A: FusionX for Enterprise starts in 24 hours.',
+        createdAt: new Date(new Date().getTime() - 1 * 60 * 60 * 1000), // 1 hour ago
+        isRead: false,
+    },
+    {
+        id: 'notif-2',
+        title: 'New Course Assigned',
+        description: 'You have been assigned the "Advanced User Training for Centauri" course.',
+        createdAt: new Date(new Date().getTime() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+        isRead: true,
+    },
+    {
+        id: 'notif-3',
+        title: 'Course Completion',
+        description: 'Congratulations! You have completed "Sales Strategy for Nova Suite".',
+        createdAt: new Date(new Date().getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        isRead: true,
+    },
+];
