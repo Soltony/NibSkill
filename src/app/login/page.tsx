@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -14,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -63,6 +65,12 @@ export default function LoginPage() {
                 <Button type="submit" className="w-full">
                   Sign In as Staff
                 </Button>
+                <div className="text-center text-sm">
+                    Don't have an account?{' '}
+                    <Link href="/login/register" className="underline">
+                        Sign Up
+                    </Link>
+                </div>
               </form>
             </TabsContent>
             <TabsContent value="admin">
