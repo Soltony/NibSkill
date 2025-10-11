@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { users, courses as initialCourses, type User, type Badge } from "@/lib/data"
-import { BookOpenCheck, CalendarDays, CheckCircle, Footprints, Medal, Target, Trophy } from "lucide-react"
+import { Award, BookOpenCheck, CalendarDays, CheckCircle, Footprints, Medal, Target, Trophy } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const badgeIcons: { [key: string]: React.ReactNode } = {
