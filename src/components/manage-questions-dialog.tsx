@@ -41,7 +41,7 @@ const questionSchema = z.object({
   text: z.string().min(1, "Question text cannot be empty."),
   type: z.enum(['multiple-choice', 'true-false', 'fill-in-the-blank']),
   options: z.array(optionSchema),
-  correctAnswerId: z.string({ required_error: "A correct answer is required." }),
+  correctAnswerId: z.string({ required_error: "A correct answer is required." }).min(1, "A correct answer is required."),
 })
 
 const formSchema = z.object({
@@ -183,7 +183,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
                       name={`questions.${qIndex}.text`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Question {qIndex + 1} ({question.type?.replace('-', ' ')})</FormLabel>
+                          <FormLabel>Question {qIndex + 1} ({question.type?.replace('-', ' ') || 'New Question'})</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter question text" {...field} />
                           </FormControl>
@@ -266,8 +266,15 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
                           )}
                         />
                     )}
+                    
+                    <FormField
+                      control={form.control}
+                      name={`questions.${qIndex}.correctAnswerId`}
+                      render={() => (
+                          <FormMessage />
+                      )}
+                    />
 
-                    <FormMessage>{form.formState.errors.questions?.[qIndex]?.correctAnswerId?.message}</FormMessage>
 
                     <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => remove(qIndex)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
