@@ -46,13 +46,20 @@ export default function UserCertificatePage() {
         const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY);
         const allCourses = storedCourses ? JSON.parse(storedCourses) : initialCourses;
         const currentCourse = allCourses.find((c: Course) => c.id === courseId);
-        setCourse(currentCourse);
-
+        
+        if (currentCourse) {
+            setCourse(currentCourse);
+        }
+        
         setIsLoaded(true);
     }, [courseId]);
 
-    if (!isLoaded || !course) {
+    if (!isLoaded) {
         return <div>Loading certificate...</div>;
+    }
+    
+    if (!course) {
+        return <div>Certificate not found. The course may have been removed.</div>;
     }
     
     const certificateBody = template.body
