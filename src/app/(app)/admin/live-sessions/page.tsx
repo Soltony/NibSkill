@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { liveSessions as initialLiveSessions, type LiveSession } from "@/lib/data"
+import { liveSessions as initialLiveSessions, users, type LiveSession, type User } from "@/lib/data"
 import {
   Table,
   TableBody,
@@ -29,13 +29,55 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const SESSIONS_STORAGE_KEY = "skillup-live-sessions"
+
+const ViewAttendeesDialog = ({ session }: { session: LiveSession }) => {
+    const attendees = users.filter(u => session.attendees?.includes(u.id));
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="link" className="p-0 h-auto">
+                    {session.attendees?.length || 0}
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Attendees for "{session.title}"</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                    {attendees.length > 0 ? (
+                        <ul className="space-y-3">
+                            {attendees.map(user => (
+                                <li key={user.id} className="flex items-center gap-3">
+                                    <Avatar>
+                                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="font-semibold">{user.name}</p>
+                                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-muted-foreground text-center">No one has marked attendance for this session yet.</p>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 export default function LiveSessionManagementPage() {
   const [sessions, setSessions] = useState<LiveSession[]>([])
@@ -114,6 +156,7 @@ export default function LiveSessionManagementPage() {
                   <TableHead>Speaker</TableHead>
                   <TableHead>Date & Time</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Attendees</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -127,6 +170,9 @@ export default function LiveSessionManagementPage() {
                       <Badge variant={getStatus(session.dateTime).variant}>
                         {getStatus(session.dateTime).text}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                        <ViewAttendeesDialog session={session} />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

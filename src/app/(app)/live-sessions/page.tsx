@@ -1,11 +1,11 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
-import { liveSessions as initialLiveSessions, type LiveSession } from '@/lib/data';
+import { useState, useEffect, useContext } from "react"
+import { liveSessions as initialLiveSessions, type LiveSession, users, User } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, Mic, Video, Radio, Sparkles } from 'lucide-react';
+import { Calendar, Clock, Mic, Video, Radio, Sparkles, CheckSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from "next/link";
 import {
@@ -14,16 +14,19 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
+import { UserContext } from "../layout";
+import { useToast } from "@/hooks/use-toast";
 
 const SESSIONS_STORAGE_KEY = "skillup-live-sessions"
 
-const SessionCard = ({ session }: { session: LiveSession }) => {
+const SessionCard = ({ session, onAttend, hasAttended }: { session: LiveSession, onAttend: (sessionId: string) => void, hasAttended: boolean }) => {
     const now = new Date();
     const sessionTime = new Date(session.dateTime);
     const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // Assuming 1-hour duration
 
     const isPast = now > endTime;
     const isLive = now >= sessionTime && now <= endTime;
+    const isUpcoming = now < sessionTime;
     
     return (
         <Card className="flex flex-col">
@@ -60,26 +63,32 @@ const SessionCard = ({ session }: { session: LiveSession }) => {
                     <p className="text-sm text-muted-foreground">{session.keyTakeaways}</p>
                 </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-2 items-stretch">
                 {isPast ? (
                     session.recordingUrl ? (
-                         <Button asChild className="w-full">
+                         <Button asChild>
                             <a href={session.recordingUrl} target="_blank" rel="noopener noreferrer">
                                 <Video className="mr-2 h-4 w-4" />
                                 Watch Recording
                             </a>
                         </Button>
                     ) : (
-                         <Button variant="outline" disabled className="w-full">
+                         <Button variant="outline" disabled>
                             Recording Unavailable
                         </Button>
                     )
                 ) : (
-                     <Button asChild className="w-full">
+                     <Button asChild>
                         <a href={session.joinUrl} target="_blank" rel="noopener noreferrer">
                             <Mic className="mr-2 h-4 w-4" />
                             Join Session
                         </a>
+                    </Button>
+                )}
+                {!isUpcoming && (
+                     <Button variant="secondary" onClick={() => onAttend(session.id)} disabled={hasAttended}>
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        {hasAttended ? "Attendance Marked" : "I Attended"}
                     </Button>
                 )}
             </CardFooter>
@@ -88,32 +97,52 @@ const SessionCard = ({ session }: { session: LiveSession }) => {
 }
 
 export default function LiveSessionsPage() {
-    const [upcomingSessions, setUpcomingSessions] = useState<LiveSession[]>([]);
-    const [pastSessions, setPastSessions] = useState<LiveSession[]>([]);
+    const [sessions, setSessions] = useState<LiveSession[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
-
+    // Hard-coding staff user for simplicity, in a real app this would come from auth context
+    const staffUser = users.find(u => u.role === 'staff')!; 
+    const { toast } = useToast();
+    
     useEffect(() => {
         const storedSessions = localStorage.getItem(SESSIONS_STORAGE_KEY);
         const allSessions = storedSessions ? JSON.parse(storedSessions).map((s: any) => ({...s, dateTime: new Date(s.dateTime)})) : initialLiveSessions;
-        
-        const now = new Date();
-        const upcoming = allSessions.filter((s: LiveSession) => {
-            const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
-            return now < endTime;
-        }).sort((a: LiveSession, b: LiveSession) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
-
-        const past = allSessions.filter((s: LiveSession) => {
-            const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
-            return now > endTime;
-        }).sort((a: LiveSession, b: LiveSession) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
-
-        setUpcomingSessions(upcoming);
-        setPastSessions(past);
+        setSessions(allSessions);
         setIsLoaded(true);
     }, []);
 
+    useEffect(() => {
+        if(isLoaded) {
+            localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sessions));
+        }
+    }, [sessions, isLoaded]);
+
+    const handleAttend = (sessionId: string) => {
+        setSessions(prevSessions => {
+            return prevSessions.map(session => {
+                if (session.id === sessionId) {
+                    const attendees = session.attendees || [];
+                    if (!attendees.includes(staffUser.id)) {
+                        toast({ title: "Attendance Marked", description: "Your attendance has been recorded." });
+                        return { ...session, attendees: [...attendees, staffUser.id] };
+                    }
+                }
+                return session;
+            });
+        });
+    }
+
+    const now = new Date();
+    const upcomingSessions = sessions.filter((s: LiveSession) => {
+        const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
+        return now < endTime;
+    }).sort((a: LiveSession, b: LiveSession) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+
+    const pastSessions = sessions.filter((s: LiveSession) => {
+        const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
+        return now > endTime;
+    }).sort((a: LiveSession, b: LiveSession) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+
     if (!isLoaded) {
-      // You can return a loading spinner here
       return <div>Loading sessions...</div>;
     }
 
@@ -140,7 +169,14 @@ export default function LiveSessionsPage() {
         <TabsContent value="upcoming">
             {upcomingSessions.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                    {upcomingSessions.map(session => <SessionCard key={session.id} session={session} />)}
+                    {upcomingSessions.map(session => (
+                        <SessionCard 
+                            key={session.id} 
+                            session={session} 
+                            onAttend={handleAttend}
+                            hasAttended={session.attendees?.includes(staffUser.id) || false}
+                        />
+                    ))}
                 </div>
             ) : (
                 <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-lg mt-6">
@@ -153,7 +189,14 @@ export default function LiveSessionsPage() {
         <TabsContent value="past">
              {pastSessions.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                    {pastSessions.map(session => <SessionCard key={session.id} session={session} />)}
+                    {pastSessions.map(session => (
+                        <SessionCard 
+                            key={session.id} 
+                            session={session} 
+                            onAttend={handleAttend}
+                            hasAttended={session.attendees?.includes(staffUser.id) || false}
+                        />
+                    ))}
                 </div>
             ) : (
                 <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-lg mt-6">

@@ -84,6 +84,7 @@ export type LiveSession = {
   platform: 'Zoom' | 'Google Meet';
   joinUrl: string;
   recordingUrl?: string;
+  attendees?: string[]; // Array of user IDs
 };
 
 export type Question = {
@@ -341,7 +342,8 @@ export const liveSessions: LiveSession[] = [
     dateTime: new Date(new Date().getTime() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
     platform: 'Zoom',
     joinUrl: 'https://your-company.zoom.us/j/1234567890',
-    recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    attendees: [],
   },
   {
     id: 'ls-2',
@@ -352,7 +354,8 @@ export const liveSessions: LiveSession[] = [
     dateTime: new Date(new Date().getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
     platform: 'Google Meet',
     joinUrl: 'https://meet.google.com/abc-defg-hij',
-    recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    attendees: ['user-1'],
   },
 ];
 
@@ -507,4 +510,5 @@ export const notifications: Notification[] = [
         isRead: true,
     },
 ];
+
 
