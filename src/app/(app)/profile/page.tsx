@@ -10,8 +10,10 @@ import {
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { users, courses as initialCourses, type User, type Badge } from "@/lib/data"
-import { Award, BookOpenCheck, CalendarDays, CheckCircle, Footprints, Medal, Target, Trophy } from "lucide-react"
+import { Award, BookOpenCheck, CalendarDays, CheckCircle, Footprints, Medal, Target, Trophy, FileText } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 const badgeIcons: { [key: string]: React.ReactNode } = {
     Footprints: <Footprints className="h-10 w-10" />,
@@ -41,13 +43,18 @@ function BadgeCard({ badge }: { badge: Badge }) {
 
 export default function ProfilePage() {
   const currentUser = users.find(u => u.role === 'staff')!
-  const coursesCompleted = currentUser.completedCourses?.length || 0
-  const avgScore = coursesCompleted > 0
+  const completedCourses = currentUser.completedCourses || [];
+  const coursesCompletedCount = completedCourses.length;
+  const avgScore = coursesCompletedCount > 0
     ? Math.round(
         (currentUser.completedCourses || []).reduce((acc, c) => acc + c.score, 0) /
-          coursesCompleted
+          coursesCompletedCount
       )
     : 0
+    
+  const getCourseTitle = (courseId: string) => {
+    return initialCourses.find(c => c.id === courseId)?.title || "Unknown Course";
+  }
 
   return (
     <div className="space-y-8">
@@ -71,7 +78,7 @@ export default function ProfilePage() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{coursesCompleted}</div>
+            <div className="text-2xl font-bold">{coursesCompletedCount}</div>
             <p className="text-xs text-muted-foreground">Total courses finished.</p>
           </CardContent>
         </Card>
@@ -96,6 +103,39 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle>My Certificates</CardTitle>
+          <CardDescription>
+            All of the certificates you've earned from completing courses.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+           {completedCourses.length > 0 ? (
+             <ul className="space-y-4">
+                {completedCourses.map(cert => (
+                    <li key={cert.courseId} className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border p-4">
+                        <div>
+                            <p className="font-semibold">{getCourseTitle(cert.courseId)}</p>
+                            <p className="text-sm text-muted-foreground">Completed on: {cert.completionDate.toLocaleDateString()}</p>
+                        </div>
+                        <Button asChild variant="outline" className="mt-2 sm:mt-0">
+                            <Link href={`/courses/${cert.courseId}/certificate`}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                View Certificate
+                            </Link>
+                        </Button>
+                    </li>
+                ))}
+             </ul>
+            ) : (
+             <div className="text-center py-12 text-muted-foreground">
+                <p>No certificates earned yet. Complete a course to earn one!</p>
+            </div>
+            )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
