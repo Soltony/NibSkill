@@ -86,6 +86,7 @@ export default function QuizManagementPage() {
               <TableRow>
                 <TableHead>Associated Course</TableHead>
                 <TableHead className="text-center">Questions</TableHead>
+                <TableHead className="text-center">Passing Score</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -98,6 +99,9 @@ export default function QuizManagementPage() {
                   <TableCell className="text-center">
                     {quiz.questions.length}
                   </TableCell>
+                  <TableCell className="text-center">
+                    {quiz.passingScore}%
+                  </TableCell>
                   <TableCell className="text-right">
                     <ManageQuestionsDialog
                       quiz={quiz}
@@ -109,7 +113,7 @@ export default function QuizManagementPage() {
               ))}
               {quizzes.length === 0 && (
                 <TableRow>
-                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
                         No quizzes have been created yet.
                     </TableCell>
                 </TableRow>

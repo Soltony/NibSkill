@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Quiz as QuizType, Question } from '@/lib/data';
 import { Input } from './ui/input';
+import { Award, Frown } from 'lucide-react';
 
 type Answers = {
   [questionId: string]: string;
@@ -59,12 +60,14 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
         }
       }
     });
-    const finalScore = Math.round((correctAnswers / quiz.questions.length) * 100);
+    const finalScore = quiz.questions.length > 0 ? Math.round((correctAnswers / quiz.questions.length) * 100) : 0;
     setScore(finalScore);
     setShowResult(true);
   };
 
   const isSubmitDisabled = quiz.questions.some(q => !isAnswered(q));
+
+  const passed = score >= quiz.passingScore;
 
   return (
     <>
@@ -72,7 +75,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
         <form onSubmit={handleSubmit}>
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Knowledge Check</CardTitle>
-            <CardDescription>Let's see what you've learned. Answer all questions to complete the course.</CardDescription>
+            <CardDescription>Let's see what you've learned. Answer all questions to complete the course. The passing score is {quiz.passingScore}%.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
             {quiz.questions.map((q, index) => (
@@ -130,15 +133,26 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
       <AlertDialog open={showResult} onOpenChange={setShowResult}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-headline">Quiz Result</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have completed the quiz. Here is your score.
+            <AlertDialogTitle className="font-headline text-center text-2xl">
+              {passed ? "Certification Granted!" : "More Study Needed"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              You have completed the quiz. Here is your result.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4 text-center">
-            <p className="text-6xl font-bold text-primary">{score}%</p>
-            <p className="text-lg text-muted-foreground">
-                {score >= 80 ? "Excellent work!" : "Good effort! Review the materials for a better score."}
+          <div className="py-4 text-center flex flex-col items-center gap-4">
+             {passed ? (
+                <Award className="h-20 w-20 text-green-500" />
+             ) : (
+                <Frown className="h-20 w-20 text-red-500" />
+             )}
+            <div>
+                <p className="text-sm text-muted-foreground">Your Score</p>
+                <p className="text-6xl font-bold text-primary">{score}%</p>
+                <p className="text-sm text-muted-foreground">Passing Score: {quiz.passingScore}%</p>
+            </div>
+            <p className="text-lg text-muted-foreground mt-2">
+                {passed ? "Excellent work! You've successfully passed the assessment." : "Good effort! Please review the materials and try again."}
             </p>
           </div>
           <AlertDialogFooter>

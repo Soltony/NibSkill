@@ -45,6 +45,7 @@ const questionSchema = z.object({
 })
 
 const formSchema = z.object({
+  passingScore: z.coerce.number().min(0).max(100),
   questions: z.array(questionSchema),
 })
 
@@ -61,6 +62,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      passingScore: quiz.passingScore,
       questions: quiz.questions,
     },
   })
@@ -73,12 +75,13 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const updatedQuiz: Quiz = {
       ...quiz,
+      passingScore: values.passingScore,
       questions: values.questions,
     }
     onQuizUpdated(updatedQuiz)
     toast({
       title: "Quiz Updated",
-      description: "The questions have been saved.",
+      description: "The questions and settings have been saved.",
     })
     setOpen(false)
   }
@@ -156,7 +159,22 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <ScrollArea className="h-[60vh] p-4 border rounded-md">
+            
+            <FormField
+              control={form.control}
+              name="passingScore"
+              render={({ field }) => (
+                <FormItem className="mb-4">
+                  <FormLabel>Passing Score (%)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min="0" max="100" className="w-48" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <ScrollArea className="h-[55vh] p-4 border rounded-md">
               <div className="space-y-8">
                 {fields.map((question, qIndex) => (
                   <div key={question.id} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
@@ -261,7 +279,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
                     <p className="text-center text-muted-foreground py-8">No questions have been added yet.</p>
                 )}
 
-                <div className="flex justify-center gap-2">
+                <div className="flex justify-center gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => addQuestion('multiple-choice')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Multiple Choice
                   </Button>

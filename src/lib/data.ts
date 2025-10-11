@@ -79,6 +79,7 @@ export type Question = {
 export type Quiz = {
   id:string;
   courseId: string;
+  passingScore: number; // Percentage from 0 to 100
   questions: Question[];
 };
 
@@ -306,6 +307,7 @@ export const quizzes: Quiz[] = [
   {
     id: 'quiz-1',
     courseId: 'course-1',
+    passingScore: 80,
     questions: [
       {
         id: 'q1-1',
@@ -341,6 +343,7 @@ export const quizzes: Quiz[] = [
     {
     id: 'quiz-4',
     courseId: 'course-4',
+    passingScore: 90,
     questions: [
       {
         id: 'q4-1',
