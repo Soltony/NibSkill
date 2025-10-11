@@ -432,7 +432,12 @@ const detailedProgressReport = [
             branch: user.branch,
             courseId: course.id,
             courseTitle: course.title,
-            progress: user.id === 'user-1' && course.id === 'course-1' ? 33 : (user.completedCourses?.find(cc => cc.courseId === course.id) ? 100 : Math.floor(Math.random() * 80)),
+            progress: user.id === 'user-1' && course.id === 'course-1' 
+                ? 33 
+                : (user.completedCourses?.find(cc => cc.courseId === course.id) 
+                    ? 100 
+                    // FIX: Replace Math.random() with a deterministic calculation
+                    : (user.name.length + course.title.length) % 81), // Modulo 81 to keep it under 80
         }));
     }).flat()
 ];
