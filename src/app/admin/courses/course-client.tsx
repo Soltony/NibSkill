@@ -45,17 +45,15 @@ export function CourseClient({ courses, products }: CourseClientProps) {
   )
 }
 
-function CourseLink({ course }: { course: CourseWithRelations }) {
+export function CourseLink({ course }: { course: CourseWithRelations }) {
     return (
         <Link href={`/admin/courses/${course.id}`} className="hover:underline">
             {course.title}
         </Link>
     )
 }
-CourseClient.Link = CourseLink
 
-
-function CourseActions({ course, products }: { course: CourseWithRelations, products: ProductType[]}) {
+export function CourseActions({ course, products }: { course: CourseWithRelations, products: ProductType[]}) {
     const [courseToDelete, setCourseToDelete] = useState<CourseWithRelations | null>(null);
     const { toast } = useToast();
 
@@ -123,5 +121,3 @@ function CourseActions({ course, products }: { course: CourseWithRelations, prod
       </>
     )
 }
-
-CourseClient.Actions = CourseActions;

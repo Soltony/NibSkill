@@ -17,7 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
-import { CourseClient } from "./course-client"
+import { CourseClient, CourseLink, CourseActions } from "./course-client"
 
 export default async function CourseManagementPage() {
   const courses = await prisma.course.findMany({
@@ -67,7 +67,7 @@ export default async function CourseManagementPage() {
                 {courses.map((course) => (
                   <TableRow key={course.id}>
                     <TableCell className="font-medium">
-                        <CourseClient.Link course={course} />
+                        <CourseLink course={course} />
                     </TableCell>
                     <TableCell>{course.product?.name}</TableCell>
                     <TableCell className="text-center">
@@ -77,7 +77,7 @@ export default async function CourseManagementPage() {
                       <Badge variant="outline">Published</Badge>
                     </TableCell>
                     <TableCell>
-                      <CourseClient.Actions course={course} products={products} />
+                      <CourseActions course={course} products={products} />
                     </TableCell>
                   </TableRow>
                 ))}
