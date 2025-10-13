@@ -12,9 +12,13 @@ const loginSchema = z.object({
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log('--- LOGIN ATTEMPT ---');
+    console.log('Request Body:', body);
+
     const validation = loginSchema.safeParse(body);
 
     if (!validation.success) {
+      console.error('Validation failed:', validation.error.flatten());
       return NextResponse.json({ isSuccess: false, errors: ['Invalid email or password format.'] }, { status: 400 });
     }
 
@@ -25,14 +29,20 @@ export async function POST(request: Request) {
       include: { role: true },
     });
 
+    console.log('User found in DB:', user ? { id: user.id, email: user.email, passwordHash: user.password } : null);
+
     if (!user || !user.password) {
+      console.log('Result: User not found or user has no password.');
       return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log(`Password comparison for "${email}": ${isPasswordValid ? 'SUCCESS' : 'FAILURE'}`);
+
 
     if (!isPasswordValid) {
-      return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+        console.log('Result: Invalid password.');
+        return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
     }
 
     // In a real app, generate JWT tokens here.
@@ -41,6 +51,10 @@ export async function POST(request: Request) {
     const refreshToken = 'dummy-refresh-token';
 
     const { password: _, ...userWithoutPassword } = user;
+    
+    console.log('Result: Login successful!');
+    console.log('---------------------');
+
 
     return NextResponse.json({
       isSuccess: true,
@@ -51,7 +65,9 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('--- LOGIN ERROR ---');
+    console.error('An unexpected server error occurred:', error);
+    console.error('-------------------');
     return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });
   }
 }
