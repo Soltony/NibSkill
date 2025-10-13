@@ -26,17 +26,14 @@ import {
 import { Input } from "@/components/ui/input"
 import { PlusCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { addRegistrationField } from "@/app/actions/settings-actions"
 
 const formSchema = z.object({
   label: z.string().min(2, "Label must be at least 2 characters."),
   id: z.string().min(2, "ID must be at least 2 characters.").regex(/^[a-zA-Z0-9_]+$/, "ID can only contain letters, numbers, and underscores."),
 })
 
-type AddFieldDialogProps = {
-  onFieldAdded: (field: { id: string; label: string }) => void
-}
-
-export function AddFieldDialog({ onFieldAdded }: AddFieldDialogProps) {
+export function AddFieldDialog() {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -48,14 +45,22 @@ export function AddFieldDialog({ onFieldAdded }: AddFieldDialogProps) {
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    onFieldAdded(values)
-    toast({
-      title: "Field Added",
-      description: `The field "${values.label}" is now available.`,
-    })
-    setOpen(false)
-    form.reset()
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addRegistrationField(values);
+    if (result.success) {
+        toast({
+        title: "Field Added",
+        description: `The field "${values.label}" is now available.`,
+        })
+        setOpen(false)
+        form.reset()
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
+    }
   }
 
   return (
@@ -101,7 +106,9 @@ export function AddFieldDialog({ onFieldAdded }: AddFieldDialogProps) {
               )}
             />
             <DialogFooter>
-              <Button type="submit">Create Field</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating..." : "Create Field"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
