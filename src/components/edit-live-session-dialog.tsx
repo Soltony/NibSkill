@@ -32,10 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { LiveSession } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { format } from 'date-fns'
 import { Wand2 } from "lucide-react"
+import type { LiveSession } from "@prisma/client"
+import { updateLiveSession } from "@/app/actions/live-session-actions"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -43,17 +44,16 @@ const formSchema = z.object({
   description: z.string().min(10, "Description is required"),
   keyTakeaways: z.string().min(10, "Key takeaways are required"),
   dateTime: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
-  platform: z.enum(["Zoom", "Google Meet"]),
+  platform: z.enum(["Zoom", "Google_Meet"]),
   joinUrl: z.string().url("Must be a valid URL"),
   recordingUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
 })
 
 type EditLiveSessionDialogProps = {
   session: LiveSession
-  onSessionUpdated: (session: LiveSession) => void
 }
 
-export function EditLiveSessionDialog({ session, onSessionUpdated }: EditLiveSessionDialogProps) {
+export function EditLiveSessionDialog({ session }: EditLiveSessionDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -78,7 +78,7 @@ export function EditLiveSessionDialog({ session, onSessionUpdated }: EditLiveSes
     if (watchedPlatform === "Zoom") {
         const meetingId = Math.floor(1000000000 + Math.random() * 9000000000);
         url = `https://your-company.zoom.us/j/${meetingId}`;
-    } else if (watchedPlatform === "Google Meet") {
+    } else if (watchedPlatform === "Google_Meet") {
         const chars = 'abcdefghijklmnopqrstuvwxyz';
         const code = Array.from({ length: 11 }, (_, i) => {
             if (i === 3 || i === 8) return '-';
@@ -90,18 +90,21 @@ export function EditLiveSessionDialog({ session, onSessionUpdated }: EditLiveSes
   }
 
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const updatedSession: LiveSession = {
-      ...session,
-      ...values,
-      dateTime: new Date(values.dateTime),
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await updateLiveSession(session.id, values)
+    if (result.success) {
+        toast({
+            title: "Live Session Updated",
+            description: `The session "${values.title}" has been updated.`,
+        })
+        setOpen(false)
+    } else {
+         toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-    onSessionUpdated(updatedSession)
-    toast({
-      title: "Live Session Updated",
-      description: `The session "${updatedSession.title}" has been updated.`,
-    })
-    setOpen(false)
   }
 
   return (
@@ -197,7 +200,7 @@ export function EditLiveSessionDialog({ session, onSessionUpdated }: EditLiveSes
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="Zoom">Zoom</SelectItem>
-                      <SelectItem value="Google Meet">Google Meet</SelectItem>
+                      <SelectItem value="Google_Meet">Google Meet</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -230,14 +233,16 @@ export function EditLiveSessionDialog({ session, onSessionUpdated }: EditLiveSes
                 <FormItem className="col-span-2">
                   <FormLabel>Recording URL (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://..." {...field} />
+                    <Input placeholder="https://..." {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <DialogFooter className="col-span-2">
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
