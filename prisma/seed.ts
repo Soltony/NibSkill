@@ -67,12 +67,15 @@ async function main() {
     const districtRecord = await prisma.district.findFirst({ where: { name: district } });
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch } });
     const roleRecord = await prisma.role.findUnique({ where: { id: role } });
+    
+    // This removes the invalid coursesCompleted field
+    const { coursesCompleted, ...validUserData } = userData as any;
 
     await prisma.user.upsert({
       where: { email: user.email },
       update: {},
       create: {
-        ...userData,
+        ...validUserData,
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
@@ -84,7 +87,7 @@ async function main() {
 
   // Seed Badges
   await prisma.badge.createMany({
-    data: initialBadges,
+    data: initialBadges.map(({ icon, ...badge }) => ({...badge, iconName: icon })),
     skipDuplicates: true
   });
 
@@ -95,9 +98,9 @@ async function main() {
         where: { id: user1.id },
         data: {
             badges: {
-                connect: [
-                    { id: 'badge-1' },
-                    { id: 'badge-4' }
+                create: [
+                    { badgeId: 'badge-1' },
+                    { badgeId: 'badge-4' }
                 ]
             }
         }
@@ -130,7 +133,7 @@ async function main() {
 
   // Seed Courses and Modules
   for (const course of initialCourses) {
-    const { modules, image, ...courseData } = course;
+    const { modules, image, productName, progress, ...courseData } = course;
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
@@ -188,9 +191,6 @@ async function main() {
           },
           create: {
               ...sessionData,
-              attendees: attendees ? {
-                  connect: attendees.map(id => ({ id }))
-              } : undefined
           }
       });
   }
@@ -291,3 +291,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
