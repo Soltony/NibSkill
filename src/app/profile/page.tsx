@@ -82,7 +82,7 @@ export default function ProfilePage() {
   const coursesCompletedCount = completedCourses.length;
   const avgScore = coursesCompletedCount > 0
     ? Math.round(
-        completedCourses.reduce((acc, c) => acc.score + c.score, 0) /
+        completedCourses.reduce((acc, c) => acc + c.score, 0) /
           coursesCompletedCount
       )
     : 0
@@ -192,3 +192,5 @@ export default function ProfilePage() {
     </div>
   )
 }
+
+    

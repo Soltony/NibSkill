@@ -1,228 +1,202 @@
-
-"use client"
-
-import Link from "next/link";
-import { analyticsData } from "@/lib/data"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, HelpCircle, ArrowRight } from "lucide-react"
-import { AnalyticsCharts } from "@/components/analytics-charts"
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Medal } from "lucide-react"
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/components/ui/avatar';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarGroup,
+  SidebarGroupLabel,
+} from '@/components/ui/sidebar';
+import {
+  BookCopy,
+  LayoutDashboard,
+  LogOut,
+  Radio,
+  Users2,
+  Package,
+  Settings,
+  ClipboardCheck,
+  Award,
+  BookMarked,
+  User,
+  FilePieChart,
+} from 'lucide-react';
+import { Logo } from '@/components/logo';
+import { users } from '@/lib/data';
+import { Separator } from '@/components/ui/separator';
+import React from 'react';
+import { NotificationCenter } from '@/components/notification-center';
+import { Toaster } from '@/components/ui/toaster';
+import './globals.css';
+import { Inter } from 'next/font/google';
 
-const rankIcons = [
-    <Medal key="gold" className="h-6 w-6 text-yellow-500" />,
-    <Medal key="silver" className="h-6 w-6 text-slate-400" />,
-    <Medal key="bronze" className="h-6 w-6 text-amber-700" />,
-];
+const inter = Inter({ subsets: ['latin'] });
 
-export default function AnalyticsPage() {
-  const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement, quizQuestionAnalysis } = analyticsData
+const staffUser = users.find(u => u.role === 'staff')!;
+const adminUser = users.find(u => u.role === 'admin')!;
+
+// Create a context to provide the user role
+export const UserContext = React.createContext<'admin' | 'staff'>('staff');
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   
+  // This layout is for the main app. The root layout is separate.
+  if (pathname.startsWith('/login') || pathname === '/') {
+    return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={inter.className}>
+                {children}
+                <Toaster />
+            </body>
+        </html>
+    );
+  }
+
+  // Simple logic to switch between user roles for demonstration
+  const isAdminView = pathname.startsWith('/admin');
+  const currentUser = isAdminView ? adminUser : staffUser;
+  const userRole = isAdminView ? 'admin' : 'staff';
+
+  const navItems = [
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
+    { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
+    { href: '/profile', icon: User, label: 'My Profile', adminOnly: false },
+  ];
+
+  const adminNavItems = [
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
+    { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
+    { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
+    { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
+    { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
+  ];
+  
+  const allNavItems = isAdminView ? adminNavItems : navItems;
+
+  const isLinkActive = (path: string, exact?: boolean) => {
+    if (exact) {
+        return pathname === path;
+    }
+    return pathname.startsWith(path);
+  }
+
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-start">
-        <div>
-            <h1 className="text-3xl font-bold font-headline">Dashboard</h1>
-            <p className="text-muted-foreground">
-              High-level insights into your team's learning and development.
-            </p>
-        </div>
-        <FeatureNotImplementedDialog
-            title="Generate Report"
-            description="In a full application, this would generate a comprehensive CSV report of all analytics data for offline analysis and distribution to department heads."
-            triggerText="Download Report"
-            triggerIcon={<Download className="mr-2 h-4 w-4" />}
-        />
-      </div>
-      
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">Currently enrolled in training</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Completion Rate</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.avgCompletionRate}%</div>
-            <p className="text-xs text-muted-foreground">Across all courses</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Assessment Score</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.avgScore}%</div>
-            <p className="text-xs text-muted-foreground">On first attempt</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Staff Leaderboard</CardTitle>
-            <CardDescription>Top performers based on courses completed.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Rank</TableHead>
-                  <TableHead>Staff Member</TableHead>
-                  <TableHead className="text-center">Courses Completed</TableHead>
-                  <TableHead>Department</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leaderboard.map((user, index) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium text-center">
-                        <div className="flex justify-center items-center">
-                            {index < 3 ? rankIcons[index] : index + 1}
-                        </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src={user.avatarUrl} alt={user.name} />
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{user.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">{user.coursesCompleted}</TableCell>
-                    <TableCell>{user.department}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <TrendingUp className="h-5 w-5 text-green-500" />
-                        Most Completed Courses
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ul className="space-y-3">
-                       {courseEngagement.mostCompleted.map(course => (
-                         <li key={course.id} className="flex justify-between items-center text-sm">
-                            <span className="font-medium">{course.title}</span>
-                            <Badge variant="secondary">{course.completionRate}%</Badge>
-                         </li>
-                       ))}
-                    </ul>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <TrendingDown className="h-5 w-5 text-red-500" />
-                        Least Completed Courses
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ul className="space-y-3">
-                       {courseEngagement.leastCompleted.map(course => (
-                         <li key={course.id} className="flex justify-between items-center text-sm">
-                            <span className="font-medium">{course.title}</span>
-                            <Badge variant="outline">{course.completionRate}%</Badge>
-                         </li>
-                       ))}
-                    </ul>
-                </CardContent>
-            </Card>
-        </div>
-      </div>
-      
-       <Link href="/admin/analytics/progress-report">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Detailed Progress Report</CardTitle>
-                    <CardDescription>
-                        Drill down into course progress for every staff member with advanced filters and search.
-                    </CardDescription>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <UserContext.Provider value={userRole}>
+          <SidebarProvider>
+            <Sidebar>
+              <SidebarHeader>
+                <Logo className="text-primary-foreground" />
+              </SidebarHeader>
+              <SidebarContent>
+                <SidebarMenu>
+                   {isAdminView ? (
+                     <>
+                      <SidebarGroup>
+                        <SidebarGroupLabel>Admin</SidebarGroupLabel>
+                        {adminNavItems.map((item) => (
+                          <SidebarMenuItem key={item.href}>
+                            <Link href={item.href}>
+                              <SidebarMenuButton
+                                isActive={isLinkActive(item.href, item.exact)}
+                                tooltip={item.label}
+                              >
+                                <item.icon />
+                                <span>{item.label}</span>
+                              </SidebarMenuButton>
+                            </Link>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarGroup>
+                       <SidebarMenuItem>
+                          <Link href={'/dashboard'}>
+                            <SidebarMenuButton
+                              isActive={isLinkActive('/dashboard')}
+                              tooltip={'Staff Dashboard'}
+                            >
+                              <LayoutDashboard />
+                              <span>Staff View</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                     </>
+                  ) : (
+                    navItems.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                          <SidebarMenuButton
+                            isActive={isLinkActive(item.href)}
+                            tooltip={item.label}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    ))
+                  )}
+                </SidebarMenu>
+              </SidebarContent>
+              <SidebarFooter>
+                <Separator className="my-2 bg-sidebar-border" />
+                <div className="flex items-center gap-3 p-2">
+                  <Avatar>
+                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                    <AvatarFallback>
+                      {currentUser.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 overflow-hidden">
+                      <p className="truncate font-semibold text-sm text-sidebar-foreground">{currentUser.name}</p>
+                      <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
+                  </div>
+                  <Link href="/login">
+                      <SidebarMenuButton size="sm" variant="outline" className="h-8 w-8 bg-transparent hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground border-sidebar-border">
+                          <LogOut />
+                      </SidebarMenuButton>
+                  </Link>
                 </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-          </Card>
-        </Link>
-      
-        <AnalyticsCharts 
-            completionByDept={completionByDept} 
-            scoresDistribution={scoresDistribution}
-        />
-        
-      <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-                <HelpCircle className="h-6 w-6 text-primary" />
-                Quiz Question Analysis
-            </CardTitle>
-            <CardDescription>
-                Identify which questions are most challenging for your staff.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-             <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Question</TableHead>
-                        <TableHead>Course</TableHead>
-                        <TableHead className="w-[250px]">Correct Answer Rate</TableHead>
-                        <TableHead className="text-right">Total Attempts</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {quizQuestionAnalysis.map((item) => {
-                        const total = item.correctAttempts + item.incorrectAttempts;
-                        const correctRate = total > 0 ? (item.correctAttempts / total) * 100 : 0;
-                        return (
-                            <TableRow key={item.questionId}>
-                                <TableCell className="font-medium max-w-sm truncate">{item.questionText}</TableCell>
-                                <TableCell>{item.courseTitle}</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <Progress value={correctRate} className="h-2"/>
-                                        <span className="text-muted-foreground font-mono text-sm">{correctRate.toFixed(1)}%</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right font-mono">{total}</TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
-             </Table>
-        </CardContent>
-      </Card>
-
-    </div>
-  )
+              </SidebarFooter>
+            </Sidebar>
+            <SidebarInset>
+              <header className="flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
+                  <SidebarTrigger className="md:hidden"/>
+                  <div className="flex-1">
+                      <h1 className="text-lg font-semibold md:text-xl font-headline">
+                          {
+                              [...navItems, ...adminNavItems].find(item => isLinkActive(item.href, item.exact))?.label
+                          }
+                      </h1>
+                  </div>
+                  <NotificationCenter />
+              </header>
+              <main className="flex-1 p-4 lg:p-6">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        </UserContext.Provider>
+        <Toaster />
+      </body>
+    </html>
+  );
 }

@@ -21,7 +21,11 @@ export default async function LearningPathManagementPage() {
   const learningPaths = await prisma.learningPath.findMany({
     orderBy: { title: "asc" },
     include: {
-      courses: true,
+      courses: {
+        include: {
+          course: true
+        }
+      }
     },
   })
   
@@ -82,3 +86,5 @@ export default async function LearningPathManagementPage() {
     </div>
   )
 }
+
+    

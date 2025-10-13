@@ -1,306 +1,202 @@
-
-"use client";
-
-import { useState, useEffect, ChangeEvent } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/components/ui/avatar';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { Logo } from "@/components/logo";
-import Image from "next/image";
-import { X } from "lucide-react";
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarGroup,
+  SidebarGroupLabel,
+} from '@/components/ui/sidebar';
+import {
+  BookCopy,
+  LayoutDashboard,
+  LogOut,
+  Radio,
+  Users2,
+  Package,
+  Settings,
+  ClipboardCheck,
+  Award,
+  BookMarked,
+  User,
+  FilePieChart,
+} from 'lucide-react';
+import { Logo } from '@/components/logo';
+import { users } from '@/lib/data';
+import { Separator } from '@/components/ui/separator';
+import React from 'react';
+import { NotificationCenter } from '@/components/notification-center';
+import { Toaster } from '@/components/ui/toaster';
+import './globals.css';
+import { Inter } from 'next/font/google';
 
-const TEMPLATE_STORAGE_KEY = "skillup-certificate-template";
-const SIGNATURE_STORAGE_KEY = "skillup-certificate-signature";
-const STAMP_STORAGE_KEY = "skillup-certificate-stamp";
+const inter = Inter({ subsets: ['latin'] });
 
-const templateSchema = z.object({
-  title: z.string().min(3, "Title is required"),
-  organization: z.string().min(2, "Organization is required"),
-  body: z.string().min(10, "Body text is required"),
-  signatoryName: z.string().min(3, "Signatory name is required"),
-  signatoryTitle: z.string().min(3, "Signatory title is required"),
-});
+const staffUser = users.find(u => u.role === 'staff')!;
+const adminUser = users.find(u => u.role === 'admin')!;
 
-type CertificateTemplate = z.infer<typeof templateSchema>;
+// Create a context to provide the user role
+export const UserContext = React.createContext<'admin' | 'staff'>('staff');
 
-const defaultTemplate: CertificateTemplate = {
-  title: "Certificate of Completion",
-  organization: "SkillUp Inc.",
-  body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
-  signatoryName: "Jane Doe",
-  signatoryTitle: "Head of Training & Development",
-};
-
-export default function CertificatePage() {
-  const { toast } = useToast();
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
-  const [stampUrl, setStampUrl] = useState<string | null>(null);
-
-  const form = useForm<CertificateTemplate>({
-    resolver: zodResolver(templateSchema),
-    defaultValues: defaultTemplate,
-  });
-
-  const watchedValues = form.watch();
-
-  useEffect(() => {
-    const storedTemplate = localStorage.getItem(TEMPLATE_STORAGE_KEY);
-    if (storedTemplate) {
-      form.reset(JSON.parse(storedTemplate));
-    }
-    const storedSignature = localStorage.getItem(SIGNATURE_STORAGE_KEY);
-    if (storedSignature) {
-      setSignatureUrl(storedSignature);
-    }
-    const storedStamp = localStorage.getItem(STAMP_STORAGE_KEY);
-    if (storedStamp) {
-      setStampUrl(storedStamp);
-    }
-    setIsLoaded(true);
-  }, [form]);
-
-  useEffect(() => {
-    if (isLoaded) {
-      const subscription = form.watch(() => {
-        localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(form.getValues()));
-      });
-      return () => subscription.unsubscribe();
-    }
-  }, [isLoaded, form]);
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, setter: (url: string | null) => void, storageKey: string) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        setter(dataUrl);
-        localStorage.setItem(storageKey, dataUrl);
-        toast({
-            title: "Image Uploaded",
-            description: "Your image has been saved to the template."
-        })
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-  
-  const handleImageRemove = (setter: (url: string | null) => void, storageKey: string, fieldName: string) => {
-    setter(null);
-    localStorage.removeItem(storageKey);
-    toast({
-        title: "Image Removed",
-        description: `The ${fieldName} image has been removed.`,
-        variant: "destructive"
-    })
+  // This layout is for the main app. The root layout is separate.
+  if (pathname.startsWith('/login') || pathname === '/') {
+    return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={inter.className}>
+                {children}
+                <Toaster />
+            </body>
+        </html>
+    );
   }
 
+  // Simple logic to switch between user roles for demonstration
+  const isAdminView = pathname.startsWith('/admin');
+  const currentUser = isAdminView ? adminUser : staffUser;
+  const userRole = isAdminView ? 'admin' : 'staff';
 
-  const onSubmit = (values: CertificateTemplate) => {
-    localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(values));
-    toast({
-      title: "Template Saved",
-      description: "Your certificate template has been updated.",
-    });
-  };
+  const navItems = [
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
+    { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
+    { href: '/profile', icon: User, label: 'My Profile', adminOnly: false },
+  ];
 
-  const previewBody = watchedValues.body
-    .replace('[Student Name]', 'Alex Johnson')
-    .replace('[Course Name]', 'New Product Launch: FusionX')
-    .replace('[Completion Date]', new Date().toLocaleDateString());
+  const adminNavItems = [
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
+    { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
+    { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
+    { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
+    { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
+  ];
+  
+  const allNavItems = isAdminView ? adminNavItems : navItems;
+
+  const isLinkActive = (path: string, exact?: boolean) => {
+    if (exact) {
+        return pathname === path;
+    }
+    return pathname.startsWith(path);
+  }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline">Certificate Template</h1>
-        <p className="text-muted-foreground">
-          Design the certificate that will be awarded upon course completion.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Customize Certificate</CardTitle>
-              <CardDescription>Use the form below to edit the certificate content. Placeholders like [Student Name] are supported.</CardDescription>
-            </CardHeader>
-             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Certificate Title</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="organization"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Organization Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="body"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Body Text</FormLabel>
-                        <FormControl>
-                          <Textarea {...field} rows={5} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="signatoryName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Signatory Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="signatoryTitle"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Signatory Title</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormItem>
-                        <FormLabel>Signatory Signature</FormLabel>
-                        {signatureUrl ? (
-                            <div className="flex items-center gap-2">
-                                <Image src={signatureUrl} alt="Signature preview" width={100} height={40} className="border rounded-md bg-muted" />
-                                <Button variant="ghost" size="sm" onClick={() => handleImageRemove(setSignatureUrl, SIGNATURE_STORAGE_KEY, 'signature')}>
-                                    <X className="mr-2 h-4 w-4"/> Remove
-                                </Button>
-                            </div>
-                        ) : (
-                            <FormControl>
-                                <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setSignatureUrl, SIGNATURE_STORAGE_KEY)}/>
-                            </FormControl>
-                        )}
-                        <FormMessage />
-                    </FormItem>
-                    <FormItem>
-                        <FormLabel>Organization Stamp/Seal</FormLabel>
-                        {stampUrl ? (
-                            <div className="flex items-center gap-2">
-                                <Image src={stampUrl} alt="Stamp preview" width={60} height={60} className="border rounded-md bg-muted p-1" />
-                                <Button variant="ghost" size="sm" onClick={() => handleImageRemove(setStampUrl, STAMP_STORAGE_KEY, 'stamp')}>
-                                    <X className="mr-2 h-4 w-4"/> Remove
-                                </Button>
-                            </div>
-                        ) : (
-                            <FormControl>
-                                <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setStampUrl, STAMP_STORAGE_KEY)}/>
-                            </FormControl>
-                        )}
-                        <FormMessage />
-                    </FormItem>
-                  <Button type="submit">Save Template</Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-2">
-            <h2 className="text-2xl font-semibold font-headline mb-4">Live Preview</h2>
-            <Card className="aspect-[11/8.5] w-full p-8 flex flex-col items-center justify-between text-center bg-white shadow-2xl relative overflow-hidden">
-                <div className="absolute inset-0 border-4 border-primary/20 m-2 rounded-lg"></div>
-                <div className="absolute inset-0 border-8 border-primary/80 m-4 rounded-lg"></div>
-                
-                <div className="z-10 w-full">
-                    <div className="flex justify-center items-center gap-4 mb-4">
-                        <Logo />
-                    </div>
-                    <p className="text-xl font-semibold text-muted-foreground">{watchedValues.organization}</p>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <UserContext.Provider value={userRole}>
+          <SidebarProvider>
+            <Sidebar>
+              <SidebarHeader>
+                <Logo className="text-primary-foreground" />
+              </SidebarHeader>
+              <SidebarContent>
+                <SidebarMenu>
+                   {isAdminView ? (
+                     <>
+                      <SidebarGroup>
+                        <SidebarGroupLabel>Admin</SidebarGroupLabel>
+                        {adminNavItems.map((item) => (
+                          <SidebarMenuItem key={item.href}>
+                            <Link href={item.href}>
+                              <SidebarMenuButton
+                                isActive={isLinkActive(item.href, item.exact)}
+                                tooltip={item.label}
+                              >
+                                <item.icon />
+                                <span>{item.label}</span>
+                              </SidebarMenuButton>
+                            </Link>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarGroup>
+                       <SidebarMenuItem>
+                          <Link href={'/dashboard'}>
+                            <SidebarMenuButton
+                              isActive={isLinkActive('/dashboard')}
+                              tooltip={'Staff Dashboard'}
+                            >
+                              <LayoutDashboard />
+                              <span>Staff View</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                     </>
+                  ) : (
+                    navItems.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                          <SidebarMenuButton
+                            isActive={isLinkActive(item.href)}
+                            tooltip={item.label}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    ))
+                  )}
+                </SidebarMenu>
+              </SidebarContent>
+              <SidebarFooter>
+                <Separator className="my-2 bg-sidebar-border" />
+                <div className="flex items-center gap-3 p-2">
+                  <Avatar>
+                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                    <AvatarFallback>
+                      {currentUser.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 overflow-hidden">
+                      <p className="truncate font-semibold text-sm text-sidebar-foreground">{currentUser.name}</p>
+                      <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
+                  </div>
+                  <Link href="/login">
+                      <SidebarMenuButton size="sm" variant="outline" className="h-8 w-8 bg-transparent hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground border-sidebar-border">
+                          <LogOut />
+                      </SidebarMenuButton>
+                  </Link>
                 </div>
-                
-                <div className="z-10">
-                    <h1 className="text-5xl font-bold font-headline text-primary mb-4">{watchedValues.title}</h1>
-                    <p className="text-lg text-foreground/80 max-w-xl mx-auto">
-                        {previewBody}
-                    </p>
-                </div>
-
-                <div className="z-10 w-full flex justify-around items-end">
-                    <div className="text-center">
-                         {signatureUrl ? (
-                            <div className="relative h-16 w-48 mx-auto mb-2">
-                               <Image src={signatureUrl} alt="Signature" layout="fill" objectFit="contain" />
-                            </div>
-                        ) : (
-                            <div className="h-16"></div>
-                        )}
-                        <p className="font-serif text-xl italic">{watchedValues.signatoryName}</p>
-                        <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
-                        <p className="text-sm text-muted-foreground">{watchedValues.signatoryTitle}</p>
-                    </div>
-                    {stampUrl && (
-                        <div className="relative h-24 w-24">
-                           <Image src={stampUrl} alt="Organization Stamp" layout="fill" objectFit="contain" />
-                        </div>
-                    )}
-                     <div className="text-center">
-                        <div className="h-16"></div>
-                        <p className="font-serif text-xl italic">{new Date().toLocaleDateString()}</p>
-                        <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
-                        <p className="text-sm text-muted-foreground">Date of Issue</p>
-                    </div>
-                </div>
-            </Card>
-        </div>
-      </div>
-    </div>
+              </SidebarFooter>
+            </Sidebar>
+            <SidebarInset>
+              <header className="flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
+                  <SidebarTrigger className="md:hidden"/>
+                  <div className="flex-1">
+                      <h1 className="text-lg font-semibold md:text-xl font-headline">
+                          {
+                              [...navItems, ...adminNavItems].find(item => isLinkActive(item.href, item.exact))?.label
+                          }
+                      </h1>
+                  </div>
+                  <NotificationCenter />
+              </header>
+              <main className="flex-1 p-4 lg:p-6">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        </UserContext.Provider>
+        <Toaster />
+      </body>
+    </html>
   );
 }

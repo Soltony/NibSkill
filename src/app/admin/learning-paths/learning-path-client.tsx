@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState } from "react"
@@ -20,8 +19,10 @@ import { useToast } from "@/hooks/use-toast"
 import { deleteLearningPath } from "@/app/actions/learning-path-actions"
 import type { LearningPath, Course } from "@prisma/client"
 
+type LearningPathWithCourses = LearningPath & { courses: { course: Course }[] };
+
 type LearningPathClientProps = {
-  paths: LearningPath[];
+  paths: LearningPathWithCourses[];
   courses: Course[];
 }
 
@@ -31,7 +32,7 @@ export function LearningPathClient({ paths, courses }: LearningPathClientProps) 
   )
 }
 
-function LearningPathActions({ path, courses }: { path: LearningPath, courses: Course[]}) {
+function LearningPathActions({ path, courses }: { path: LearningPathWithCourses, courses: Course[]}) {
     const [pathToDelete, setPathToDelete] = useState<LearningPath | null>(null);
     const { toast } = useToast();
 
@@ -84,3 +85,5 @@ function LearningPathActions({ path, courses }: { path: LearningPath, courses: C
 }
 
 LearningPathClient.Actions = LearningPathActions;
+
+    

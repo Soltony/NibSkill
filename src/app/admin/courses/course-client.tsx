@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState } from "react"
@@ -126,3 +125,5 @@ function CourseActions({ course, products }: { course: CourseWithRelations, prod
 }
 
 CourseClient.Actions = CourseActions;
+
+    

@@ -1,232 +1,202 @@
-
-"use client";
-
-import { useState, useMemo, useEffect, useContext } from 'react';
-import Image from 'next/image';
-import { useParams } from 'next/navigation';
-import { courses as initialCourses, quizzes as initialQuizzes, type Module, type Course, type Quiz as QuizType } from '@/lib/data';
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Quiz } from '@/components/quiz';
-import { Video, FileText, Presentation, ExternalLink, Pencil } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { UserContext } from '@/app/(app)/layout';
-import { AddModuleDialog } from '@/components/add-module-dialog';
-import { EditModuleDialog } from '@/components/edit-module-dialog';
-import { ModuleContent } from '@/components/module-content';
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/components/ui/avatar';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarGroup,
+  SidebarGroupLabel,
+} from '@/components/ui/sidebar';
+import {
+  BookCopy,
+  LayoutDashboard,
+  LogOut,
+  Radio,
+  Users2,
+  Package,
+  Settings,
+  ClipboardCheck,
+  Award,
+  BookMarked,
+  User,
+  FilePieChart,
+} from 'lucide-react';
+import { Logo } from '@/components/logo';
+import { users } from '@/lib/data';
+import { Separator } from '@/components/ui/separator';
+import React from 'react';
+import { NotificationCenter } from '@/components/notification-center';
+import { Toaster } from '@/components/ui/toaster';
+import './globals.css';
+import { Inter } from 'next/font/google';
 
-const iconMap = {
-  video: <Video className="h-5 w-5 text-accent" />,
-  pdf: <FileText className="h-5 w-5 text-accent" />,
-  slides: <Presentation className="h-5 w-5 text-accent" />,
-};
+const inter = Inter({ subsets: ['latin'] });
 
-const COURSES_STORAGE_KEY = "skillup-courses";
-const QUIZZES_STORAGE_KEY = "skillup-quizzes";
+const staffUser = users.find(u => u.role === 'staff')!;
+const adminUser = users.find(u => u.role === 'admin')!;
 
-export default function CourseDetailPage() {
-  const params = useParams();
-  const courseId = typeof params.courseId === 'string' ? params.courseId : '';
-  const userRole = useContext(UserContext);
-  const { toast } = useToast();
+// Create a context to provide the user role
+export const UserContext = React.createContext<'admin' | 'staff'>('staff');
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   
-  const [course, setCourse] = useState<Course | undefined>();
-  const [allCourses, setAllCourses] = useState<Course[]>([]);
-  const [allQuizzes, setAllQuizzes] = useState<QuizType[]>([]);
-
-  const quiz = useMemo(() => allQuizzes.find((q) => q.courseId === courseId), [courseId, allQuizzes]);
-
-  const [showQuiz, setShowQuiz] = useState(false);
-
-  useEffect(() => {
-    const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY);
-    const coursesSource = storedCourses ? JSON.parse(storedCourses) : initialCourses;
-    setAllCourses(coursesSource);
-    setCourse(coursesSource.find((c: Course) => c.id === courseId));
-    
-    const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
-    setAllQuizzes(storedQuizzes ? JSON.parse(storedQuizzes) : initialQuizzes);
-  }, [courseId]);
-
-  useEffect(() => {
-    // Only save if allCourses has been loaded
-    if(allCourses.length > 0) {
-      const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY);
-      if (JSON.stringify(allCourses) !== storedCourses) {
-        localStorage.setItem(COURSES_STORAGE_KEY, JSON.stringify(allCourses));
-      }
-    }
-  }, [allCourses]);
-
-  const progress = useMemo(() => {
-    if (!course || course.modules.length === 0) return 0;
-    const completedModules = course.modules.filter((m) => m.isCompleted).length;
-    return Math.round((completedModules / course.modules.length) * 100);
-  }, [course]);
-  
-  const allModulesCompleted = progress === 100;
-
-  if (!course) {
-    // Let useEffect handle finding the course, show loading or not found
-    return <div>Loading course...</div>;
+  // This layout is for the main app. The root layout is separate.
+  if (pathname.startsWith('/login') || pathname === '/') {
+    return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={inter.className}>
+                {children}
+                <Toaster />
+            </body>
+        </html>
+    );
   }
 
-  const handleModuleCompletion = (moduleId: string, completed: boolean) => {
-    setCourse(prevCourse => {
-      if (!prevCourse) return undefined;
-      const newModules = prevCourse.modules.map(m => m.id === moduleId ? { ...m, isCompleted: completed } : m);
-      const updatedCourse = { ...prevCourse, modules: newModules };
-      
-      setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
+  // Simple logic to switch between user roles for demonstration
+  const isAdminView = pathname.startsWith('/admin');
+  const currentUser = isAdminView ? adminUser : staffUser;
+  const userRole = isAdminView ? 'admin' : 'staff';
 
-      return updatedCourse;
-    });
-  };
+  const navItems = [
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
+    { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
+    { href: '/profile', icon: User, label: 'My Profile', adminOnly: false },
+  ];
 
-  const handleModuleAdded = (newModule: Module) => {
-    setCourse(prevCourse => {
-      if (!prevCourse) return undefined;
-      const updatedCourse = { ...prevCourse, modules: [...prevCourse.modules, newModule] };
-      
-      setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
-
-      return updatedCourse;
-    });
-  };
+  const adminNavItems = [
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
+    { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
+    { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
+    { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
+    { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
+  ];
   
-  const handleModuleUpdated = (updatedModule: Module) => {
-    setCourse(prevCourse => {
-      if (!prevCourse) return undefined;
-      const newModules = prevCourse.modules.map(m => m.id === updatedModule.id ? updatedModule : m);
-      const updatedCourse = { ...prevCourse, modules: newModules };
-      
-      setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
+  const allNavItems = isAdminView ? adminNavItems : navItems;
 
-      return updatedCourse;
-    });
-  };
-
-
-  const handleStartQuiz = () => {
-    if (allModulesCompleted) {
-      setShowQuiz(true);
-    } else {
-      toast({
-        title: "Complete all modules",
-        description: "Please complete all modules before starting the quiz.",
-        variant: "destructive",
-      });
+  const isLinkActive = (path: string, exact?: boolean) => {
+    if (exact) {
+        return pathname === path;
     }
-  };
-  
-  const handleQuizComplete = () => {
-    toast({
-        title: "Course Completed!",
-        description: `Congratulations on completing the "${course.title}" course.`,
-    });
-    setShowQuiz(false);
+    return pathname.startsWith(path);
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="relative mb-8 h-64 w-full overflow-hidden rounded-lg shadow-lg">
-        <Image
-          src={course.image.imageUrl}
-          alt={course.image.description}
-          fill
-          className="object-cover"
-          data-ai-hint={course.image.imageHint}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-        <div className="absolute bottom-0 p-6">
-            <h1 className="text-4xl font-bold text-white font-headline">{course.title}</h1>
-            <p className="text-lg text-white/90 max-w-2xl">{course.description}</p>
-        </div>
-      </div>
-      
-      <div className="mb-6 space-y-2">
-        <div className="flex justify-between text-sm font-medium text-muted-foreground">
-            <span>Overall Progress</span>
-            <span>{progress}%</span>
-        </div>
-        <Progress value={progress} />
-      </div>
-
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold font-headline">Course Modules</h2>
-        {userRole === 'admin' && <AddModuleDialog onModuleAdded={handleModuleAdded} />}
-      </div>
-
-      {!showQuiz ? (
-        <>
-            <Accordion type="single" collapsible className="w-full" defaultValue={course.modules.length > 0 ? course.modules[0].id : undefined}>
-                {course.modules.map((module) => (
-                <AccordionItem value={module.id} key={module.id}>
-                    <AccordionTrigger className="font-semibold hover:no-underline">
-                        <div className="flex items-center gap-4">
-                            {iconMap[module.type]}
-                            <span>{module.title}</span>
-                            <span className="text-sm font-normal text-muted-foreground">({module.duration} min)</span>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                    <div className="space-y-4 p-4 bg-muted/50 rounded-md">
-                        <ModuleContent module={module} />
-                        <div className="flex items-center justify-between pt-4 border-t">
-                            <div className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={`complete-${module.id}`}
-                                    checked={module.isCompleted}
-                                    onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
-                                />
-                                <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
-                            </div>
-                            {userRole === 'admin' && (
-                                <EditModuleDialog module={module} onModuleUpdated={handleModuleUpdated}>
-                                    <Button variant="ghost" size="sm">
-                                        <Pencil className="mr-2 h-4 w-4" />
-                                        Edit Module
-                                    </Button>
-                                </EditModuleDialog>
-                            )}
-                        </div>
-                    </div>
-                    </AccordionContent>
-                </AccordionItem>
-                ))}
-            </Accordion>
-            {course.modules.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">
-                <p>No modules have been added to this course yet.</p>
-                {userRole === 'admin' && <p>Click "Add Module" to get started.</p>}
-              </div>
-            )}
-
-            <div className="mt-8 text-center">
-                {quiz ? (
-                    <Button size="lg" onClick={handleStartQuiz} disabled={!allModulesCompleted}>
-                        Take Quiz
-                    </Button>
-                ) : (
-                    <p className="text-muted-foreground">Quiz not available for this course.</p>
-                )}
-                {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
-            </div>
-        </>
-      ) : quiz ? (
-        <Quiz quiz={quiz} onComplete={handleQuizComplete} />
-      ) : (
-        <p>Quiz not available for this course.</p>
-      )}
-
-    </div>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <UserContext.Provider value={userRole}>
+          <SidebarProvider>
+            <Sidebar>
+              <SidebarHeader>
+                <Logo className="text-primary-foreground" />
+              </SidebarHeader>
+              <SidebarContent>
+                <SidebarMenu>
+                   {isAdminView ? (
+                     <>
+                      <SidebarGroup>
+                        <SidebarGroupLabel>Admin</SidebarGroupLabel>
+                        {adminNavItems.map((item) => (
+                          <SidebarMenuItem key={item.href}>
+                            <Link href={item.href}>
+                              <SidebarMenuButton
+                                isActive={isLinkActive(item.href, item.exact)}
+                                tooltip={item.label}
+                              >
+                                <item.icon />
+                                <span>{item.label}</span>
+                              </SidebarMenuButton>
+                            </Link>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarGroup>
+                       <SidebarMenuItem>
+                          <Link href={'/dashboard'}>
+                            <SidebarMenuButton
+                              isActive={isLinkActive('/dashboard')}
+                              tooltip={'Staff Dashboard'}
+                            >
+                              <LayoutDashboard />
+                              <span>Staff View</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                     </>
+                  ) : (
+                    navItems.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                          <SidebarMenuButton
+                            isActive={isLinkActive(item.href)}
+                            tooltip={item.label}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    ))
+                  )}
+                </SidebarMenu>
+              </SidebarContent>
+              <SidebarFooter>
+                <Separator className="my-2 bg-sidebar-border" />
+                <div className="flex items-center gap-3 p-2">
+                  <Avatar>
+                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                    <AvatarFallback>
+                      {currentUser.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 overflow-hidden">
+                      <p className="truncate font-semibold text-sm text-sidebar-foreground">{currentUser.name}</p>
+                      <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
+                  </div>
+                  <Link href="/login">
+                      <SidebarMenuButton size="sm" variant="outline" className="h-8 w-8 bg-transparent hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground border-sidebar-border">
+                          <LogOut />
+                      </SidebarMenuButton>
+                  </Link>
+                </div>
+              </SidebarFooter>
+            </Sidebar>
+            <SidebarInset>
+              <header className="flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
+                  <SidebarTrigger className="md:hidden"/>
+                  <div className="flex-1">
+                      <h1 className="text-lg font-semibold md:text-xl font-headline">
+                          {
+                              [...navItems, ...adminNavItems].find(item => isLinkActive(item.href, item.exact))?.label
+                          }
+                      </h1>
+                  </div>
+                  <NotificationCenter />
+              </header>
+              <main className="flex-1 p-4 lg:p-6">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        </UserContext.Provider>
+        <Toaster />
+      </body>
+    </html>
   );
 }

@@ -69,3 +69,5 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
     </div>
   )
 }
+
+    

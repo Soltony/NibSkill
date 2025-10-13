@@ -1,90 +1,202 @@
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/components/ui/avatar';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarGroup,
+  SidebarGroupLabel,
+} from '@/components/ui/sidebar';
+import {
+  BookCopy,
+  LayoutDashboard,
+  LogOut,
+  Radio,
+  Users2,
+  Package,
+  Settings,
+  ClipboardCheck,
+  Award,
+  BookMarked,
+  User,
+  FilePieChart,
+} from 'lucide-react';
+import { Logo } from '@/components/logo';
+import { users } from '@/lib/data';
+import { Separator } from '@/components/ui/separator';
+import React from 'react';
+import { NotificationCenter } from '@/components/notification-center';
+import { Toaster } from '@/components/ui/toaster';
+import './globals.css';
+import { Inter } from 'next/font/google';
 
-import { notFound } from "next/navigation"
-import prisma from "@/lib/db"
-import { Progress } from "@/components/ui/progress"
-import { CourseCard } from "@/components/course-card"
-import { MoveLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
+const inter = Inter({ subsets: ['latin'] });
 
-// Mock function - in a real app, this would be based on the logged-in user
-async function getUserProgressForCourses(courseIds: string[]) {
-    // For now, let's return a map with random progress
-    const progressMap = new Map<string, number>();
-    const courses = await prisma.course.findMany({
-        where: { id: { in: courseIds } },
-        include: { modules: true }
-    });
+const staffUser = users.find(u => u.role === 'staff')!;
+const adminUser = users.find(u => u.role === 'admin')!;
 
-    courses.forEach(course => {
-        // This is a placeholder logic. A real app would fetch user-specific progress.
-        const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
-        const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
-        progressMap.set(course.id, progress);
-    });
-    
-    return progressMap;
-}
+// Create a context to provide the user role
+export const UserContext = React.createContext<'admin' | 'staff'>('staff');
 
-export default async function LearningPathDetailPage({ params }: { params: { pathId: string } }) {
-  const learningPath = await prisma.learningPath.findUnique({
-    where: { id: params.pathId },
-    include: { courses: { include: { modules: true } } },
-  })
-
-  if (!learningPath) {
-    notFound();
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  
+  // This layout is for the main app. The root layout is separate.
+  if (pathname.startsWith('/login') || pathname === '/') {
+    return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={inter.className}>
+                {children}
+                <Toaster />
+            </body>
+        </html>
+    );
   }
 
-  const coursesWithProgress = await Promise.all(
-    learningPath.courses.map(async course => {
-        // This is a placeholder for actual user progress tracking
-        const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
-        const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
-        return { ...course, progress };
-    })
-  );
+  // Simple logic to switch between user roles for demonstration
+  const isAdminView = pathname.startsWith('/admin');
+  const currentUser = isAdminView ? adminUser : staffUser;
+  const userRole = isAdminView ? 'admin' : 'staff';
 
-  const overallProgress = coursesWithProgress.length > 0
-    ? Math.round(coursesWithProgress.reduce((sum, course) => sum + course.progress, 0) / coursesWithProgress.length)
-    : 0;
+  const navItems = [
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
+    { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
+    { href: '/profile', icon: User, label: 'My Profile', adminOnly: false },
+  ];
+
+  const adminNavItems = [
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
+    { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
+    { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
+    { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
+    { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
+  ];
+  
+  const allNavItems = isAdminView ? adminNavItems : navItems;
+
+  const isLinkActive = (path: string, exact?: boolean) => {
+    if (exact) {
+        return pathname === path;
+    }
+    return pathname.startsWith(path);
+  }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <Button asChild variant="outline" size="sm" className="mb-4">
-            <Link href="/learning-paths">
-                <MoveLeft className="mr-2 h-4 w-4" />
-                Back to Learning Paths
-            </Link>
-        </Button>
-        <h1 className="text-3xl font-bold font-headline">{learningPath.title}</h1>
-        <p className="text-lg text-muted-foreground mt-2 max-w-3xl">
-          {learningPath.description}
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm font-medium text-muted-foreground">
-          <span>Overall Progress</span>
-          <span>{overallProgress}%</span>
-        </div>
-        <Progress value={overallProgress} />
-      </div>
-
-      <div>
-        <h2 className="text-2xl font-semibold font-headline mb-4">Courses in this Path</h2>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {coursesWithProgress.map((course) => (
-            <CourseCard key={course.id} course={course} />
-          ))}
-        </div>
-        {coursesWithProgress.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-lg">
-                <p>No courses have been added to this learning path yet.</p>
-            </div>
-        )}
-      </div>
-    </div>
-  )
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <UserContext.Provider value={userRole}>
+          <SidebarProvider>
+            <Sidebar>
+              <SidebarHeader>
+                <Logo className="text-primary-foreground" />
+              </SidebarHeader>
+              <SidebarContent>
+                <SidebarMenu>
+                   {isAdminView ? (
+                     <>
+                      <SidebarGroup>
+                        <SidebarGroupLabel>Admin</SidebarGroupLabel>
+                        {adminNavItems.map((item) => (
+                          <SidebarMenuItem key={item.href}>
+                            <Link href={item.href}>
+                              <SidebarMenuButton
+                                isActive={isLinkActive(item.href, item.exact)}
+                                tooltip={item.label}
+                              >
+                                <item.icon />
+                                <span>{item.label}</span>
+                              </SidebarMenuButton>
+                            </Link>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarGroup>
+                       <SidebarMenuItem>
+                          <Link href={'/dashboard'}>
+                            <SidebarMenuButton
+                              isActive={isLinkActive('/dashboard')}
+                              tooltip={'Staff Dashboard'}
+                            >
+                              <LayoutDashboard />
+                              <span>Staff View</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                     </>
+                  ) : (
+                    navItems.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <Link href={item.href}>
+                          <SidebarMenuButton
+                            isActive={isLinkActive(item.href)}
+                            tooltip={item.label}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    ))
+                  )}
+                </SidebarMenu>
+              </SidebarContent>
+              <SidebarFooter>
+                <Separator className="my-2 bg-sidebar-border" />
+                <div className="flex items-center gap-3 p-2">
+                  <Avatar>
+                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                    <AvatarFallback>
+                      {currentUser.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 overflow-hidden">
+                      <p className="truncate font-semibold text-sm text-sidebar-foreground">{currentUser.name}</p>
+                      <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
+                  </div>
+                  <Link href="/login">
+                      <SidebarMenuButton size="sm" variant="outline" className="h-8 w-8 bg-transparent hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground border-sidebar-border">
+                          <LogOut />
+                      </SidebarMenuButton>
+                  </Link>
+                </div>
+              </SidebarFooter>
+            </Sidebar>
+            <SidebarInset>
+              <header className="flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
+                  <SidebarTrigger className="md:hidden"/>
+                  <div className="flex-1">
+                      <h1 className="text-lg font-semibold md:text-xl font-headline">
+                          {
+                              [...navItems, ...adminNavItems].find(item => isLinkActive(item.href, item.exact))?.label
+                          }
+                      </h1>
+                  </div>
+                  <NotificationCenter />
+              </header>
+              <main className="flex-1 p-4 lg:p-6">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        </UserContext.Provider>
+        <Toaster />
+      </body>
+    </html>
+  );
 }
