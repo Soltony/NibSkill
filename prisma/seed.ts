@@ -58,7 +58,7 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { department, district, branch, role, completedCourses, badges: userBadges, ...userData } = user as any;
+    const { department, district, branch, role, ...userData } = user as any;
 
     // Find the corresponding IDs from the seeded data
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
@@ -128,7 +128,7 @@ async function main() {
 
   // Seed Courses and Modules
   for (const course of initialCourses) {
-    const { modules, image, ...courseData } = course;
+    const { modules, ...courseData } = course;
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
