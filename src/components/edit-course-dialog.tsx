@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -32,8 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { Course, Product } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
+import { updateCourse } from "@/app/actions/course-actions"
+import type { Course, Product } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -44,11 +46,10 @@ const formSchema = z.object({
 type EditCourseDialogProps = {
   course: Course;
   products: Product[];
-  onCourseUpdated: (course: Course) => void;
   children: React.ReactNode;
 }
 
-export function EditCourseDialog({ course, products, onCourseUpdated, children }: EditCourseDialogProps) {
+export function EditCourseDialog({ course, products, children }: EditCourseDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -71,27 +72,21 @@ export function EditCourseDialog({ course, products, onCourseUpdated, children }
     }
   }, [open, course, form])
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const selectedProduct = products.find(p => p.id === values.productId)
-    if (!selectedProduct) {
-        toast({ title: "Error", description: "Selected product not found.", variant: "destructive" })
-        return
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await updateCourse(course.id, values);
+    if (result.success) {
+        toast({
+            title: "Course Updated",
+            description: `The course "${values.title}" has been successfully updated.`,
+        })
+        setOpen(false)
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-
-    const updatedCourse: Course = {
-      ...course,
-      title: values.title,
-      description: values.description,
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-      image: selectedProduct.image,
-    }
-    onCourseUpdated(updatedCourse)
-    toast({
-      title: "Course Updated",
-      description: `The course "${updatedCourse.title}" has been successfully updated.`,
-    })
-    setOpen(false)
   }
 
   return (
@@ -158,7 +153,9 @@ export function EditCourseDialog({ course, products, onCourseUpdated, children }
               )}
             />
             <DialogFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

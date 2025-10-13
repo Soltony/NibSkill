@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react"
@@ -33,9 +34,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { PlusCircle } from "lucide-react"
-import type { Course, Product } from "@/lib/data"
-import { PlaceHolderImages } from "@/lib/placeholder-images"
 import { useToast } from "@/hooks/use-toast"
+import { addCourse } from "@/app/actions/course-actions"
+import type { Product } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -44,11 +45,10 @@ const formSchema = z.object({
 })
 
 type AddCourseDialogProps = {
-  onCourseAdded: (course: Course) => void
   products: Product[]
 }
 
-export function AddCourseDialog({ onCourseAdded, products }: AddCourseDialogProps) {
+export function AddCourseDialog({ products }: AddCourseDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -60,30 +60,22 @@ export function AddCourseDialog({ onCourseAdded, products }: AddCourseDialogProp
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const selectedProduct = products.find(p => p.id === values.productId)
-    if (!selectedProduct) {
-        toast({ title: "Error", description: "Selected product not found.", variant: "destructive" })
-        return
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addCourse(values);
+    if (result.success) {
+        toast({
+            title: "Course Added",
+            description: `The course "${values.title}" has been successfully created.`,
+        })
+        setOpen(false)
+        form.reset()
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-
-    const newCourse: Course = {
-      id: `course-${Date.now()}`,
-      title: values.title,
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-      description: values.description,
-      image: selectedProduct.image, 
-      modules: [],
-      progress: 0,
-    }
-    onCourseAdded(newCourse)
-    toast({
-      title: "Course Added",
-      description: `The course "${newCourse.title}" has been successfully created.`,
-    })
-    setOpen(false)
-    form.reset()
   }
 
   return (
@@ -154,7 +146,9 @@ export function AddCourseDialog({ onCourseAdded, products }: AddCourseDialogProp
               )}
             />
             <DialogFooter>
-              <Button type="submit">Create Course</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Creating...' : 'Create Course'}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
