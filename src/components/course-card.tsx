@@ -10,11 +10,12 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import type { Course } from '@/lib/data';
 import { usePathname } from 'next/navigation';
+import type { Course } from '@prisma/client';
 
-export function CourseCard({ course }: { course: Course }) {
+type CourseWithProgress = Course & { progress: number };
+
+export function CourseCard({ course }: { course: CourseWithProgress }) {
   const pathname = usePathname();
   const isAdminView = pathname.startsWith('/admin');
   const courseLink = isAdminView ? `/admin/courses/${course.id}` : `/courses/${course.id}`;
@@ -25,11 +26,11 @@ export function CourseCard({ course }: { course: Course }) {
         <CardHeader className="p-0">
           <div className="relative aspect-video">
             <Image
-              src={course.image.imageUrl}
-              alt={course.image.description}
+              src={course.imageUrl ?? ''}
+              alt={course.imageDescription ?? ''}
               fill
               className="object-cover"
-              data-ai-hint={course.image.imageHint}
+              data-ai-hint={course.imageHint ?? ''}
             />
           </div>
         </CardHeader>
