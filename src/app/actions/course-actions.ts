@@ -23,10 +23,6 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 productId: validatedFields.data.productId,
-                // These are placeholders, a real app would have more logic
-                imageUrl: `https://picsum.photos/seed/${Math.random()}/600/400`,
-                imageDescription: 'Placeholder image',
-                imageHint: 'placeholder',
             }
         });
 
