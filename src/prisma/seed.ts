@@ -60,7 +60,7 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { department, district, branch, role, ...userData } = user as any;
+    const { department, district, branch, role, password, ...userData } = user as any;
 
     // Find related records
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
@@ -69,7 +69,7 @@ async function main() {
     const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
     
     // Hash password before saving
-    const hashedPassword = await bcrypt.hash((user as any).password || 'password', 10);
+    const hashedPassword = await bcrypt.hash(password || 'password', 10);
 
     await prisma.user.upsert({
       where: { email: user.email },
