@@ -59,16 +59,18 @@ async function main() {
   console.log('Seeded roles');
 
   // Seed Users
-  const hashedPassword = await bcrypt.hash('password', 10);
   for (const user of initialUsers) {
     const { department, district, branch, role, ...userData } = user as any;
 
-    // Find the corresponding IDs from the seeded data
+    // Find related records
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
     const districtRecord = await prisma.district.findUnique({ where: { name: district } });
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id } });
     const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
     
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash((user as any).password || 'password', 10);
+
     await prisma.user.upsert({
       where: { email: user.email },
       update: {},
@@ -79,10 +81,11 @@ async function main() {
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
         roleId: roleRecord!.id,
-      }
+      },
     });
   }
   console.log('Seeded users');
+
 
   // Seed Badges
   for (const badge of initialBadges) {
