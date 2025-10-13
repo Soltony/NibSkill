@@ -1,5 +1,6 @@
 
 import { PrismaClient, QuestionType, LiveSessionPlatform } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
     branches as initialBranches,
@@ -12,6 +13,7 @@ import {
     liveSessions as initialLiveSessions,
     quizzes as initialQuizzes,
     roles as initialRoles,
+    initialRegistrationFields
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -57,8 +59,9 @@ async function main() {
   console.log('Seeded roles');
 
   // Seed Users
+  const hashedPassword = await bcrypt.hash('password', 10);
   for (const user of initialUsers) {
-    const { department, district, branch, role, ...userData } = user as any;
+    const { department, district, branch, role, ...userData } = user;
 
     // Find the corresponding IDs from the seeded data
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
@@ -71,6 +74,7 @@ async function main() {
       update: {},
       create: {
         ...userData,
+        password: hashedPassword,
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
@@ -127,7 +131,7 @@ async function main() {
 
   // Seed Courses and Modules
   for (const course of initialCourses) {
-    const { modules, ...courseData } = course;
+    const { modules, image, ...courseData } = course as any;
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
@@ -140,9 +144,9 @@ async function main() {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
-        imageUrl: courseData.image.imageUrl,
-        imageHint: courseData.image.imageHint,
-        imageDescription: courseData.image.description,
+        imageUrl: image?.imageUrl,
+        imageDescription: image?.description,
+        imageHint: image?.imageHint,
       }
     });
 
@@ -166,7 +170,8 @@ async function main() {
         title: path.title,
         description: path.description,
         courses: {
-          create: path.courseIds.map(courseId => ({
+          create: path.courseIds.map((courseId, index) => ({
+            order: index + 1,
             course: {
               connect: { id: courseId }
             }
@@ -208,12 +213,12 @@ async function main() {
             where: { id: question.id },
             update: {
                 ...questionData,
-                type: question.type.replace('-', '_') as QuestionType,
+                type: question.type.replace(/-/g, '_') as QuestionType,
                 quizId: createdQuiz.id
             },
             create: {
                 ...questionData,
-                type: question.type.replace('-', '_') as QuestionType,
+                type: question.type.replace(/-/g, '_') as QuestionType,
                 quizId: createdQuiz.id
             }
         });
@@ -256,6 +261,29 @@ async function main() {
     }
   }
   console.log('Seeded user completed courses');
+  
+  // Seed Certificate Template
+  await prisma.certificateTemplate.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: {
+        id: 'singleton',
+        title: "Certificate of Completion",
+        organization: "SkillUp Inc.",
+        body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
+        signatoryName: "Jane Doe",
+        signatoryTitle: "Head of Training & Development",
+    }
+  });
+  console.log('Seeded certificate template');
+  
+  // Seed Registration Fields
+  await prisma.registrationField.createMany({
+    data: initialRegistrationFields,
+    skipDuplicates: true,
+  });
+  console.log('Seeded registration fields');
+
 
   console.log(`Seeding finished.`)
 }
@@ -269,6 +297,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-
-    
