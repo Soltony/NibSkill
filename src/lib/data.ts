@@ -35,8 +35,6 @@ export type User = {
   branch: string;
   avatarUrl: string;
   phoneNumber?: string;
-  completedCourses?: { courseId: string; completionDate: Date; score: number }[];
-  badges?: Badge[];
 };
 
 export type Product = {
@@ -184,10 +182,6 @@ export const users: User[] = [
     district: 'North Region',
     branch: 'Main Office',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-    completedCourses: [
-      { courseId: 'course-4', completionDate: new Date('2024-05-10'), score: 100 }
-    ],
-    badges: [badges[0], badges[3]]
   },
   {
     id: 'user-2',
@@ -198,7 +192,6 @@ export const users: User[] = [
     district: 'South Region',
     branch: 'Downtown Branch',
     avatarUrl: 'https://picsum.photos/seed/user2/100/100',
-    completedCourses: []
   },
   { id: 'user-3', name: 'Samira Khan', email: 'samira.khan@example.com', avatarUrl: 'https://picsum.photos/seed/user3/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office' },
   { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', department: 'Sales', district: 'South Region', branch: 'Downtown Branch' },
@@ -421,12 +414,7 @@ const detailedProgressReport = [
             branch: user.branch,
             courseId: course.id,
             courseTitle: course.title,
-            progress: user.id === 'user-1' && course.id === 'course-1' 
-                ? 33 
-                : (user.completedCourses?.find(cc => cc.courseId === course.id) 
-                    ? 100 
-                    // FIX: Replace Math.random() with a deterministic calculation
-                    : (user.name.length + course.title.length) % 81), // Modulo 81 to keep it under 80
+            progress: (user.name.length + course.title.length) % 81, // Modulo 81 to keep it under 80
         }));
     }).flat()
 ];
@@ -528,5 +516,3 @@ export const notifications: Notification[] = [
 ];
 
     
-
-  

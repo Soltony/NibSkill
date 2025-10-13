@@ -83,11 +83,12 @@ async function main() {
   // Seed Badges
   for (const badge of initialBadges) {
     await prisma.badge.upsert({
-        where: { title: badge.title },
+        where: { id: badge.id },
         update: {},
         create: badge,
     });
   }
+  console.log('Seeded badges');
 
   // Assign badges to user-1
   const user1 = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
@@ -105,9 +106,7 @@ async function main() {
         update: {},
         create: { userId: user1.id, badgeId: perfectScoreBadge.id },
     });
-    console.log('Seeded badges and assigned to user');
-  } else {
-    console.log('Badges already assigned to user.');
+    console.log('Assigned badges to user');
   }
 
   // Seed Products
@@ -268,4 +267,4 @@ main()
     process.exit(1)
   })
 
-  
+    
