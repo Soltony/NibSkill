@@ -9,23 +9,25 @@ type QuizWithRelations = Quiz & {
   questions: (Question & { options: OptionType[] })[]
 }
 
-type QuizClientProps = {
+type AddQuizProps = {
   courses: Course[]
-  quizzes: QuizWithRelations[]
+  quizzes: Quiz[]
 }
 
-export function QuizClient({ courses, quizzes }: QuizClientProps) {
-  const getCourseTitle = (courseId: string) => {
-    return courses.find(c => c.id === courseId)?.title || "Unknown Course"
-  }
+export function AddQuiz({ courses, quizzes }: AddQuizProps) {
+  return <AddQuizDialog courses={courses} quizzes={quizzes} />
+}
 
-  return {
-    AddQuiz: () => <AddQuizDialog courses={courses} quizzes={quizzes} />,
-    ManageQuestions: ({ quiz }: { quiz: QuizWithRelations }) => (
-      <ManageQuestionsDialog
-        quiz={quiz}
-        courseTitle={getCourseTitle(quiz.courseId)}
-      />
-    ),
-  }
+type ManageQuestionsProps = {
+  quiz: QuizWithRelations
+  courseTitle: string
+}
+
+export function ManageQuestions({ quiz, courseTitle }: ManageQuestionsProps) {
+  return (
+    <ManageQuestionsDialog
+      quiz={quiz}
+      courseTitle={courseTitle}
+    />
+  )
 }

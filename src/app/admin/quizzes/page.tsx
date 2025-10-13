@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { QuizClient } from "./quiz-client"
+import { AddQuiz, ManageQuestions } from "./quiz-client"
 
 export default async function QuizManagementPage() {
   const courses = await prisma.course.findMany({ orderBy: { title: "asc" } });
@@ -26,16 +26,11 @@ export default async function QuizManagementPage() {
           options: true,
         },
       },
+      course: true, // Include course to get the title
     },
     orderBy: { course: { title: "asc" } },
   });
   
-  const { AddQuiz, ManageQuestions } = QuizClient({ courses, quizzes });
-  
-  const getCourseTitle = (courseId: string) => {
-    return courses.find(c => c.id === courseId)?.title || "Unknown Course"
-  }
-
   return (
     <div className="space-y-8">
       <div>
@@ -52,7 +47,7 @@ export default async function QuizManagementPage() {
               A list of all quizzes in the system.
             </CardDescription>
           </div>
-          <AddQuiz />
+          <AddQuiz courses={courses} quizzes={quizzes} />
         </CardHeader>
         <CardContent>
           <Table>
@@ -68,7 +63,7 @@ export default async function QuizManagementPage() {
               {quizzes.map((quiz) => (
                 <TableRow key={quiz.id}>
                   <TableCell className="font-medium">
-                    {getCourseTitle(quiz.courseId)}
+                    {quiz.course?.title || "Unknown Course"}
                   </TableCell>
                   <TableCell className="text-center">
                     {quiz.questions.length}
@@ -77,7 +72,7 @@ export default async function QuizManagementPage() {
                     {quiz.passingScore}%
                   </TableCell>
                   <TableCell className="text-right">
-                    <ManageQuestions quiz={quiz} />
+                    <ManageQuestions quiz={quiz} courseTitle={quiz.course?.title || "Unknown"} />
                   </TableCell>
                 </TableRow>
               ))}
