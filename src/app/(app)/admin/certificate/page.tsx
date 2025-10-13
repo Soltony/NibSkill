@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/logo";
 import Image from "next/image";
+import { X } from "lucide-react";
 
 const TEMPLATE_STORAGE_KEY = "skillup-certificate-template";
 const SIGNATURE_STORAGE_KEY = "skillup-certificate-signature";
@@ -104,6 +105,16 @@ export default function CertificatePage() {
       reader.readAsDataURL(file);
     }
   };
+  
+  const handleImageRemove = (setter: (url: string | null) => void, storageKey: string, fieldName: string) => {
+    setter(null);
+    localStorage.removeItem(storageKey);
+    toast({
+        title: "Image Removed",
+        description: `The ${fieldName} image has been removed.`,
+        variant: "destructive"
+    })
+  }
 
 
   const onSubmit = (values: CertificateTemplate) => {
@@ -205,16 +216,34 @@ export default function CertificatePage() {
                   />
                    <FormItem>
                         <FormLabel>Signatory Signature</FormLabel>
-                        <FormControl>
-                            <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setSignatureUrl, SIGNATURE_STORAGE_KEY)}/>
-                        </FormControl>
+                        {signatureUrl ? (
+                            <div className="flex items-center gap-2">
+                                <Image src={signatureUrl} alt="Signature preview" width={100} height={40} className="border rounded-md bg-muted" />
+                                <Button variant="ghost" size="sm" onClick={() => handleImageRemove(setSignatureUrl, SIGNATURE_STORAGE_KEY, 'signature')}>
+                                    <X className="mr-2 h-4 w-4"/> Remove
+                                </Button>
+                            </div>
+                        ) : (
+                            <FormControl>
+                                <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setSignatureUrl, SIGNATURE_STORAGE_KEY)}/>
+                            </FormControl>
+                        )}
                         <FormMessage />
                     </FormItem>
                     <FormItem>
                         <FormLabel>Organization Stamp/Seal</FormLabel>
-                        <FormControl>
-                            <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setStampUrl, STAMP_STORAGE_KEY)}/>
-                        </FormControl>
+                        {stampUrl ? (
+                            <div className="flex items-center gap-2">
+                                <Image src={stampUrl} alt="Stamp preview" width={60} height={60} className="border rounded-md bg-muted p-1" />
+                                <Button variant="ghost" size="sm" onClick={() => handleImageRemove(setStampUrl, STAMP_STORAGE_KEY, 'stamp')}>
+                                    <X className="mr-2 h-4 w-4"/> Remove
+                                </Button>
+                            </div>
+                        ) : (
+                            <FormControl>
+                                <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setStampUrl, STAMP_STORAGE_KEY)}/>
+                            </FormControl>
+                        )}
                         <FormMessage />
                     </FormItem>
                   <Button type="submit">Save Template</Button>
@@ -273,3 +302,5 @@ export default function CertificatePage() {
     </div>
   );
 }
+
+    
