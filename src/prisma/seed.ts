@@ -115,15 +115,14 @@ async function main() {
 
   // Seed Products
   for (const product of initialProducts) {
+    const { image, ...productData } = product;
     await prisma.product.upsert({
         where: { id: product.id },
         update: {},
         create: {
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            imageUrl: product.image.imageUrl,
-            imageHint: product.image.imageHint,
+            ...productData,
+            imageUrl: image.imageUrl,
+            imageHint: image.imageHint,
         }
     })
   }
@@ -131,7 +130,7 @@ async function main() {
 
   // Seed Courses and Modules
   for (const course of initialCourses) {
-    const { modules, image, ...courseData } = course as any;
+    const { modules, ...courseData } = course as any;
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
@@ -144,9 +143,9 @@ async function main() {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
-        imageUrl: image?.imageUrl,
-        imageDescription: image?.description,
-        imageHint: image?.imageHint,
+        imageUrl: courseData.image?.imageUrl,
+        imageDescription: courseData.image?.description,
+        imageHint: courseData.image?.imageHint,
       }
     });
 
