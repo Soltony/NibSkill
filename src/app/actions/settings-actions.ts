@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import bcrypt from 'bcryptjs'
 
 const updateUserRoleSchema = z.object({
   userId: z.string(),
@@ -42,12 +43,14 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
         if (!validatedFields.success) {
             return { success: false, message: 'Invalid data provided.' };
         }
+
+        const hashedPassword = await bcrypt.hash(validatedFields.data.password, 10);
         
         await prisma.user.create({
             data: {
                 name: validatedFields.data.name,
                 email: validatedFields.data.email,
-                password: validatedFields.data.password, // In a real app, this should be hashed
+                password: hashedPassword,
                 roleId: validatedFields.data.roleId,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
             }
