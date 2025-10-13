@@ -181,11 +181,11 @@ async function main() {
           where: { id: session.id },
           update: {
               ...sessionData,
-              platform: session.platform === 'Google Meet' ? 'Google_Meet' : 'Zoom'
+              platform: session.platform.replace(' ', '_') as any
           },
           create: {
               ...sessionData,
-              platform: session.platform === 'Google Meet' ? 'Google_Meet' : 'Zoom'
+              platform: session.platform.replace(' ', '_') as any
           }
       });
   }
