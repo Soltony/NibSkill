@@ -276,12 +276,13 @@ export default function CertificatePage() {
                 <div className="z-10 w-full flex justify-around items-end">
                     <div className="text-center">
                          {signatureUrl ? (
-                            <div className="relative h-16 w-48 mx-auto">
+                            <div className="relative h-16 w-48 mx-auto mb-2">
                                <Image src={signatureUrl} alt="Signature" layout="fill" objectFit="contain" />
                             </div>
                         ) : (
-                            <p className="font-serif text-2xl italic h-16 flex items-center justify-center">{watchedValues.signatoryName}</p>
+                            <div className="h-16"></div>
                         )}
+                        <p className="font-serif text-xl italic">{watchedValues.signatoryName}</p>
                         <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
                         <p className="text-sm text-muted-foreground">{watchedValues.signatoryTitle}</p>
                     </div>
@@ -291,7 +292,8 @@ export default function CertificatePage() {
                         </div>
                     )}
                      <div className="text-center">
-                        <p className="font-serif text-2xl italic">{new Date().toLocaleDateString()}</p>
+                        <div className="h-16"></div>
+                        <p className="font-serif text-xl italic">{new Date().toLocaleDateString()}</p>
                         <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
                         <p className="text-sm text-muted-foreground">Date of Issue</p>
                     </div>
@@ -302,5 +304,3 @@ export default function CertificatePage() {
     </div>
   );
 }
-
-    
