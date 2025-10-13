@@ -43,39 +43,20 @@ async function main() {
   
   // Seed Roles and Permissions
   for (const role of initialRoles) {
-    const { permissions, ...roleData } = role;
-    const createdRole = await prisma.role.upsert({
+    await prisma.role.upsert({
       where: { id: role.id },
-      update: roleData,
-      create: roleData,
+      update: {
+        name: role.name,
+        permissions: role.permissions as any,
+      },
+      create: {
+        id: role.id,
+        name: role.name,
+        permissions: role.permissions as any,
+      },
     });
-
-    for (const [resource, p] of Object.entries(permissions)) {
-      await prisma.permission.upsert({
-        where: {
-          roleId_resource: {
-            roleId: createdRole.id,
-            resource: resource,
-          },
-        },
-        update: {
-          c: p.c,
-          r: p.r,
-          u: p.u,
-          d: p.d,
-        },
-        create: {
-          roleId: createdRole.id,
-          resource: resource,
-          c: p.c,
-          r: p.r,
-          u: p.u,
-          d: p.d,
-        },
-      });
-    }
   }
-  console.log('Seeded roles and permissions');
+  console.log('Seeded roles');
 
   // Seed Users
   for (const user of initialUsers) {
@@ -153,13 +134,18 @@ async function main() {
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
-        ...courseData,
+        title: courseData.title,
+        description: courseData.description,
+        productId: courseData.productId,
         imageUrl: image.imageUrl,
         imageDescription: image.description,
         imageHint: image.imageHint,
       },
       create: {
-        ...courseData,
+        id: courseData.id,
+        title: courseData.title,
+        description: courseData.description,
+        productId: courseData.productId,
         imageUrl: image.imageUrl,
         imageDescription: image.description,
         imageHint: image.imageHint,
@@ -178,13 +164,14 @@ async function main() {
 
   // Seed Learning Paths
   for (const path of initialLearningPaths) {
+    const {courseIds, ...pathData} = path;
     await prisma.learningPath.upsert({
       where: { id: path.id },
       update: {},
       create: {
-        ...path,
+        ...pathData,
         courses: {
-          connect: path.courseIds.map(id => ({ id }))
+          connect: courseIds.map(id => ({ id }))
         }
       }
     });
@@ -304,4 +291,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
