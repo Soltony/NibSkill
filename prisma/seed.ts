@@ -129,8 +129,6 @@ async function main() {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
-        imageUrl: courseData.image.imageUrl,
-        imageHint: courseData.image.imageHint,
       }
     });
 
