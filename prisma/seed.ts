@@ -87,7 +87,7 @@ async function main() {
 
   // Seed Badges
   await prisma.badge.createMany({
-    data: initialBadges.map(({ icon, ...badge }) => ({...badge, iconName: icon })),
+    data: initialBadges,
     skipDuplicates: true
   });
 
@@ -291,5 +291,7 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
 
     
