@@ -48,6 +48,7 @@ async function main() {
         permissions: role.permissions as any,
       },
       create: {
+        id: role.id,
         name: role.name,
         permissions: role.permissions as any,
       },
@@ -112,9 +113,10 @@ async function main() {
   // Seed Products
   for (const product of initialProducts) {
     await prisma.product.upsert({
-        where: { name: product.name },
+        where: { id: product.id },
         update: {},
         create: {
+            id: product.id,
             name: product.name,
             description: product.description,
             imageUrl: product.image.imageUrl,
@@ -126,7 +128,7 @@ async function main() {
 
   // Seed Courses and Modules
   for (const course of initialCourses) {
-    const { modules, image, productName, progress, ...courseData } = course;
+    const { modules, image, ...courseData } = course;
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
@@ -143,11 +145,10 @@ async function main() {
     });
 
     for (const module of modules) {
-      const { isCompleted, ...moduleData } = module;
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...moduleData, courseId: createdCourse.id },
-        create: { ...moduleData, courseId: createdCourse.id },
+        update: { ...module, courseId: createdCourse.id },
+        create: { ...module, courseId: createdCourse.id },
       });
     }
   }
@@ -267,4 +268,4 @@ main()
     process.exit(1)
   })
 
-    
+  

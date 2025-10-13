@@ -51,7 +51,6 @@ export type Module = {
   title: string;
   type: 'video' | 'pdf' | 'slides';
   duration: number; // in minutes
-  isCompleted: boolean;
   description: string;
   content: string; // URL to the content
 };
@@ -61,10 +60,8 @@ export type Course = {
   title: string;
   description: string;
   productId: string;
-  productName: string;
   image: ImagePlaceholder;
   modules: Module[];
-  progress: number;
 };
 
 export type LearningPath = {
@@ -242,13 +239,11 @@ export const courses: Course[] = [
     title: 'New Product Launch: FusionX',
     description: 'Get up to speed with our latest flagship product, FusionX. This course covers all the new features and selling points.',
     productId: 'prod-1',
-    productName: 'FusionX',
     image: PlaceHolderImages[0],
-    progress: 33,
     modules: [
-      { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, isCompleted: true, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-      { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, isCompleted: false, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-      { id: 'm1-3', title: 'FusionX Technical Specs', type: 'pdf', duration: 20, isCompleted: false, description: 'The official technical specification document for FusionX.', content: '/sample.pdf' },
+      { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm1-3', title: 'FusionX Technical Specs', type: 'pdf', duration: 20, description: 'The official technical specification document for FusionX.', content: '/sample.pdf' },
     ],
   },
   {
@@ -256,14 +251,12 @@ export const courses: Course[] = [
     title: 'Advanced User Training for Centauri',
     description: 'Become a power user of our Centauri platform. This course is for experienced users who want to master advanced functionalities.',
     productId: 'prod-2',
-    productName: 'Centauri',
     image: PlaceHolderImages[1],
-    progress: 0,
     modules: [
-      { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, isCompleted: false, description: 'An overview of the Centauri system architecture.', content: '#' },
-      { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, isCompleted: false, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-      { id: 'm2-3', title: 'API Integration Guide', type: 'pdf', duration: 30, isCompleted: false, description: 'A guide to integrating with the Centauri API.', content: '/sample.pdf' },
-      { id: 'm2-4', title: 'Best Practices', type: 'video', duration: 20, isCompleted: false, description: 'Best practices for using Centauri effectively.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#' },
+      { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm2-3', title: 'API Integration Guide', type: 'pdf', duration: 30, description: 'A guide to integrating with the Centauri API.', content: '/sample.pdf' },
+      { id: 'm2-4', title: 'Best Practices', type: 'video', duration: 20, description: 'Best practices for using Centauri effectively.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     ],
   },
   {
@@ -271,15 +264,13 @@ export const courses: Course[] = [
     title: 'Technical Deep Dive: Pulsar Engine',
     description: 'For our engineering team, a detailed look into the new Pulsar Engine, its capabilities, and how to build on top of it.',
     productId: 'prod-3',
-    productName: 'Pulsar Engine',
     image: PlaceHolderImages[2],
-    progress: 80,
     modules: [
-        { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, isCompleted: true, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, isCompleted: true, description: 'A deep dive into the rendering pipeline.', content: '#' },
-        { id: 'm3-3', title: 'Performance Optimization', type: 'video', duration: 50, isCompleted: true, description: 'Tips and tricks for optimizing performance.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'm3-4', title: 'Extending Pulsar', type: 'pdf', duration: 20, isCompleted: true, description: 'How to extend the Pulsar Engine with custom plugins.', content: '/sample.pdf' },
-        { id: 'm3-5', title: 'Debugging and Profiling', type: 'video', duration: 35, isCompleted: false, description: 'Learn to debug and profile your Pulsar applications.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, description: 'A deep dive into the rendering pipeline.', content: '#' },
+        { id: 'm3-3', title: 'Performance Optimization', type: 'video', duration: 50, description: 'Tips and tricks for optimizing performance.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm3-4', title: 'Extending Pulsar', type: 'pdf', duration: 20, description: 'How to extend the Pulsar Engine with custom plugins.', content: '/sample.pdf' },
+        { id: 'm3-5', title: 'Debugging and Profiling', type: 'video', duration: 35, description: 'Learn to debug and profile your Pulsar applications.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     ],
   },
   {
@@ -287,13 +278,11 @@ export const courses: Course[] = [
     title: 'Sales Strategy for Nova Suite',
     description: 'Equip your sales team with the knowledge and strategies to effectively sell the Nova Suite to enterprise clients.',
     productId: 'prod-4',
-    productName: 'Nova Suite',
     image: PlaceHolderImages[3],
-    progress: 100,
     modules: [
-        { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, isCompleted: true, description: 'An overview of the current market landscape.', content: '#' },
-        { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, isCompleted: true, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'm4-3', title: 'Handling Objections', type: 'pdf', duration: 15, isCompleted: true, description: 'A guide to handling common sales objections.', content: '/sample.pdf' },
+        { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, description: 'An overview of the current market landscape.', content: '#' },
+        { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm4-3', title: 'Handling Objections', type: 'pdf', duration: 15, description: 'A guide to handling common sales objections.', content: '/sample.pdf' },
     ],
   },
 ];
@@ -539,3 +528,5 @@ export const notifications: Notification[] = [
 ];
 
     
+
+  
