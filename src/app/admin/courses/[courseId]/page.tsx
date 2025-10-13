@@ -4,8 +4,8 @@
 import { useState, useMemo, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import type { Quiz as QuizType } from '@/lib/data';
 import { quizzes as initialQuizzes } from '@/lib/data';
+import type { Quiz as QuizType } from '@/lib/data';
 import {
   Accordion,
   AccordionContent,
@@ -139,11 +139,11 @@ export default function CourseDetailPage() {
     <div className="mx-auto max-w-4xl">
       <div className="relative mb-8 h-64 w-full overflow-hidden rounded-lg shadow-lg">
         <Image
-          src={course.imageUrl || ''}
-          alt={course.imageDescription || ''}
+          src={course.imageUrl ?? ''}
+          alt={course.imageDescription ?? ''}
           fill
           className="object-cover"
-          data-ai-hint={course.imageHint || ''}
+          data-ai-hint={course.imageHint ?? ''}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
         <div className="absolute bottom-0 p-6">
