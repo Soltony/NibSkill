@@ -35,8 +35,6 @@ export type User = {
   branch: string;
   avatarUrl: string;
   phoneNumber?: string;
-  completedCourses?: { courseId: string; completionDate: Date; score: number }[];
-  badges?: Badge[];
 };
 
 export type Product = {
@@ -53,7 +51,6 @@ export type Module = {
   type: 'video' | 'pdf' | 'slides';
   duration: number; // in minutes
   content: string; // URL to the content
-  isCompleted: boolean;
 };
 
 export type Course = {
@@ -184,13 +181,6 @@ export const users: User[] = [
     district: 'North Region',
     branch: 'Main Office',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-    completedCourses: [
-      { courseId: 'course-4', completionDate: new Date('2024-05-10'), score: 100 },
-    ],
-    badges: [
-      { id: 'badge-1', title: 'First Steps', description: 'Complete your first course.', icon: 'Footprints' },
-      { id: 'badge-4', title: 'Perfect Score', description: 'Get a 100% on a quiz.', icon: 'Target' },
-    ]
   },
   {
     id: 'user-2',
@@ -242,9 +232,9 @@ export const courses: Course[] = [
     description: 'Get up to speed with our latest flagship product, FusionX. This course covers all the new features and selling points.',
     productId: 'prod-1',
     modules: [
-      { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', isCompleted: false },
-      { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', isCompleted: false },
-      { id: 'm1-3', title: 'FusionX Technical Specs', type: 'pdf', duration: 20, description: 'The official technical specification document for FusionX.', content: '/sample.pdf', isCompleted: false },
+      { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm1-3', title: 'FusionX Technical Specs', type: 'pdf', duration: 20, description: 'The official technical specification document for FusionX.', content: '/sample.pdf' },
     ],
   },
   {
@@ -253,10 +243,10 @@ export const courses: Course[] = [
     description: 'Become a power user of our Centauri platform. This course is for experienced users who want to master advanced functionalities.',
     productId: 'prod-2',
     modules: [
-      { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#', isCompleted: false },
-      { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', isCompleted: false },
-      { id: 'm2-3', title: 'API Integration Guide', type: 'pdf', duration: 30, description: 'A guide to integrating with the Centauri API.', content: '/sample.pdf', isCompleted: false },
-      { id: 'm2-4', title: 'Best Practices', type: 'video', duration: 20, description: 'Best practices for using Centauri effectively.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', isCompleted: false },
+      { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#' },
+      { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm2-3', title: 'API Integration Guide', type: 'pdf', duration: 30, description: 'A guide to integrating with the Centauri API.', content: '/sample.pdf' },
+      { id: 'm2-4', title: 'Best Practices', type: 'video', duration: 20, description: 'Best practices for using Centauri effectively.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     ],
   },
   {
@@ -265,11 +255,11 @@ export const courses: Course[] = [
     description: 'For our engineering team, a detailed look into the new Pulsar Engine, its capabilities, and how to build on top of it.',
     productId: 'prod-3',
     modules: [
-        { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', isCompleted: false },
-        { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, description: 'A deep dive into the rendering pipeline.', content: '#', isCompleted: false },
-        { id: 'm3-3', title: 'Performance Optimization', type: 'video', duration: 50, description: 'Tips and tricks for optimizing performance.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', isCompleted: false },
-        { id: 'm3-4', title: 'Extending Pulsar', type: 'pdf', duration: 20, description: 'How to extend the Pulsar Engine with custom plugins.', content: '/sample.pdf', isCompleted: false },
-        { id: 'm3-5', title: 'Debugging and Profiling', type: 'video', duration: 35, description: 'Learn to debug and profile your Pulsar applications.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', isCompleted: false },
+        { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, description: 'A deep dive into the rendering pipeline.', content: '#' },
+        { id: 'm3-3', title: 'Performance Optimization', type: 'video', duration: 50, description: 'Tips and tricks for optimizing performance.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm3-4', title: 'Extending Pulsar', type: 'pdf', duration: 20, description: 'How to extend the Pulsar Engine with custom plugins.', content: '/sample.pdf' },
+        { id: 'm3-5', title: 'Debugging and Profiling', type: 'video', duration: 35, description: 'Learn to debug and profile your Pulsar applications.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     ],
   },
   {
@@ -278,9 +268,9 @@ export const courses: Course[] = [
     description: 'Equip your sales team with the knowledge and strategies to effectively sell the Nova Suite to enterprise clients.',
     productId: 'prod-4',
     modules: [
-        { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, description: 'An overview of the current market landscape.', content: '#', isCompleted: false },
-        { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', isCompleted: false },
-        { id: 'm4-3', title: 'Handling Objections', type: 'pdf', duration: 15, description: 'A guide to handling common sales objections.', content: '/sample.pdf', isCompleted: false },
+        { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, description: 'An overview of the current market landscape.', content: '#' },
+        { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm4-3', title: 'Handling Objections', type: 'pdf', duration: 15, description: 'A guide to handling common sales objections.', content: '/sample.pdf' },
     ],
   },
 ];
@@ -295,9 +285,9 @@ export const learningPaths: LearningPath[] = [
 ];
 
 export const roles: Role[] = [
-  { 
-    id: "admin", 
-    name: "Admin", 
+  {
+    id: "admin",
+    name: "Admin",
     permissions: {
       courses: { c: true, r: true, u: true, d: true },
       users: { c: true, r: true, u: true, d: true },
@@ -306,11 +296,11 @@ export const roles: Role[] = [
       quizzes: { c: true, r: true, u: true, d: true },
       staff: { c: true, r: true, u: true, d: true },
       liveSessions: { c: true, r: true, u: true, d: true },
-    } 
+    }
   },
-  { 
-    id: "staff", 
-    name: "Staff", 
+  {
+    id: "staff",
+    name: "Staff",
     permissions: {
       courses: { c: false, r: true, u: false, d: false },
       users: { c: false, r: false, u: false, d: false },
@@ -448,9 +438,9 @@ export const analyticsData = {
     { id: 'user-3', name: 'Samira Khan', avatarUrl: 'https://picsum.photos/seed/user3/100/100', coursesCompleted: 12, department: 'Engineering' },
     { id: 'user-4', name: 'David Chen', avatarUrl: 'https://picsum.photos/seed/user4/100/100', coursesCompleted: 10, department: 'Sales' },
     { id: 'user-5', name: 'Emily White', avatarUrl: 'https://picsum.photos/seed/user5/100/100', coursesCompleted: 9, department: 'Engineering' },
-    { id: 'user-6', name: 'Michael Brown', avatarUrl: 'https://picsum.photos/seed/user6/100/100', coursesCompleted: 8, department: 'Marketing' },
+    { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', coursesCompleted: 8 },
     { id: 'user-1', name: 'Alex Johnson', avatarUrl: 'https://picsum.photos/seed/user1/100/100', coursesCompleted: 7, department: 'Engineering' },
-  ],
+  ].map(({ coursesCompleted, ...rest }) => rest),
   courseEngagement: {
     mostCompleted: [
         { id: 'course-4', title: 'Sales Strategy for Nova Suite', completionRate: 98 },

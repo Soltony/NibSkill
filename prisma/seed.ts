@@ -1,4 +1,5 @@
 
+
 import { PrismaClient, QuestionType, LiveSessionPlatform } from '@prisma/client'
 import { 
     districts as initialDistricts,
@@ -20,39 +21,30 @@ async function main() {
   console.log(`Start seeding ...`)
 
   // Seed Districts
-  for (const district of initialDistricts) {
-    await prisma.district.upsert({
-      where: { id: district.id },
-      update: {},
-      create: district,
-    });
-  }
+  await prisma.district.createMany({
+    data: initialDistricts,
+    skipDuplicates: true,
+  });
   console.log('Seeded districts');
 
   // Seed Departments
-  for (const department of initialDepartments) {
-    await prisma.department.upsert({
-      where: { id: department.id },
-      update: {},
-      create: department,
-    });
-  }
+  await prisma.department.createMany({
+    data: initialDepartments,
+    skipDuplicates: true,
+  });
   console.log('Seeded departments');
 
   // Seed Branches
-  for (const branch of initialBranches) {
-    await prisma.branch.upsert({
-      where: { id: branch.id },
-      update: {},
-      create: branch,
-    })
-  }
+  await prisma.branch.createMany({
+    data: initialBranches,
+    skipDuplicates: true,
+  })
   console.log('Seeded branches');
   
   // Seed Roles and Permissions
   for (const role of initialRoles) {
     await prisma.role.upsert({
-      where: { id: role.id },
+      where: { name: role.name },
       update: {
         permissions: role.permissions as any,
       },
@@ -67,8 +59,9 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { department, district, branch, role, completedCourses, badges, ...userData } = user as any;
+    const { department, district, branch, role, ...userData } = user as any;
 
+    // Find the corresponding IDs from the seeded data
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
     const districtRecord = await prisma.district.findUnique({ where: { name: district } });
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id } });
@@ -97,6 +90,25 @@ async function main() {
     });
   }
   console.log('Seeded badges');
+
+  // Assign badges to user-1
+  const user1 = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
+  const firstStepsBadge = await prisma.badge.findUnique({ where: { title: 'First Steps' }});
+  const perfectScoreBadge = await prisma.badge.findUnique({ where: { title: 'Perfect Score' }});
+
+  if (user1 && firstStepsBadge && perfectScoreBadge) {
+    await prisma.userBadge.upsert({
+        where: { userId_badgeId: { userId: user1.id, badgeId: firstStepsBadge.id } },
+        update: {},
+        create: { userId: user1.id, badgeId: firstStepsBadge.id },
+    });
+    await prisma.userBadge.upsert({
+        where: { userId_badgeId: { userId: user1.id, badgeId: perfectScoreBadge.id } },
+        update: {},
+        create: { userId: user1.id, badgeId: perfectScoreBadge.id },
+    });
+    console.log('Assigned badges to user');
+  }
 
   // Seed Products
   for (const product of initialProducts) {
@@ -224,35 +236,24 @@ async function main() {
   }
   console.log('Seeded quizzes and questions');
   
-  // Seed UserCompletedCourse and UserBadge
-  const user1 = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
-  if (user1) {
-    const user1Data = initialUsers.find(u => u.email === 'staff@skillup.com');
-    if (user1Data?.completedCourses) {
-        for (const completed of user1Data.completedCourses) {
-            await prisma.userCompletedCourse.upsert({
-                where: { userId_courseId: { userId: user1.id, courseId: completed.courseId } },
-                update: {},
-                create: {
-                    userId: user1.id,
-                    courseId: completed.courseId,
-                    completionDate: completed.completionDate,
-                    score: completed.score,
-                }
-            });
+  // Seed UserCompletedCourse
+  const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
+  if (user1ForCompletion) {
+    const course4 = await prisma.course.findUnique({ where: { id: 'course-4' } });
+    if (course4) {
+      await prisma.userCompletedCourse.upsert({
+        where: { userId_courseId: { userId: user1ForCompletion.id, courseId: course4.id } },
+        update: {},
+        create: {
+          userId: user1ForCompletion.id,
+          courseId: course4.id,
+          completionDate: new Date('2024-05-10'),
+          score: 100,
         }
-    }
-     if (user1Data?.badges) {
-        for (const badge of user1Data.badges) {
-             await prisma.userBadge.upsert({
-                where: { userId_badgeId: { userId: user1.id, badgeId: badge.id } },
-                update: {},
-                create: { userId: user1.id, badgeId: badge.id },
-            });
-        }
+      });
     }
   }
-  console.log('Seeded user completions and badges');
+  console.log('Seeded user completed courses');
 
   console.log(`Seeding finished.`)
 }
@@ -266,3 +267,6 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+
+    
