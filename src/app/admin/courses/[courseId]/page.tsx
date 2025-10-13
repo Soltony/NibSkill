@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import type { Module, Quiz as QuizType } from '@/lib/data';
-import { initialQuizzes } from '@/lib/data';
+import { quizzes as initialQuizzes } from '@/lib/data';
 import {
   Accordion,
   AccordionContent,
