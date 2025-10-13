@@ -26,20 +26,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { PlusCircle } from "lucide-react"
-import type { Product } from "@/lib/data"
-import { PlaceHolderImages } from "@/lib/placeholder-images"
 import { useToast } from "@/hooks/use-toast"
+import { addProduct } from "@/app/actions/product-actions"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
 })
 
-type AddProductDialogProps = {
-  onProductAdded: (product: Product) => void
-}
-
-export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
+export function AddProductDialog() {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -51,23 +46,22 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // In a real app, you'd probably upload an image.
-    // Here we'll just cycle through the placeholders.
-    const imageIndex = Math.floor(Math.random() * PlaceHolderImages.length);
-    const newProduct: Product = {
-      id: `prod-${Date.now()}`,
-      name: values.name,
-      description: values.description,
-      image: PlaceHolderImages[imageIndex],
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addProduct(values);
+    if (result.success) {
+      toast({
+        title: "Product Added",
+        description: `The product "${values.name}" has been successfully created.`,
+      })
+      setOpen(false)
+      form.reset()
+    } else {
+      toast({
+        title: "Error",
+        description: result.message,
+        variant: "destructive",
+      })
     }
-    onProductAdded(newProduct)
-    toast({
-      title: "Product Added",
-      description: `The product "${newProduct.name}" has been successfully created.`,
-    })
-    setOpen(false)
-    form.reset()
   }
 
   return (
@@ -116,7 +110,9 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
               )}
             />
             <DialogFooter>
-              <Button type="submit">Create Product</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Creating...' : 'Create Product'}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

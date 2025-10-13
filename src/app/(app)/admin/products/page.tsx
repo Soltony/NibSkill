@@ -1,9 +1,6 @@
 
-"use client"
-
-import { useState, useEffect } from "react"
 import Image from "next/image"
-import { products as initialProducts } from "@/lib/data"
+import prisma from "@/lib/db"
 import {
   Table,
   TableBody,
@@ -21,39 +18,13 @@ import {
 } from "@/components/ui/card"
 import { AddProductDialog } from "@/components/add-product-dialog"
 import { EditProductDialog } from "@/components/edit-product-dialog"
-import type { Product } from "@/lib/data"
 
-const STORAGE_KEY = "skillup-products";
-
-export default function ProductManagementPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const storedProducts = localStorage.getItem(STORAGE_KEY);
-    if (storedProducts) {
-      setProducts(JSON.parse(storedProducts));
-    } else {
-      setProducts(initialProducts);
+export default async function ProductManagementPage() {
+  const products = await prisma.product.findMany({
+    orderBy: {
+      name: 'asc'
     }
-    setIsLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-    }
-  }, [products, isLoaded]);
-
-  const handleProductAdded = (newProduct: Product) => {
-    setProducts((prevProducts) => [newProduct, ...prevProducts])
-  }
-
-  const handleProductUpdated = (updatedProduct: Product) => {
-    setProducts((prevProducts) =>
-      prevProducts.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
-    )
-  }
+  });
 
   return (
     <div className="space-y-8">
@@ -71,7 +42,7 @@ export default function ProductManagementPage() {
               A list of all registered products in the system.
             </CardDescription>
           </div>
-          <AddProductDialog onProductAdded={handleProductAdded} />
+          <AddProductDialog />
         </CardHeader>
         <CardContent>
           <Table>
@@ -92,18 +63,18 @@ export default function ProductManagementPage() {
                 <TableRow key={product.id}>
                   <TableCell className="hidden sm:table-cell">
                     <Image
-                      alt={product.image.description}
+                      alt={product.imageDescription ?? ''}
                       className="aspect-square rounded-md object-cover"
                       height="64"
-                      src={product.image.imageUrl}
+                      src={product.imageUrl ?? ''}
                       width="64"
-                      data-ai-hint={product.image.imageHint}
+                      data-ai-hint={product.imageHint ?? ''}
                     />
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.description}</TableCell>
                   <TableCell className="text-right">
-                    <EditProductDialog product={product} onProductUpdated={handleProductUpdated} />
+                    <EditProductDialog product={product} />
                   </TableCell>
                 </TableRow>
               ))}

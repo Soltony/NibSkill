@@ -25,8 +25,9 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import type { Product } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
+import { updateProduct } from "@/app/actions/product-actions"
+import type { Product } from "@prisma/client"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
@@ -35,10 +36,9 @@ const formSchema = z.object({
 
 type EditProductDialogProps = {
   product: Product
-  onProductUpdated: (product: Product) => void
 }
 
-export function EditProductDialog({ product, onProductUpdated }: EditProductDialogProps) {
+export function EditProductDialog({ product }: EditProductDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -59,18 +59,21 @@ export function EditProductDialog({ product, onProductUpdated }: EditProductDial
     }
   }, [open, product, form])
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const updatedProduct: Product = {
-      ...product,
-      name: values.name,
-      description: values.description,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await updateProduct(product.id, values);
+    if (result.success) {
+      toast({
+        title: "Product Updated",
+        description: `The product "${values.name}" has been successfully updated.`,
+      })
+      setOpen(false)
+    } else {
+       toast({
+        title: "Error",
+        description: result.message,
+        variant: "destructive",
+      })
     }
-    onProductUpdated(updatedProduct)
-    toast({
-      title: "Product Updated",
-      description: `The product "${updatedProduct.name}" has been successfully updated.`,
-    })
-    setOpen(false)
   }
 
   return (
@@ -117,7 +120,9 @@ export function EditProductDialog({ product, onProductUpdated }: EditProductDial
               )}
             />
             <DialogFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
