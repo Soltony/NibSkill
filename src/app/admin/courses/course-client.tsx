@@ -125,5 +125,3 @@ function CourseActions({ course, products }: { course: CourseWithRelations, prod
 }
 
 CourseClient.Actions = CourseActions;
-
-    

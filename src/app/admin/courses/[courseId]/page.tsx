@@ -4,7 +4,8 @@
 import { useState, useMemo, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { quizzes as initialQuizzes, type Module, type Course as CourseType, type Quiz as QuizType } from '@/lib/data';
+import type { Module, Quiz as QuizType } from '@/lib/data';
+import { initialQuizzes } from '@/lib/data';
 import {
   Accordion,
   AccordionContent,
@@ -22,8 +23,7 @@ import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
 import { ModuleContent } from '@/components/module-content';
-import type { Course } from '@prisma/client';
-import prisma from "@/lib/db"
+import type { Course, Module as TModule, Product } from '@prisma/client';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -32,8 +32,8 @@ const iconMap = {
 };
 
 type CourseWithModulesAndProduct = Course & { 
-    modules: Module[],
-    product: { name: string } | null
+    modules: TModule[],
+    product: Product | null
 };
 
 
@@ -54,21 +54,29 @@ export default function CourseDetailPage() {
     async function fetchCourse() {
         if (courseId) {
             // This is a mock fetch. In a real app, you'd fetch from your API.
-            const fetchedCourse = await prisma.course.findUnique({
-                where: { id: courseId },
-                include: { modules: true, product: true }
-            });
-            if (fetchedCourse) {
-                setCourse(fetchedCourse as CourseWithModulesAndProduct);
+            // Using a server action or API route would be more robust.
+            // For now, we simulate by getting data from a server-side function
+            // but this won't work in a real client component.
+            // This is a placeholder for actual data fetching logic.
+             try {
+                const res = await fetch(`/api/courses/${courseId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setCourse(data);
+                } else {
+                    toast({ title: "Error", description: "Failed to fetch course details.", variant: "destructive"});
+                }
+            } catch (error) {
+                toast({ title: "Error", description: "Could not connect to the server.", variant: "destructive"});
             }
         }
     }
-    fetchCourse();
+    // fetchCourse();
     
     // In a real app, quizzes would be fetched from the DB
     const storedQuizzes = localStorage.getItem("skillup-quizzes");
     setAllQuizzes(storedQuizzes ? JSON.parse(storedQuizzes) : initialQuizzes);
-  }, [courseId]);
+  }, [courseId, toast]);
 
 
   const progress = useMemo(() => {
@@ -94,14 +102,14 @@ export default function CourseDetailPage() {
     })
   };
 
-  const handleModuleAdded = (newModule: Module) => {
+  const handleModuleAdded = (newModule: TModule) => {
     setCourse(prevCourse => {
       if (!prevCourse) return null;
       return { ...prevCourse, modules: [...prevCourse.modules, newModule] };
     });
   };
   
-  const handleModuleUpdated = (updatedModule: Module) => {
+  const handleModuleUpdated = (updatedModule: TModule) => {
     setCourse(prevCourse => {
       if (!prevCourse) return null;
       const newModules = prevCourse.modules.map(m => m.id === updatedModule.id ? updatedModule : m);
@@ -176,7 +184,7 @@ export default function CourseDetailPage() {
                     </AccordionTrigger>
                     <AccordionContent>
                     <div className="space-y-4 p-4 bg-muted/50 rounded-md">
-                        <ModuleContent module={module} />
+                        <ModuleContent module={module as Module} />
                         <div className="flex items-center justify-between pt-4 border-t">
                             <div className="flex items-center space-x-2">
                                 <Checkbox
@@ -187,7 +195,7 @@ export default function CourseDetailPage() {
                                 <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
                             </div>
                             {userRole === 'admin' && (
-                                <EditModuleDialog module={module} onModuleUpdated={handleModuleUpdated}>
+                                <EditModuleDialog module={module as Module} onModuleUpdated={handleModuleUpdated}>
                                     <Button variant="ghost" size="sm">
                                         <Pencil className="mr-2 h-4 w-4" />
                                         Edit Module
