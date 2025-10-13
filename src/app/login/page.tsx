@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,10 +17,13 @@ import { Logo } from '@/components/logo';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent, role: 'staff' | 'admin') => {
     e.preventDefault();
@@ -89,7 +92,26 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="staff-password">Password</Label>
-                  <Input id="staff-password" name="staff-password" type="password" defaultValue="password" required />
+                  <div className="relative">
+                    <Input 
+                      id="staff-password" 
+                      name="staff-password" 
+                      type={showStaffPassword ? 'text' : 'password'} 
+                      defaultValue="password" 
+                      required 
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowStaffPassword(!showStaffPassword)}
+                    >
+                      {showStaffPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <span className="sr-only">{showStaffPassword ? 'Hide password' : 'Show password'}</span>
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full">
                   Sign In as Staff
@@ -117,7 +139,26 @@ export default function LoginPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="admin-password">Password</Label>
-                  <Input id="admin-password" name="admin-password" type="password" defaultValue="password" required />
+                  <div className="relative">
+                    <Input 
+                      id="admin-password"
+                      name="admin-password"
+                      type={showAdminPassword ? 'text' : 'password'}
+                      defaultValue="password" 
+                      required 
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowAdminPassword(!showAdminPassword)}
+                    >
+                      {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <span className="sr-only">{showAdminPassword ? 'Hide password' : 'Show password'}</span>
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full">
                   Sign In as Admin
