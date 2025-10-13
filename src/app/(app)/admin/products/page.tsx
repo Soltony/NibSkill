@@ -63,12 +63,12 @@ export default async function ProductManagementPage() {
                 <TableRow key={product.id}>
                   <TableCell className="hidden sm:table-cell">
                     <Image
-                      alt={product.imageDescription ?? ''}
+                      alt={product.name}
                       className="aspect-square rounded-md object-cover"
                       height="64"
-                      src={product.imageUrl ?? ''}
+                      src={product.imageUrl}
                       width="64"
-                      data-ai-hint={product.imageHint ?? ''}
+                      data-ai-hint={product.imageHint}
                     />
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>

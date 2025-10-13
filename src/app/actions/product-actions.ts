@@ -29,7 +29,6 @@ export async function addProduct(values: z.infer<typeof productSchema>) {
         name: validatedFields.data.name,
         description: validatedFields.data.description,
         imageUrl: randomImage.imageUrl,
-        imageDescription: randomImage.description,
         imageHint: randomImage.imageHint,
       },
     })
