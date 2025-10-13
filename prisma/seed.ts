@@ -168,14 +168,13 @@ async function main() {
 
   // Seed Learning Paths
   for (const path of initialLearningPaths) {
-    const {courseIds, ...pathData} = path;
     await prisma.learningPath.upsert({
       where: { id: path.id },
       update: {},
       create: {
-        ...pathData,
+        ...path,
         courses: {
-          connect: courseIds.map(id => ({ id }))
+          connect: path.courseIds.map(id => ({ id }))
         }
       }
     });
