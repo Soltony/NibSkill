@@ -1,6 +1,7 @@
 
 
 import { PrismaClient, QuestionType, LiveSessionPlatform } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
     branches as initialBranches,
@@ -13,6 +14,7 @@ import {
     liveSessions as initialLiveSessions,
     quizzes as initialQuizzes,
     roles as initialRoles,
+    initialRegistrationFields
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -61,25 +63,30 @@ async function main() {
   for (const user of initialUsers) {
     const { department, district, branch, role, ...userData } = user as any;
 
-    // Find the corresponding IDs from the seeded data
+    // Find related records
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
     const districtRecord = await prisma.district.findUnique({ where: { name: district } });
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id } });
     const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
     
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash((user as any).password || 'password', 10);
+
     await prisma.user.upsert({
       where: { email: user.email },
       update: {},
       create: {
         ...userData,
+        password: hashedPassword,
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
         roleId: roleRecord!.id,
-      }
+      },
     });
   }
   console.log('Seeded users');
+
 
   // Seed Badges
   for (const badge of initialBadges) {
@@ -287,6 +294,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-
-    
