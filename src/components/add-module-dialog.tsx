@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react"
@@ -35,6 +36,7 @@ import { PlusCircle } from "lucide-react"
 import type { Module } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Textarea } from "./ui/textarea"
+import { addModule } from "@/app/actions/module-actions"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -45,10 +47,11 @@ const formSchema = z.object({
 })
 
 type AddModuleDialogProps = {
+  courseId: string;
   onModuleAdded: (module: Module) => void
 }
 
-export function AddModuleDialog({ onModuleAdded }: AddModuleDialogProps) {
+export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -62,23 +65,23 @@ export function AddModuleDialog({ onModuleAdded }: AddModuleDialogProps) {
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const newModule: Module = {
-      id: `mod-${Date.now()}`,
-      title: values.title,
-      type: values.type,
-      duration: values.duration,
-      description: values.description,
-      content: values.content,
-      isCompleted: false,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addModule(courseId, values);
+    if (result.success && result.data) {
+        onModuleAdded(result.data as Module)
+        toast({
+        title: "Module Added",
+        description: `The module "${result.data.title}" has been added.`,
+        })
+        setOpen(false)
+        form.reset()
+    } else {
+        toast({
+            title: "Error adding module",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-    onModuleAdded(newModule)
-    toast({
-      title: "Module Added",
-      description: `The module "${newModule.title}" has been added.`,
-    })
-    setOpen(false)
-    form.reset()
   }
 
   return (
@@ -174,7 +177,9 @@ export function AddModuleDialog({ onModuleAdded }: AddModuleDialogProps) {
                 )}
             />
             <DialogFooter>
-              <Button type="submit">Add Module</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Adding..." : "Add Module"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

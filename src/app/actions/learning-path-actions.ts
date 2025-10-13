@@ -25,7 +25,11 @@ export async function addLearningPath(values: z.infer<typeof formSchema>) {
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 courses: {
-                    connect: validatedFields.data.courseIds.map(id => ({ id }))
+                    create: validatedFields.data.courseIds.map(courseId => ({
+                        course: {
+                            connect: { id: courseId }
+                        }
+                    }))
                 }
             }
         });
@@ -51,7 +55,12 @@ export async function updateLearningPath(id: string, values: z.infer<typeof form
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 courses: {
-                    set: validatedFields.data.courseIds.map(id => ({ id }))
+                    deleteMany: {},
+                    create: validatedFields.data.courseIds.map(courseId => ({
+                        course: {
+                            connect: { id: courseId }
+                        }
+                    }))
                 }
             }
         });

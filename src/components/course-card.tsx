@@ -12,6 +12,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { usePathname } from 'next/navigation';
 import type { Course } from '@prisma/client';
+import { Skeleton } from './ui/skeleton';
 
 type CourseWithProgress = Course & { progress: number };
 
@@ -25,13 +26,17 @@ export function CourseCard({ course }: { course: CourseWithProgress }) {
       <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-xl">
         <CardHeader className="p-0">
           <div className="relative aspect-video">
-            <Image
-              src={course.imageUrl ?? ''}
-              alt={course.imageDescription ?? ''}
-              fill
-              className="object-cover"
-              data-ai-hint={course.imageHint ?? ''}
-            />
+            {course.imageUrl ? (
+              <Image
+                src={course.imageUrl}
+                alt={course.imageDescription ?? ''}
+                fill
+                className="object-cover"
+                data-ai-hint={course.imageHint ?? ''}
+              />
+            ) : (
+              <Skeleton className="h-full w-full" />
+            )}
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col p-4">

@@ -33,8 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { PlusCircle, Wand2 } from "lucide-react"
-import type { LiveSession } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
+import { addLiveSession } from "@/app/actions/live-session-actions"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -42,16 +42,13 @@ const formSchema = z.object({
   description: z.string().min(10, "Description is required"),
   keyTakeaways: z.string().min(10, "Key takeaways are required"),
   dateTime: z.string().refine((val) => val && !isNaN(Date.parse(val)), { message: "Invalid date" }),
-  platform: z.enum(["Zoom", "Google Meet"]),
+  platform: z.enum(["Zoom", "Google_Meet"]),
   joinUrl: z.string().url("Must be a valid URL"),
   recordingUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
 })
 
-type AddLiveSessionDialogProps = {
-  onSessionAdded: (session: LiveSession) => void
-}
 
-export function AddLiveSessionDialog({ onSessionAdded }: AddLiveSessionDialogProps) {
+export function AddLiveSessionDialog() {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -76,7 +73,7 @@ export function AddLiveSessionDialog({ onSessionAdded }: AddLiveSessionDialogPro
     if (watchedPlatform === "Zoom") {
         const meetingId = Math.floor(1000000000 + Math.random() * 9000000000);
         url = `https://your-company.zoom.us/j/${meetingId}`;
-    } else if (watchedPlatform === "Google Meet") {
+    } else if (watchedPlatform === "Google_Meet") {
         const chars = 'abcdefghijklmnopqrstuvwxyz';
         const code = Array.from({ length: 11 }, (_, i) => {
             if (i === 3 || i === 8) return '-';
@@ -87,19 +84,22 @@ export function AddLiveSessionDialog({ onSessionAdded }: AddLiveSessionDialogPro
     form.setValue("joinUrl", url, { shouldValidate: true });
   }
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const newSession: LiveSession = {
-      id: `session-${Date.now()}`,
-      ...values,
-      dateTime: new Date(values.dateTime),
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addLiveSession(values)
+    if (result.success) {
+      toast({
+        title: "Live Session Added",
+        description: `The session "${values.title}" has been created.`,
+      })
+      setOpen(false)
+      form.reset()
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-    onSessionAdded(newSession)
-    toast({
-      title: "Live Session Added",
-      description: `The session "${newSession.title}" has been created.`,
-    })
-    setOpen(false)
-    form.reset()
   }
 
   return (
@@ -197,7 +197,7 @@ export function AddLiveSessionDialog({ onSessionAdded }: AddLiveSessionDialogPro
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="Zoom">Zoom</SelectItem>
-                      <SelectItem value="Google Meet">Google Meet</SelectItem>
+                      <SelectItem value="Google_Meet">Google Meet</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -237,7 +237,9 @@ export function AddLiveSessionDialog({ onSessionAdded }: AddLiveSessionDialogPro
               )}
             />
             <DialogFooter className="col-span-2">
-              <Button type="submit">Create Session</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating..." : "Create Session"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

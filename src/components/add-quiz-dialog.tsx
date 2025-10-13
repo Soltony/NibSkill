@@ -31,9 +31,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { PlusCircle } from "lucide-react"
-import type { Course, Quiz } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "./ui/input"
+import { addQuiz } from "@/app/actions/quiz-actions"
+import type { Course, Quiz } from "@prisma/client"
 
 const formSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
@@ -43,10 +44,9 @@ const formSchema = z.object({
 type AddQuizDialogProps = {
   courses: Course[]
   quizzes: Quiz[]
-  onQuizAdded: (quiz: Quiz) => void
 }
 
-export function AddQuizDialog({ courses, quizzes, onQuizAdded }: AddQuizDialogProps) {
+export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -60,20 +60,22 @@ export function AddQuizDialog({ courses, quizzes, onQuizAdded }: AddQuizDialogPr
   // Filter out courses that already have a quiz
   const availableCourses = courses.filter(c => !quizzes.some(q => q.courseId === c.id))
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const newQuiz: Quiz = {
-      id: `quiz-${Date.now()}`,
-      courseId: values.courseId,
-      passingScore: values.passingScore,
-      questions: [],
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addQuiz(values);
+    if (result.success) {
+      toast({
+        title: "Quiz Created",
+        description: `A new quiz has been created. You can now add questions.`,
+      })
+      setOpen(false)
+      form.reset({ passingScore: 80, courseId: undefined })
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-    onQuizAdded(newQuiz)
-    toast({
-      title: "Quiz Created",
-      description: `A new quiz has been created. You can now add questions.`,
-    })
-    setOpen(false)
-    form.reset({ passingScore: 80, courseId: undefined })
   }
 
   return (
@@ -132,7 +134,9 @@ export function AddQuizDialog({ courses, quizzes, onQuizAdded }: AddQuizDialogPr
               )}
             />
             <DialogFooter>
-              <Button type="submit" disabled={availableCourses.length === 0}>Create Quiz</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting || availableCourses.length === 0}>
+                {form.formState.isSubmitting ? "Creating..." : "Create Quiz"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

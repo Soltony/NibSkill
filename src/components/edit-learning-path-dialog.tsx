@@ -39,8 +39,10 @@ const formSchema = z.object({
   }),
 })
 
+type LearningPathWithCourses = LearningPath & { courses: { course: Course }[] };
+
 type EditLearningPathDialogProps = {
-  learningPath: LearningPath & { courses: Course[] }
+  learningPath: LearningPathWithCourses
   courses: Course[]
 }
 
@@ -53,7 +55,7 @@ export function EditLearningPathDialog({ learningPath, courses }: EditLearningPa
     defaultValues: {
       title: learningPath.title,
       description: learningPath.description ?? "",
-      courseIds: learningPath.courses.map(c => c.id),
+      courseIds: learningPath.courses.map(c => c.course.id),
     },
   })
 
@@ -62,7 +64,7 @@ export function EditLearningPathDialog({ learningPath, courses }: EditLearningPa
       form.reset({
         title: learningPath.title,
         description: learningPath.description ?? "",
-        courseIds: learningPath.courses.map(c => c.id),
+        courseIds: learningPath.courses.map(c => c.course.id),
       })
     }
   }, [open, learningPath, form])

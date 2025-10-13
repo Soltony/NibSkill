@@ -26,23 +26,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
-import type { User, RegistrationField, District, Branch, Department } from "@/lib/data";
+import type { RegistrationField as TRegistrationField, District, Branch, Department } from "@prisma/client";
 import Link from "next/link";
-import {
-  users as initialUsers,
-  districts as initialDistricts,
-  branches as initialBranches,
-  departments as initialDepartments,
-  initialRegistrationFields
-} from "@/lib/data";
 import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import prisma from "@/lib/db";
 
-const USERS_STORAGE_KEY = "skillup-users";
-const REGISTRATION_FIELDS_STORAGE_KEY = "skillup-registration-fields";
-const DISTRICTS_STORAGE_KEY = "skillup-districts";
-const BRANCHES_STORAGE_KEY = "skillup-branches";
-const DEPARTMENTS_STORAGE_KEY = "skillup-departments";
 
 const baseSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -53,9 +42,8 @@ const baseSchema = z.object({
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [registrationFields, setRegistrationFields] = useState<RegistrationField[]>(initialRegistrationFields);
+  const [registrationFields, setRegistrationFields] = useState<TRegistrationField[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -63,41 +51,32 @@ export default function RegisterPage() {
   const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
 
   useEffect(() => {
-    const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    setUsers(storedUsers ? JSON.parse(storedUsers) : initialUsers);
+    async function fetchFormData() {
+      // In a real app, you would fetch this data from an API route
+      // For this prototype, we'll use Prisma directly in a client component, which is not recommended for production.
+      const fields = await prisma.registrationField.findMany({ where: { enabled: true } });
+      const districtsData = await prisma.district.findMany();
+      const branchesData = await prisma.branch.findMany();
+      const departmentsData = await prisma.department.findMany();
 
-    const storedRegistrationFields = localStorage.getItem(REGISTRATION_FIELDS_STORAGE_KEY);
-    const fields = storedRegistrationFields ? JSON.parse(storedRegistrationFields) : initialRegistrationFields;
-    setRegistrationFields(fields);
-    
-    const storedDistricts = localStorage.getItem(DISTRICTS_STORAGE_KEY);
-    setDistricts(storedDistricts ? JSON.parse(storedDistricts) : initialDistricts);
-    
-    const storedBranches = localStorage.getItem(BRANCHES_STORAGE_KEY);
-    setBranches(storedBranches ? JSON.parse(storedBranches) : initialBranches);
+      setRegistrationFields(fields);
+      setDistricts(districtsData);
+      setBranches(branchesData);
+      setDepartments(departmentsData);
 
-    const storedDepartments = localStorage.getItem(DEPARTMENTS_STORAGE_KEY);
-    setDepartments(storedDepartments ? JSON.parse(storedDepartments) : initialDepartments);
-    
-    // Build dynamic schema
-    let schema = baseSchema as z.ZodObject<any>;
-    fields.filter((f: RegistrationField) => f.enabled).forEach((field: RegistrationField) => {
+      let schema = baseSchema as z.ZodObject<any>;
+      fields.forEach((field) => {
         if (field.required) {
-            schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
+          schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
         } else {
-            schema = schema.extend({ [field.id]: z.string().optional() });
+          schema = schema.extend({ [field.id]: z.string().optional() });
         }
-    });
-    setDynamicSchema(schema as any);
-
-    setIsLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      });
+      setDynamicSchema(schema as any);
+      setIsLoaded(true);
     }
-  }, [users, isLoaded]);
+    fetchFormData();
+  }, []);
 
   const form = useForm<z.infer<typeof dynamicSchema>>({
     resolver: zodResolver(dynamicSchema),
@@ -105,37 +84,41 @@ export default function RegisterPage() {
       name: "",
       email: "",
       password: "",
-      phoneNumber: "",
-      department: "",
-      district: "",
-      branch: "",
     },
   });
 
-  const onRegisterUser = (values: z.infer<typeof dynamicSchema>) => {
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name: values.name,
-      email: values.email,
-      role: "staff",
-      avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-      department: values.department || "Unassigned",
-      district: values.district ? districts.find(d => d.id === values.district)?.name || "Unassigned" : "Unassigned",
-      branch: values.branch ? branches.find(b => b.id === values.branch)?.name || "Unassigned" : "Unassigned",
-      phoneNumber: values.phoneNumber || "",
-    };
-    setUsers([...users, newUser]);
-    toast({
-      title: "Registration Successful",
-      description: "You can now sign in with your new account.",
+  const onRegisterUser = async (values: z.infer<typeof dynamicSchema>) => {
+    const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
     });
-    router.push("/login");
+    
+    const data = await response.json();
+
+    if (data.isSuccess) {
+      toast({
+        title: "Registration Successful",
+        description: "You can now sign in with your new account.",
+      });
+      router.push("/login");
+    } else {
+       toast({
+        title: "Registration Failed",
+        description: data.errors?.[0] || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getField = (id: string) => registrationFields.find(f => f.id === id);
 
   const selectedDistrict = form.watch('district');
   const availableBranches = branches.filter(b => b.districtId === selectedDistrict);
+
+  if (!isLoaded) {
+    return <div>Loading form...</div>
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-secondary p-4">
@@ -266,9 +249,9 @@ export default function RegisterPage() {
               )}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Register
+                {form.formState.isSubmitting ? 'Registering...' : 'Register'}
               </Button>
               <div className="text-center text-sm">
                 Already have an account?{' '}

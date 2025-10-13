@@ -16,6 +16,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Form,
   FormControl,
   FormField,
@@ -24,9 +34,10 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import type { Branch, District } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { updateBranch, deleteBranch } from "@/app/actions/staff-actions"
+import type { Branch, District } from "@prisma/client"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
@@ -36,10 +47,9 @@ const formSchema = z.object({
 type EditBranchDialogProps = {
   branch: Branch
   districts: District[]
-  onBranchUpdated: (branch: Branch) => void
 }
 
-export function EditBranchDialog({ branch, districts, onBranchUpdated }: EditBranchDialogProps) {
+export function EditBranchDialog({ branch, districts }: EditBranchDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -60,18 +70,21 @@ export function EditBranchDialog({ branch, districts, onBranchUpdated }: EditBra
     }
   }, [open, branch, form])
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const updatedBranch: Branch = {
-      ...branch,
-      name: values.name,
-      districtId: values.districtId,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await updateBranch(branch.id, values)
+    if (result.success) {
+      toast({
+        title: "Branch Updated",
+        description: `The branch "${values.name}" has been successfully updated.`,
+      })
+      setOpen(false)
+    } else {
+      toast({
+        title: "Error",
+        description: result.message,
+        variant: "destructive",
+      })
     }
-    onBranchUpdated(updatedBranch)
-    toast({
-      title: "Branch Updated",
-      description: `The branch "${updatedBranch.name}" has been successfully updated.`,
-    })
-    setOpen(false)
   }
 
   return (
@@ -124,11 +137,56 @@ export function EditBranchDialog({ branch, districts, onBranchUpdated }: EditBra
               )}
             />
             <DialogFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
   )
+}
+
+
+export function DeleteBranchButton({ branch }: { branch: Branch }) {
+    const [open, setOpen] = useState(false);
+    const { toast } = useToast();
+
+    const handleDelete = async () => {
+        const result = await deleteBranch(branch.id);
+        if (result.success) {
+            toast({
+                title: "Branch Deleted",
+                description: `The branch "${branch.name}" has been deleted.`,
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: result.message,
+                variant: "destructive",
+            });
+        }
+        setOpen(false);
+    };
+
+    return (
+        <>
+            <Button variant="destructive-outline" size="sm" onClick={() => setOpen(true)}>Delete</Button>
+            <AlertDialog open={open} onOpenChange={setOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the branch <span className="font-semibold">"{branch.name}"</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    );
 }

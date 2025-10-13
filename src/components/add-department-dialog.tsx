@@ -25,18 +25,14 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { PlusCircle } from "lucide-react"
-import type { Department } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
+import { addDepartment } from "@/app/actions/staff-actions"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
 })
 
-type AddDepartmentDialogProps = {
-  onDepartmentAdded: (department: Department) => void
-}
-
-export function AddDepartmentDialog({ onDepartmentAdded }: AddDepartmentDialogProps) {
+export function AddDepartmentDialog() {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -47,18 +43,22 @@ export function AddDepartmentDialog({ onDepartmentAdded }: AddDepartmentDialogPr
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const newDepartment: Department = {
-      id: `dept-${Date.now()}`,
-      name: values.name,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addDepartment(values)
+    if (result.success) {
+      toast({
+        title: "Department Added",
+        description: `The department "${values.name}" has been successfully created.`,
+      })
+      setOpen(false)
+      form.reset()
+    } else {
+      toast({
+        title: "Error",
+        description: result.message,
+        variant: "destructive",
+      })
     }
-    onDepartmentAdded(newDepartment)
-    toast({
-      title: "Department Added",
-      description: `The department "${newDepartment.name}" has been successfully created.`,
-    })
-    setOpen(false)
-    form.reset()
   }
 
   return (
@@ -91,7 +91,9 @@ export function AddDepartmentDialog({ onDepartmentAdded }: AddDepartmentDialogPr
               )}
             />
             <DialogFooter>
-              <Button type="submit">Create Department</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating..." : "Create Department"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

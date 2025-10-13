@@ -1,0 +1,111 @@
+
+"use client"
+
+import { useState } from "react";
+import type { LiveSession as SessionType, UserAttendedLiveSession } from "@prisma/client";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar, Clock, Mic, Video, Radio, CheckSquare } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from "@/hooks/use-toast";
+import { markAttendance } from "../actions/live-session-actions";
+
+type SessionWithAttendance = SessionType & { attendees: UserAttendedLiveSession[] };
+
+type SessionCardProps = {
+    session: SessionWithAttendance;
+    userId: string;
+    hasAttended: boolean;
+}
+
+export const SessionCard = ({ session, userId, hasAttended: initialHasAttended }: SessionCardProps) => {
+    const { toast } = useToast();
+    const [hasAttended, setHasAttended] = useState(initialHasAttended);
+
+    const now = new Date();
+    const sessionTime = new Date(session.dateTime);
+    const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // Assuming 1-hour duration
+
+    const isPast = now > endTime;
+    const isLive = now >= sessionTime && now <= endTime;
+    const isUpcoming = now < sessionTime;
+    
+    const handleAttend = async (sessionId: string) => {
+        if (hasAttended) return;
+
+        const result = await markAttendance(sessionId, userId);
+        if (result.success) {
+            setHasAttended(true);
+            toast({ title: "Attendance Marked", description: "Your attendance has been recorded." });
+        } else {
+            toast({ title: "Error", description: result.message, variant: "destructive" });
+        }
+    }
+
+    return (
+        <Card className="flex flex-col">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <Badge variant="secondary" className="w-fit mb-2">{session.platform.replace('_', ' ')}</Badge>
+                {isPast ? (
+                    <Badge variant="outline">Past</Badge>
+                ) : isLive ? (
+                    <Badge variant="destructive" className="animate-pulse">
+                        <Radio className="mr-1 h-3 w-3"/>
+                        Live Now
+                    </Badge>
+                ) : (
+                    <Badge variant="secondary">
+                        Upcoming
+                    </Badge>
+                )}
+              </div>
+              <CardTitle className="font-headline text-xl pt-2">{session.title}</CardTitle>
+              <CardDescription>{session.description}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 space-y-3">
+               <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4"/>
+                  <span>{new Date(session.dateTime).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+               </div>
+               <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="h-4 w-4"/>
+                  <span>{new Date(session.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+               </div>
+                <div>
+                    <h4 className="font-semibold mb-1">Key Takeaways:</h4>
+                    <p className="text-sm text-muted-foreground">{session.keyTakeaways}</p>
+                </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-2 items-stretch">
+                {isPast ? (
+                    session.recordingUrl ? (
+                         <Button asChild>
+                            <a href={session.recordingUrl} target="_blank" rel="noopener noreferrer">
+                                <Video className="mr-2 h-4 w-4" />
+                                Watch Recording
+                            </a>
+                        </Button>
+                    ) : (
+                         <Button variant="outline" disabled>
+                            Recording Unavailable
+                        </Button>
+                    )
+                ) : (
+                     <Button asChild>
+                        <a href={session.joinUrl} target="_blank" rel="noopener noreferrer">
+                            <Mic className="mr-2 h-4 w-4" />
+                            Join Session
+                        </a>
+                    </Button>
+                )}
+                {!isUpcoming && (
+                     <Button variant="secondary" onClick={() => handleAttend(session.id)} disabled={hasAttended}>
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        {hasAttended ? "Attendance Marked" : "I Attended"}
+                    </Button>
+                )}
+            </CardFooter>
+          </Card>
+    )
+}

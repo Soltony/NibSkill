@@ -1,5 +1,7 @@
 
-import { PrismaClient } from '@prisma/client'
+
+import { PrismaClient, QuestionType, LiveSessionPlatform } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
     branches as initialBranches,
@@ -44,9 +46,8 @@ async function main() {
   // Seed Roles and Permissions
   for (const role of initialRoles) {
     await prisma.role.upsert({
-      where: { id: role.id },
+      where: { name: role.name },
       update: {
-        name: role.name,
         permissions: role.permissions as any,
       },
       create: {
@@ -60,76 +61,73 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { department, district, branch, role, completedCourses, badges: userBadges, ...userData } = user;
+    const { department, district, branch, role, ...userData } = user as any;
 
-    // Find the corresponding IDs from the seeded data
-    const departmentRecord = await prisma.department.findFirst({ where: { name: department } });
-    const districtRecord = await prisma.district.findFirst({ where: { name: district } });
-    const branchRecord = await prisma.branch.findFirst({ where: { name: branch } });
-    const roleRecord = await prisma.role.findUnique({ where: { id: role } });
+    // Find related records
+    const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
+    const districtRecord = await prisma.district.findUnique({ where: { name: district } });
+    const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id } });
+    const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
     
-    // This removes the invalid coursesCompleted field
-    const { coursesCompleted, ...validUserData } = userData as any;
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash((user as any).password || 'password', 10);
 
     await prisma.user.upsert({
       where: { email: user.email },
       update: {},
       create: {
-        ...validUserData,
+        ...userData,
+        password: hashedPassword,
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
         roleId: roleRecord!.id,
-      }
+      },
     });
   }
   console.log('Seeded users');
 
+
   // Seed Badges
-  await prisma.badge.createMany({
-    data: initialBadges,
-    skipDuplicates: true
-  });
+  for (const badge of initialBadges) {
+    await prisma.badge.upsert({
+        where: { id: badge.id },
+        update: {},
+        create: badge,
+    });
+  }
+  console.log('Seeded badges');
 
   // Assign badges to user-1
   const user1 = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
-  if (user1) {
-    try {
-      await prisma.user.update({
-          where: { id: user1.id },
-          data: {
-              badges: {
-                  create: [
-                      { badgeId: 'badge-1' },
-                      { badgeId: 'badge-4' }
-                  ]
-              }
-          }
-      })
-      console.log('Seeded badges and assigned to user');
-    } catch (e: any) {
-      if (e.code === 'P2002') {
-        console.log('Badges already assigned to user.');
-      } else {
-        throw e;
-      }
-    }
+  const firstStepsBadge = await prisma.badge.findUnique({ where: { title: 'First Steps' }});
+  const perfectScoreBadge = await prisma.badge.findUnique({ where: { title: 'Perfect Score' }});
+
+  if (user1 && firstStepsBadge && perfectScoreBadge) {
+    await prisma.userBadge.upsert({
+        where: { userId_badgeId: { userId: user1.id, badgeId: firstStepsBadge.id } },
+        update: {},
+        create: { userId: user1.id, badgeId: firstStepsBadge.id },
+    });
+    await prisma.userBadge.upsert({
+        where: { userId_badgeId: { userId: user1.id, badgeId: perfectScoreBadge.id } },
+        update: {},
+        create: { userId: user1.id, badgeId: perfectScoreBadge.id },
+    });
+    console.log('Assigned badges to user');
   }
 
   // Seed Products
   for (const product of initialProducts) {
     await prisma.product.upsert({
         where: { id: product.id },
-        update: {
-            name: product.name,
-            description: product.description,
-            imageUrl: product.image.imageUrl,
-        },
+        update: {},
         create: {
             id: product.id,
             name: product.name,
             description: product.description,
             imageUrl: product.image.imageUrl,
+            imageHint: product.image.imageHint,
         }
     })
   }
@@ -137,25 +135,22 @@ async function main() {
 
   // Seed Courses and Modules
   for (const course of initialCourses) {
-    const { modules, image, productName, progress, ...courseData } = course;
+    const { modules, image, ...courseData } = course as any;
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
-        imageUrl: image.imageUrl,
-        imageDescription: image.description,
-        imageHint: image.imageHint,
       },
       create: {
         id: courseData.id,
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
-        imageUrl: image.imageUrl,
-        imageDescription: image.description,
-        imageHint: image.imageHint,
+        imageUrl: image?.imageUrl,
+        imageDescription: image?.description,
+        imageHint: image?.imageHint,
       }
     });
 
@@ -171,14 +166,20 @@ async function main() {
 
   // Seed Learning Paths
   for (const path of initialLearningPaths) {
-    const {courseIds, ...pathData} = path;
     await prisma.learningPath.upsert({
       where: { id: path.id },
       update: {},
       create: {
-        ...pathData,
+        id: path.id,
+        title: path.title,
+        description: path.description,
         courses: {
-          connect: courseIds.map(id => ({ id }))
+          create: path.courseIds.map((courseId, index) => ({
+            order: index + 1,
+            course: {
+              connect: { id: courseId }
+            }
+          }))
         }
       }
     });
@@ -191,10 +192,12 @@ async function main() {
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
-              ...sessionData
+              ...sessionData,
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           },
           create: {
               ...sessionData,
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           }
       });
   }
@@ -214,17 +217,19 @@ async function main() {
             where: { id: question.id },
             update: {
                 ...questionData,
+                type: question.type.replace(/-/g, '_') as QuestionType,
                 quizId: createdQuiz.id
             },
             create: {
                 ...questionData,
+                type: question.type.replace(/-/g, '_') as QuestionType,
                 quizId: createdQuiz.id
             }
         });
 
         if (question.type === 'multiple-choice' || question.type === 'true-false') {
             for (const option of options) {
-                await prisma.questionOption.upsert({
+                await prisma.option.upsert({
                     where: { id: option.id },
                     update: {
                         text: option.text,
@@ -260,29 +265,21 @@ async function main() {
     }
   }
   console.log('Seeded user completed courses');
-
-
-  // Seed Registration Fields
-  await prisma.registrationField.createMany({
-    data: initialRegistrationFields.map(({ id, label }) => ({ id, label })),
-    skipDuplicates: true,
+  
+  // Seed Certificate Template
+  await prisma.certificateTemplate.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: {
+        id: 'singleton',
+        title: "Certificate of Completion",
+        organization: "SkillUp Inc.",
+        body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
+        signatoryName: "Jane Doe",
+        signatoryTitle: "Head of Training & Development",
+    }
   });
-
-  for (const field of initialRegistrationFields) {
-    await prisma.registrationFieldSetting.upsert({
-        where: { fieldId: field.id },
-        update: {
-            enabled: field.enabled,
-            required: field.required,
-        },
-        create: {
-            fieldId: field.id,
-            enabled: field.enabled,
-            required: field.required,
-        }
-    });
-  }
-  console.log('Seeded registration fields and settings');
+  console.log('Seeded certificate template');
 
 
   console.log(`Seeding finished.`)

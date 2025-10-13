@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -34,6 +35,7 @@ import {
 import type { Module } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Textarea } from "./ui/textarea"
+import { updateModule } from "@/app/actions/module-actions"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -77,17 +79,27 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
   }, [open, module, form])
 
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const updatedModule: Module = {
-      ...module,
-      ...values
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await updateModule(module.id, values);
+    
+    if (result.success && result.data) {
+        const updatedModule: Module = {
+            ...module,
+            ...result.data,
+        }
+        onModuleUpdated(updatedModule);
+        toast({
+            title: "Module Updated",
+            description: `The module "${updatedModule.title}" has been updated.`,
+        })
+        setOpen(false)
+    } else {
+        toast({
+            title: "Error updating module",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-    onModuleUpdated(updatedModule)
-    toast({
-      title: "Module Updated",
-      description: `The module "${updatedModule.title}" has been updated.`,
-    })
-    setOpen(false)
   }
 
   return (
@@ -179,7 +191,9 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
                 )}
             />
             <DialogFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

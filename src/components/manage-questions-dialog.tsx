@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -25,11 +25,16 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Trash2, PlusCircle } from "lucide-react"
-import { type Quiz, type Question } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
 import { Label } from "./ui/label"
 import { ScrollArea } from "./ui/scroll-area"
+import { updateQuiz } from "@/app/actions/quiz-actions"
+import type { Quiz, Question, Option as OptionType, QuestionType } from "@prisma/client"
+
+type QuizWithRelations = Quiz & {
+  questions: (Question & { options: OptionType[] })[]
+}
 
 const optionSchema = z.object({
   id: z.string(),
@@ -39,7 +44,7 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   id: z.string(),
   text: z.string().min(1, "Question text cannot be empty."),
-  type: z.enum(['multiple-choice', 'true-false', 'fill-in-the-blank']),
+  type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
   options: z.array(optionSchema),
   correctAnswerId: z.string({ required_error: "A correct answer is required." }).min(1, "A correct answer is required."),
 })
@@ -50,45 +55,52 @@ const formSchema = z.object({
 })
 
 type ManageQuestionsDialogProps = {
-  quiz: Quiz
+  quiz: QuizWithRelations
   courseTitle: string
-  onQuizUpdated: (quiz: Quiz) => void
 }
 
-export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: ManageQuestionsDialogProps) {
+export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      passingScore: quiz.passingScore,
-      questions: quiz.questions,
-    },
   })
+
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        passingScore: quiz.passingScore,
+        questions: quiz.questions.map(q => ({...q, type: q.type.replace('_', '-') as any})),
+      })
+    }
+  }, [open, quiz, form])
 
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "questions",
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const updatedQuiz: Quiz = {
-      ...quiz,
-      passingScore: values.passingScore,
-      questions: values.questions,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await updateQuiz(quiz.id, values);
+    if (result.success) {
+      toast({
+        title: "Quiz Updated",
+        description: "The questions and settings have been saved.",
+      })
+      setOpen(false)
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-    onQuizUpdated(updatedQuiz)
-    toast({
-      title: "Quiz Updated",
-      description: "The questions and settings have been saved.",
-    })
-    setOpen(false)
   }
 
   const addQuestion = (type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank') => {
     let newQuestion: z.infer<typeof questionSchema>;
-    const questionId = `q-${Date.now()}`;
+    const questionId = `new-q-${Date.now()}`;
 
     switch (type) {
       case 'multiple-choice':
@@ -97,8 +109,8 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
           text: "",
           type: 'multiple-choice',
           options: [
-            { id: `o-${Date.now()}-1`, text: "" },
-            { id: `o-${Date.now()}-2`, text: "" },
+            { id: `new-o-${Date.now()}-1`, text: "" },
+            { id: `new-o-${Date.now()}-2`, text: "" },
           ],
           correctAnswerId: "",
         };
@@ -131,7 +143,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
   const addOption = (questionIndex: number) => {
     const question = form.getValues(`questions.${questionIndex}`);
     if (question.type === 'multiple-choice') {
-      const newOptions = [...question.options, { id: `o-${Date.now()}`, text: "" }];
+      const newOptions = [...question.options, { id: `new-o-${Date.now()}`, text: "" }];
       update(questionIndex, { ...question, options: newOptions });
     }
   }
@@ -204,8 +216,8 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
                               >
                                   {(form.watch(`questions.${qIndex}.options`)).map((option, oIndex) => (
                                       <div key={option.id} className="flex items-center gap-2 group/option">
-                                          <RadioGroupItem value={option.id} id={option.id} />
-                                          <Label htmlFor={option.id} className="font-normal flex-1 cursor-pointer">
+                                          <RadioGroupItem value={option.id} id={`${question.id}-${option.id}`} />
+                                          <Label htmlFor={`${question.id}-${option.id}`} className="font-normal flex-1 cursor-pointer">
                                               <FormField
                                                   control={form.control}
                                                   name={`questions.${qIndex}.options.${oIndex}.text`}
@@ -301,7 +313,9 @@ export function ManageQuestionsDialog({ quiz, courseTitle, onQuizUpdated }: Mana
               </div>
             </ScrollArea>
             <DialogFooter className="mt-4">
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

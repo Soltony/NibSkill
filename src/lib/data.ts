@@ -1,6 +1,6 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
-import { PlaceHolderImages } from './placeholder-images';
+import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
 
 export type District = {
   id: string;
@@ -34,9 +34,8 @@ export type User = {
   district: string;
   branch: string;
   avatarUrl: string;
+  password?: string;
   phoneNumber?: string;
-  completedCourses?: { courseId: string; completionDate: Date; score: number }[];
-  badges?: Badge[];
 };
 
 export type Product = {
@@ -49,10 +48,9 @@ export type Product = {
 export type Module = {
   id: string;
   title: string;
+  description: string;
   type: 'video' | 'pdf' | 'slides';
   duration: number; // in minutes
-  isCompleted: boolean;
-  description: string;
   content: string; // URL to the content
 };
 
@@ -61,10 +59,8 @@ export type Course = {
   title: string;
   description: string;
   productId: string;
-  productName: string;
-  image: ImagePlaceholder;
   modules: Module[];
-  progress: number;
+  image: ImagePlaceholder;
 };
 
 export type LearningPath = {
@@ -81,7 +77,7 @@ export type LiveSession = {
   speaker: string;
   keyTakeaways: string;
   dateTime: Date;
-  platform: 'Zoom' | 'Google Meet';
+  platform: 'Zoom' | 'Google_Meet';
   joinUrl: string;
   recordingUrl?: string;
   attendees?: string[]; // Array of user IDs
@@ -90,7 +86,7 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
-  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank';
+  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank';
   options: { id: string; text: string }[];
   correctAnswerId: string; // Also used for true/false (value will be 'true' or 'false') and fill-in-the-blank (value is the answer)
 };
@@ -187,10 +183,7 @@ export const users: User[] = [
     district: 'North Region',
     branch: 'Main Office',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-    completedCourses: [
-      { courseId: 'course-4', completionDate: new Date('2024-05-10'), score: 100 }
-    ],
-    badges: [badges[0], badges[3]]
+    password: 'password'
   },
   {
     id: 'user-2',
@@ -201,12 +194,12 @@ export const users: User[] = [
     district: 'South Region',
     branch: 'Downtown Branch',
     avatarUrl: 'https://picsum.photos/seed/user2/100/100',
-    completedCourses: []
+    password: 'password'
   },
-  { id: 'user-3', name: 'Samira Khan', email: 'samira.khan@example.com', avatarUrl: 'https://picsum.photos/seed/user3/100/100', role: 'staff', coursesCompleted: 12, department: 'Engineering', district: 'North Region', branch: 'Main Office' },
-  { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', coursesCompleted: 10, department: 'Sales', district: 'South Region', branch: 'Downtown Branch' },
-  { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', coursesCompleted: 9, department: 'Engineering', district: 'North Region', branch: 'Main Office' },
-  { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', coursesCompleted: 8, department: 'Marketing', district: 'East Region', branch: 'Suburb Branch' },
+  { id: 'user-3', name: 'Samira Khan', email: 'samira.khan@example.com', avatarUrl: 'https://picsum.photos/seed/user3/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'password' },
+  { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', department: 'Sales', district: 'South Region', branch: 'Downtown Branch', password: 'password' },
+  { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'password' },
+  { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', password: 'password' },
 ];
 
 export const products: Product[] = [
@@ -242,13 +235,11 @@ export const courses: Course[] = [
     title: 'New Product Launch: FusionX',
     description: 'Get up to speed with our latest flagship product, FusionX. This course covers all the new features and selling points.',
     productId: 'prod-1',
-    productName: 'FusionX',
     image: PlaceHolderImages[0],
-    progress: 33,
     modules: [
-      { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, isCompleted: true, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-      { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, isCompleted: false, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-      { id: 'm1-3', title: 'FusionX Technical Specs', type: 'pdf', duration: 20, isCompleted: false, description: 'The official technical specification document for FusionX.', content: '/sample.pdf' },
+      { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm1-3', title: 'FusionX Technical Specs', type: 'pdf', duration: 20, description: 'The official technical specification document for FusionX.', content: '/sample.pdf' },
     ],
   },
   {
@@ -256,14 +247,12 @@ export const courses: Course[] = [
     title: 'Advanced User Training for Centauri',
     description: 'Become a power user of our Centauri platform. This course is for experienced users who want to master advanced functionalities.',
     productId: 'prod-2',
-    productName: 'Centauri',
     image: PlaceHolderImages[1],
-    progress: 0,
     modules: [
-      { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, isCompleted: false, description: 'An overview of the Centauri system architecture.', content: '#' },
-      { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, isCompleted: false, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-      { id: 'm2-3', title: 'API Integration Guide', type: 'pdf', duration: 30, isCompleted: false, description: 'A guide to integrating with the Centauri API.', content: '/sample.pdf' },
-      { id: 'm2-4', title: 'Best Practices', type: 'video', duration: 20, isCompleted: false, description: 'Best practices for using Centauri effectively.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#' },
+      { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 'm2-3', title: 'API Integration Guide', type: 'pdf', duration: 30, description: 'A guide to integrating with the Centauri API.', content: '/sample.pdf' },
+      { id: 'm2-4', title: 'Best Practices', type: 'video', duration: 20, description: 'Best practices for using Centauri effectively.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     ],
   },
   {
@@ -271,15 +260,13 @@ export const courses: Course[] = [
     title: 'Technical Deep Dive: Pulsar Engine',
     description: 'For our engineering team, a detailed look into the new Pulsar Engine, its capabilities, and how to build on top of it.',
     productId: 'prod-3',
-    productName: 'Pulsar Engine',
     image: PlaceHolderImages[2],
-    progress: 80,
     modules: [
-        { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, isCompleted: true, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, isCompleted: true, description: 'A deep dive into the rendering pipeline.', content: '#' },
-        { id: 'm3-3', title: 'Performance Optimization', type: 'video', duration: 50, isCompleted: true, description: 'Tips and tricks for optimizing performance.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'm3-4', title: 'Extending Pulsar', type: 'pdf', duration: 20, isCompleted: true, description: 'How to extend the Pulsar Engine with custom plugins.', content: '/sample.pdf' },
-        { id: 'm3-5', title: 'Debugging and Profiling', type: 'video', duration: 35, isCompleted: false, description: 'Learn to debug and profile your Pulsar applications.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, description: 'A deep dive into the rendering pipeline.', content: '#' },
+        { id: 'm3-3', title: 'Performance Optimization', type: 'video', duration: 50, description: 'Tips and tricks for optimizing performance.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm3-4', title: 'Extending Pulsar', type: 'pdf', duration: 20, description: 'How to extend the Pulsar Engine with custom plugins.', content: '/sample.pdf' },
+        { id: 'm3-5', title: 'Debugging and Profiling', type: 'video', duration: 35, description: 'Learn to debug and profile your Pulsar applications.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
     ],
   },
   {
@@ -287,13 +274,11 @@ export const courses: Course[] = [
     title: 'Sales Strategy for Nova Suite',
     description: 'Equip your sales team with the knowledge and strategies to effectively sell the Nova Suite to enterprise clients.',
     productId: 'prod-4',
-    productName: 'Nova Suite',
     image: PlaceHolderImages[3],
-    progress: 100,
     modules: [
-        { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, isCompleted: true, description: 'An overview of the current market landscape.', content: '#' },
-        { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, isCompleted: true, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-        { id: 'm4-3', title: 'Handling Objections', type: 'pdf', duration: 15, isCompleted: true, description: 'A guide to handling common sales objections.', content: '/sample.pdf' },
+        { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, description: 'An overview of the current market landscape.', content: '#' },
+        { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+        { id: 'm4-3', title: 'Handling Objections', type: 'pdf', duration: 15, description: 'A guide to handling common sales objections.', content: '/sample.pdf' },
     ],
   },
 ];
@@ -308,9 +293,9 @@ export const learningPaths: LearningPath[] = [
 ];
 
 export const roles: Role[] = [
-  { 
-    id: "admin", 
-    name: "Admin", 
+  {
+    id: "admin",
+    name: "Admin",
     permissions: {
       courses: { c: true, r: true, u: true, d: true },
       users: { c: true, r: true, u: true, d: true },
@@ -319,11 +304,11 @@ export const roles: Role[] = [
       quizzes: { c: true, r: true, u: true, d: true },
       staff: { c: true, r: true, u: true, d: true },
       liveSessions: { c: true, r: true, u: true, d: true },
-    } 
+    }
   },
-  { 
-    id: "staff", 
-    name: "Staff", 
+  {
+    id: "staff",
+    name: "Staff",
     permissions: {
       courses: { c: false, r: true, u: false, d: false },
       users: { c: false, r: false, u: false, d: false },
@@ -356,7 +341,7 @@ export const liveSessions: LiveSession[] = [
     speaker: 'John Smith, Principal Engineer',
     keyTakeaways: 'Practical experience with the Pulsar SDK, tips for efficient development, and a complete sample project to take away.',
     dateTime: new Date(new Date().getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
-    platform: 'Google Meet',
+    platform: 'Google_Meet',
     joinUrl: 'https://meet.google.com/abc-defg-hij',
     recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     attendees: ['user-1'],
@@ -372,7 +357,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q1-1',
         text: 'What is the primary new capability of FusionX?',
-        type: 'multiple-choice',
+        type: 'multiple_choice',
         options: [
           { id: 'o1-1-1', text: 'AI-powered analytics' },
           { id: 'o1-1-2', text: 'Decentralized storage' },
@@ -384,7 +369,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q1-2',
         text: 'FusionX is primarily targeting enterprise clients.',
-        type: 'true-false',
+        type: 'true_false',
         options: [
             { id: 'true', text: 'True' },
             { id: 'false', text: 'False' },
@@ -394,7 +379,7 @@ export const quizzes: Quiz[] = [
        {
         id: 'q1-3',
         text: 'What technology powers the new analytics features? ______ Learning.',
-        type: 'fill-in-the-blank',
+        type: 'fill_in_the_blank',
         options: [],
         correctAnswerId: 'Machine',
       },
@@ -408,7 +393,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q4-1',
         text: 'What is a key part of the Nova Suite sales strategy?',
-        type: 'multiple-choice',
+        type: 'multiple_choice',
         options: [
           { id: 'o4-1-1', text: 'Focusing only on technical specs' },
           { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
@@ -432,12 +417,7 @@ const detailedProgressReport = [
             branch: user.branch,
             courseId: course.id,
             courseTitle: course.title,
-            progress: user.id === 'user-1' && course.id === 'course-1' 
-                ? 33 
-                : (user.completedCourses?.find(cc => cc.courseId === course.id) 
-                    ? 100 
-                    // FIX: Replace Math.random() with a deterministic calculation
-                    : (user.name.length + course.title.length) % 81), // Modulo 81 to keep it under 80
+            progress: (user.name.length + course.title.length) % 81, // Modulo 81 to keep it under 80
         }));
     }).flat()
 ];
@@ -466,9 +446,9 @@ export const analyticsData = {
     { id: 'user-3', name: 'Samira Khan', avatarUrl: 'https://picsum.photos/seed/user3/100/100', coursesCompleted: 12, department: 'Engineering' },
     { id: 'user-4', name: 'David Chen', avatarUrl: 'https://picsum.photos/seed/user4/100/100', coursesCompleted: 10, department: 'Sales' },
     { id: 'user-5', name: 'Emily White', avatarUrl: 'https://picsum.photos/seed/user5/100/100', coursesCompleted: 9, department: 'Engineering' },
-    { id: 'user-6', name: 'Michael Brown', avatarUrl: 'https://picsum.photos/seed/user6/100/100', coursesCompleted: 8, department: 'Marketing' },
+    { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', coursesCompleted: 8 },
     { id: 'user-1', name: 'Alex Johnson', avatarUrl: 'https://picsum.photos/seed/user1/100/100', coursesCompleted: 7, department: 'Engineering' },
-  ],
+  ].map(({ coursesCompleted, ...rest }) => ({...rest, coursesCompleted})),
   courseEngagement: {
     mostCompleted: [
         { id: 'course-4', title: 'Sales Strategy for Nova Suite', completionRate: 98 },
@@ -537,3 +517,15 @@ export const notifications: Notification[] = [
         isRead: true,
     },
 ];
+
+export type UserBadge = {
+    userId: string;
+    badgeId: string;
+}
+
+export type UserCompletedCourse = {
+    userId: string;
+    courseId: string;
+    completionDate: Date;
+    score: number;
+}

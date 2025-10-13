@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { PlusCircle } from "lucide-react"
-import type { Branch, District } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { addBranch } from "@/app/actions/staff-actions"
+import type { District } from "@prisma/client"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
@@ -36,10 +37,9 @@ const formSchema = z.object({
 
 type AddBranchDialogProps = {
   districts: District[]
-  onBranchAdded: (branch: Branch) => void
 }
 
-export function AddBranchDialog({ districts, onBranchAdded }: AddBranchDialogProps) {
+export function AddBranchDialog({ districts }: AddBranchDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -50,19 +50,22 @@ export function AddBranchDialog({ districts, onBranchAdded }: AddBranchDialogPro
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const newBranch: Branch = {
-      id: `branch-${Date.now()}`,
-      name: values.name,
-      districtId: values.districtId,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addBranch(values)
+    if (result.success) {
+      toast({
+        title: "Branch Added",
+        description: `The branch "${values.name}" has been successfully created.`,
+      })
+      setOpen(false)
+      form.reset()
+    } else {
+      toast({
+        title: "Error",
+        description: result.message,
+        variant: "destructive",
+      })
     }
-    onBranchAdded(newBranch)
-    toast({
-      title: "Branch Added",
-      description: `The branch "${newBranch.name}" has been successfully created.`,
-    })
-    setOpen(false)
-    form.reset()
   }
 
   return (
@@ -117,7 +120,9 @@ export function AddBranchDialog({ districts, onBranchAdded }: AddBranchDialogPro
               )}
             />
             <DialogFooter>
-              <Button type="submit">Create Branch</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating..." : "Create Branch"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
