@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,10 +25,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { GraduationCap } from "lucide-react";
 import { Logo } from "@/components/logo";
+import Image from "next/image";
 
 const TEMPLATE_STORAGE_KEY = "skillup-certificate-template";
+const SIGNATURE_STORAGE_KEY = "skillup-certificate-signature";
+const STAMP_STORAGE_KEY = "skillup-certificate-stamp";
 
 const templateSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -51,6 +53,8 @@ const defaultTemplate: CertificateTemplate = {
 export default function CertificatePage() {
   const { toast } = useToast();
   const [isLoaded, setIsLoaded] = useState(false);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [stampUrl, setStampUrl] = useState<string | null>(null);
 
   const form = useForm<CertificateTemplate>({
     resolver: zodResolver(templateSchema),
@@ -64,6 +68,14 @@ export default function CertificatePage() {
     if (storedTemplate) {
       form.reset(JSON.parse(storedTemplate));
     }
+    const storedSignature = localStorage.getItem(SIGNATURE_STORAGE_KEY);
+    if (storedSignature) {
+      setSignatureUrl(storedSignature);
+    }
+    const storedStamp = localStorage.getItem(STAMP_STORAGE_KEY);
+    if (storedStamp) {
+      setStampUrl(storedStamp);
+    }
     setIsLoaded(true);
   }, [form]);
 
@@ -76,6 +88,23 @@ export default function CertificatePage() {
     }
   }, [isLoaded, form]);
   
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, setter: (url: string | null) => void, storageKey: string) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setter(dataUrl);
+        localStorage.setItem(storageKey, dataUrl);
+        toast({
+            title: "Image Uploaded",
+            description: "Your image has been saved to the template."
+        })
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
 
   const onSubmit = (values: CertificateTemplate) => {
     localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(values));
@@ -174,6 +203,20 @@ export default function CertificatePage() {
                       </FormItem>
                     )}
                   />
+                   <FormItem>
+                        <FormLabel>Signatory Signature</FormLabel>
+                        <FormControl>
+                            <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setSignatureUrl, SIGNATURE_STORAGE_KEY)}/>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    <FormItem>
+                        <FormLabel>Organization Stamp/Seal</FormLabel>
+                        <FormControl>
+                            <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setStampUrl, STAMP_STORAGE_KEY)}/>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
                   <Button type="submit">Save Template</Button>
                 </form>
               </Form>
@@ -201,12 +244,23 @@ export default function CertificatePage() {
                     </p>
                 </div>
 
-                <div className="z-10 w-full flex justify-around">
+                <div className="z-10 w-full flex justify-around items-end">
                     <div className="text-center">
-                        <p className="font-serif text-2xl italic">{watchedValues.signatoryName}</p>
+                         {signatureUrl ? (
+                            <div className="relative h-16 w-48 mx-auto">
+                               <Image src={signatureUrl} alt="Signature" layout="fill" objectFit="contain" />
+                            </div>
+                        ) : (
+                            <p className="font-serif text-2xl italic h-16 flex items-center justify-center">{watchedValues.signatoryName}</p>
+                        )}
                         <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
                         <p className="text-sm text-muted-foreground">{watchedValues.signatoryTitle}</p>
                     </div>
+                    {stampUrl && (
+                        <div className="relative h-24 w-24">
+                           <Image src={stampUrl} alt="Organization Stamp" layout="fill" objectFit="contain" />
+                        </div>
+                    )}
                      <div className="text-center">
                         <p className="font-serif text-2xl italic">{new Date().toLocaleDateString()}</p>
                         <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
