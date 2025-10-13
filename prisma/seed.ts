@@ -124,7 +124,6 @@ async function main() {
             name: product.name,
             description: product.description,
             imageUrl: product.image.imageUrl,
-            imageDescription: product.image.description,
             imageHint: product.image.imageHint,
         },
         create: {
@@ -132,7 +131,6 @@ async function main() {
             name: product.name,
             description: product.description,
             imageUrl: product.image.imageUrl,
-            imageDescription: product.image.description,
             imageHint: product.image.imageHint,
         }
     })
