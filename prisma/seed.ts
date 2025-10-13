@@ -146,26 +146,21 @@ async function main() {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
-        // imageUrl: image.imageUrl,
-        // imageDescription: image.description,
-        // imageHint: image.imageHint,
       },
       create: {
         id: courseData.id,
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
-        // imageUrl: image.imageUrl,
-        // imageDescription: image.description,
-        // imageHint: image.imageHint,
       }
     });
 
     for (const module of modules) {
+      const { isCompleted, ...moduleData } = module;
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...module, courseId: createdCourse.id },
-        create: { ...module, courseId: createdCourse.id },
+        update: { ...moduleData, courseId: createdCourse.id },
+        create: { ...moduleData, courseId: createdCourse.id },
       });
     }
   }
