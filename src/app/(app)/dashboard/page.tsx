@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { users, courses as initialCourses, liveSessions } from '@/lib/data';
+import { Course, LiveSession, User, users } from '@/lib/data';
 import { CourseCard } from '@/components/course-card';
 import {
   Card,
@@ -14,16 +14,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Radio } from 'lucide-react';
 import Link from 'next/link';
-import type { Course } from '@/lib/data';
-
-const COURSES_STORAGE_KEY = "skillup-courses";
 
 function ClientFormattedDate({ date }: { date: Date }) {
   const [formattedDate, setFormattedDate] = useState("");
 
   useEffect(() => {
     setFormattedDate(
-      date.toLocaleDateString('en-US', {
+      new Date(date).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -41,24 +38,46 @@ function ClientFormattedDate({ date }: { date: Date }) {
   return <>{formattedDate}</>;
 }
 
+// Mock function to simulate fetching data
+const getDashboardData = async (): Promise<{ courses: Course[], liveSessions: LiveSession[], currentUser: User }> => {
+  // In a real app, you'd fetch this from your database
+  const { courses, liveSessions, users } = await import('@/lib/data');
+  return {
+    courses: courses,
+    liveSessions: liveSessions.filter(s => new Date(s.dateTime) > new Date()),
+    currentUser: users.find(u => u.role === 'staff')!
+  };
+}
+
 
 export default function DashboardPage() {
-  const currentUser = users.find(u => u.role === 'staff')!;
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [data, setData] = useState<{ courses: Course[], liveSessions: LiveSession[], currentUser: User | null }>({
+    courses: [],
+    liveSessions: [],
+    currentUser: null
+  });
 
   useEffect(() => {
-    const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY);
-    if (storedCourses) {
-      setCourses(JSON.parse(storedCourses));
-    } else {
-      setCourses(initialCourses);
-    }
+    const fetchData = async () => {
+      // For demonstration, we use mock data. In a real app, you would fetch from an API.
+      const { courses: initialCourses, liveSessions: initialLiveSessions, users: initialUsers } = await import('@/lib/data');
+      setData({
+        courses: initialCourses,
+        liveSessions: initialLiveSessions,
+        currentUser: initialUsers.find(u => u.role === 'staff')!
+      });
+    };
+    fetchData();
   }, []);
+  
+  if (!data.currentUser) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+        <h1 className="text-3xl font-bold font-headline">Welcome back, {data.currentUser.name.split(' ')[0]}!</h1>
         <p className="text-muted-foreground">
           Continue your learning journey and stay updated with live events.
         </p>
@@ -67,7 +86,7 @@ export default function DashboardPage() {
       <section>
         <h2 className="text-2xl font-semibold font-headline mb-4">My Courses</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((course) => (
+          {data.courses.map((course) => (
             <CourseCard key={course.id} course={course} />
           ))}
         </div>
@@ -83,7 +102,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-4">
-              {liveSessions.map((session) => (
+              {data.liveSessions.map((session) => (
                 <li key={session.id} className="flex flex-col items-start gap-4 rounded-lg border p-4 sm:flex-row sm:items-center">
                   <div className="flex items-center gap-4">
                      <div className="bg-primary/10 p-2 rounded-full">
