@@ -172,7 +172,9 @@ async function main() {
       where: { id: path.id },
       update: {},
       create: {
-        ...path,
+        id: path.id,
+        title: path.title,
+        description: path.description,
         courses: {
           connect: path.courseIds.map(id => ({ id }))
         }
@@ -293,5 +295,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-    
