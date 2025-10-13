@@ -85,5 +85,3 @@ function LearningPathActions({ path, courses }: { path: LearningPathWithCourses,
 }
 
 LearningPathClient.Actions = LearningPathActions;
-
-    

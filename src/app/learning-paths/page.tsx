@@ -76,5 +76,3 @@ export default async function LearningPathsPage() {
     </div>
   )
 }
-
-    

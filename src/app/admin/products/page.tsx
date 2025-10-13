@@ -85,5 +85,3 @@ export default async function ProductManagementPage() {
     </div>
   )
 }
-
-    

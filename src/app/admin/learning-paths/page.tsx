@@ -86,5 +86,3 @@ export default async function LearningPathManagementPage() {
     </div>
   )
 }
-
-    

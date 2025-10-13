@@ -88,5 +88,3 @@ export default async function CourseManagementPage() {
       </div>
   )
 }
-
-    

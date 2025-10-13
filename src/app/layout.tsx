@@ -44,7 +44,7 @@ import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { Inter } from 'next/font/google';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 const staffUser = users.find(u => u.role === 'staff')!;
 const adminUser = users.find(u => u.role === 'admin')!;
@@ -59,7 +59,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (pathname.startsWith('/login') || pathname === '/') {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={inter.className}>
+            <body className={`${inter.variable} font-sans`}>
                 {children}
                 <Toaster />
             </body>
@@ -103,7 +103,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${inter.variable} font-sans`}>
         <UserContext.Provider value={userRole}>
           <SidebarProvider>
             <Sidebar>
@@ -201,5 +201,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </html>
   );
 }
-
-    
