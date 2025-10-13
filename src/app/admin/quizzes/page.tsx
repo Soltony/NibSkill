@@ -1,13 +1,5 @@
 
-"use client"
-
-import { useState, useEffect } from "react"
-import {
-  courses as initialCourses,
-  quizzes as initialQuizzes,
-  type Course,
-  type Quiz,
-} from "@/lib/data"
+import prisma from "@/lib/db"
 import {
   Table,
   TableBody,
@@ -23,41 +15,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { AddQuizDialog } from "@/components/add-quiz-dialog"
-import { ManageQuestionsDialog } from "@/components/manage-questions-dialog"
+import { QuizClient } from "./quiz-client"
 
-const COURSES_STORAGE_KEY = "skillup-courses"
-const QUIZZES_STORAGE_KEY = "skillup-quizzes"
-
-export default function QuizManagementPage() {
-  const [courses, setCourses] = useState<Course[]>([])
-  const [quizzes, setQuizzes] = useState<Quiz[]>([])
-  const [isLoaded, setIsLoaded] = useState(false)
-
-  useEffect(() => {
-    const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY)
-    setCourses(storedCourses ? JSON.parse(storedCourses) : initialCourses)
-
-    const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY)
-    setQuizzes(storedQuizzes ? JSON.parse(storedQuizzes) : initialQuizzes)
-    
-    setIsLoaded(true)
-  }, [])
-
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes))
-    }
-  }, [quizzes, isLoaded])
-
-  const handleQuizAdded = (newQuiz: Quiz) => {
-    setQuizzes((prev) => [...prev, newQuiz])
-  }
+export default async function QuizManagementPage() {
+  const courses = await prisma.course.findMany({ orderBy: { title: "asc" } });
+  const quizzes = await prisma.quiz.findMany({
+    include: {
+      questions: {
+        include: {
+          options: true,
+        },
+      },
+    },
+    orderBy: { course: { title: "asc" } },
+  });
   
-  const handleQuizUpdated = (updatedQuiz: Quiz) => {
-    setQuizzes((prev) => prev.map(q => q.id === updatedQuiz.id ? updatedQuiz : q))
-  }
-
+  const { AddQuiz, ManageQuestions } = QuizClient({ courses, quizzes });
+  
   const getCourseTitle = (courseId: string) => {
     return courses.find(c => c.id === courseId)?.title || "Unknown Course"
   }
@@ -78,7 +52,7 @@ export default function QuizManagementPage() {
               A list of all quizzes in the system.
             </CardDescription>
           </div>
-          <AddQuizDialog courses={courses} onQuizAdded={handleQuizAdded} quizzes={quizzes}/>
+          <AddQuiz />
         </CardHeader>
         <CardContent>
           <Table>
@@ -103,11 +77,7 @@ export default function QuizManagementPage() {
                     {quiz.passingScore}%
                   </TableCell>
                   <TableCell className="text-right">
-                    <ManageQuestionsDialog
-                      quiz={quiz}
-                      courseTitle={getCourseTitle(quiz.courseId)}
-                      onQuizUpdated={handleQuizUpdated}
-                    />
+                    <ManageQuestions quiz={quiz} />
                   </TableCell>
                 </TableRow>
               ))}
