@@ -57,7 +57,7 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { department, district, branch, role, completedCourses, badges: userBadges, ...userData } = user;
+    const { department, district, branch, role, completedCourses, badges: userBadges, ...userData } = user as any;
 
     // Find the corresponding IDs from the seeded data
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
@@ -105,18 +105,20 @@ async function main() {
         create: { userId: user1.id, badgeId: perfectScoreBadge.id },
     });
     console.log('Seeded badges and assigned to user');
+  } else {
+    console.log('Badges already assigned to user.');
   }
 
   // Seed Products
   for (const product of initialProducts) {
-    const { image, ...productData } = product;
     await prisma.product.upsert({
         where: { name: product.name },
         update: {},
         create: {
-            ...productData,
-            imageUrl: image.imageUrl,
-            imageHint: image.imageHint,
+            name: product.name,
+            description: product.description,
+            imageUrl: product.image.imageUrl,
+            imageHint: product.image.imageHint,
         }
     })
   }
