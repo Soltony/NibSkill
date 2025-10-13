@@ -61,7 +61,7 @@ async function main() {
   // Seed Users
   const hashedPassword = await bcrypt.hash('password', 10);
   for (const user of initialUsers) {
-    const { department, district, branch, role, ...userData } = user;
+    const { department, district, branch, role, ...userData } = user as any;
 
     // Find the corresponding IDs from the seeded data
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
@@ -115,14 +115,15 @@ async function main() {
 
   // Seed Products
   for (const product of initialProducts) {
-    const { image, ...productData } = product;
     await prisma.product.upsert({
         where: { id: product.id },
         update: {},
         create: {
-            ...productData,
-            imageUrl: image.imageUrl,
-            imageHint: image.imageHint,
+            id: product.id,
+            name: product.name,
+            description: product.description,
+            imageUrl: product.image.imageUrl,
+            imageHint: product.image.imageHint,
         }
     })
   }
@@ -130,7 +131,7 @@ async function main() {
 
   // Seed Courses and Modules
   for (const course of initialCourses) {
-    const { modules, ...courseData } = course as any;
+    const { modules, image, ...courseData } = course as any;
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
@@ -143,9 +144,9 @@ async function main() {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
-        imageUrl: courseData.image?.imageUrl,
-        imageDescription: courseData.image?.description,
-        imageHint: courseData.image?.imageHint,
+        imageUrl: image?.imageUrl,
+        imageDescription: image?.description,
+        imageHint: image?.imageHint,
       }
     });
 
@@ -275,13 +276,6 @@ async function main() {
     }
   });
   console.log('Seeded certificate template');
-  
-  // Seed Registration Fields
-  await prisma.registrationField.createMany({
-    data: initialRegistrationFields,
-    skipDuplicates: true,
-  });
-  console.log('Seeded registration fields');
 
 
   console.log(`Seeding finished.`)
@@ -296,3 +290,6 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+
+    
