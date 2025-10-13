@@ -128,7 +128,7 @@ async function main() {
 
   // Seed Courses and Modules
   for (const course of initialCourses) {
-    const { modules, ...courseData } = course;
+    const { modules, image, ...courseData } = course as any;
     const createdCourse = await prisma.course.upsert({
       where: { id: course.id },
       update: {
@@ -141,6 +141,9 @@ async function main() {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
+        imageUrl: image?.imageUrl,
+        imageDescription: image?.description,
+        imageHint: image?.imageHint,
       }
     });
 
@@ -164,7 +167,8 @@ async function main() {
         title: path.title,
         description: path.description,
         courses: {
-          create: path.courseIds.map(courseId => ({
+          create: path.courseIds.map((courseId, index) => ({
+            order: index + 1,
             course: {
               connect: { id: courseId }
             }
@@ -216,7 +220,7 @@ async function main() {
             }
         });
 
-        if (question.type === 'multiple_choice' || question.type === 'true_false') {
+        if (question.type === 'multiple-choice' || question.type === 'true-false') {
             for (const option of options) {
                 await prisma.option.upsert({
                     where: { id: option.id },
@@ -254,6 +258,22 @@ async function main() {
     }
   }
   console.log('Seeded user completed courses');
+  
+  // Seed Certificate Template
+  await prisma.certificateTemplate.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: {
+        id: 'singleton',
+        title: "Certificate of Completion",
+        organization: "SkillUp Inc.",
+        body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
+        signatoryName: "Jane Doe",
+        signatoryTitle: "Head of Training & Development",
+    }
+  });
+  console.log('Seeded certificate template');
+
 
   console.log(`Seeding finished.`)
 }
