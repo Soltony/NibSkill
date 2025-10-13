@@ -1,5 +1,4 @@
 
-
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -23,7 +22,6 @@ import {
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
 import {
-  BarChart,
   BookCopy,
   LayoutDashboard,
   LogOut,
@@ -43,7 +41,10 @@ import { Separator } from '@/components/ui/separator';
 import React from 'react';
 import { NotificationCenter } from '@/components/notification-center';
 import { Toaster } from '@/components/ui/toaster';
+import './globals.css';
+import { Inter } from 'next/font/google';
 
+const inter = Inter({ subsets: ['latin'] });
 
 const staffUser = users.find(u => u.role === 'staff')!;
 const adminUser = users.find(u => u.role === 'admin')!;
@@ -53,6 +54,19 @@ export const UserContext = React.createContext<'admin' | 'staff'>('staff');
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  
+  // This layout is for the main app. The root layout is separate.
+  if (pathname.startsWith('/login') || pathname === '/') {
+    return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={inter.className}>
+                {children}
+                <Toaster />
+            </body>
+        </html>
+    );
+  }
+
   // Simple logic to switch between user roles for demonstration
   const isAdminView = pathname.startsWith('/admin');
   const currentUser = isAdminView ? adminUser : staffUser;
@@ -87,18 +101,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return pathname.startsWith(path);
   }
 
-  // This layout is for the main app. The root layout is separate.
-  if (pathname.startsWith('/login') || pathname === '/') {
-    return (
-        <>
-            {children}
-            <Toaster />
-        </>
-    );
-  }
-
-
   return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
         <UserContext.Provider value={userRole}>
           <SidebarProvider>
             <Sidebar>
@@ -191,5 +196,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarInset>
           </SidebarProvider>
         </UserContext.Provider>
+        <Toaster />
+      </body>
+    </html>
   );
 }
+
+    

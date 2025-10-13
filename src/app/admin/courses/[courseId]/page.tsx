@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect, useContext } from 'react';
@@ -23,7 +22,8 @@ import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
 import { ModuleContent } from '@/components/module-content';
-import { getCourse, updateCourseModules } from '@/app/actions/course-actions';
+import prisma from '@/lib/db';
+import type { Course } from '@prisma/client';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -31,7 +31,11 @@ const iconMap = {
   slides: <Presentation className="h-5 w-5 text-accent" />,
 };
 
-type CourseWithModules = CourseType & { modules: Module[] };
+type CourseWithModulesAndProduct = Course & { 
+    modules: Module[],
+    product: { name: string } | null
+};
+
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -39,7 +43,7 @@ export default function CourseDetailPage() {
   const userRole = useContext(UserContext);
   const { toast } = useToast();
   
-  const [course, setCourse] = useState<CourseWithModules | null>(null);
+  const [course, setCourse] = useState<CourseWithModulesAndProduct | null>(null);
   const [allQuizzes, setAllQuizzes] = useState<QuizType[]>([]);
 
   const quiz = useMemo(() => allQuizzes.find((q) => q.courseId === courseId), [courseId, allQuizzes]);
@@ -49,14 +53,18 @@ export default function CourseDetailPage() {
   useEffect(() => {
     async function fetchCourse() {
         if (courseId) {
-            const fetchedCourse = await getCourse(courseId);
+            const fetchedCourse = await prisma.course.findUnique({
+                where: { id: courseId },
+                include: { modules: true, product: true }
+            });
             if (fetchedCourse) {
-                setCourse(fetchedCourse as CourseWithModules);
+                setCourse(fetchedCourse as CourseWithModulesAndProduct);
             }
         }
     }
     fetchCourse();
     
+    // In a real app, quizzes would be fetched from the DB
     const storedQuizzes = localStorage.getItem("skillup-quizzes");
     setAllQuizzes(storedQuizzes ? JSON.parse(storedQuizzes) : initialQuizzes);
   }, [courseId]);
@@ -88,9 +96,7 @@ export default function CourseDetailPage() {
   const handleModuleAdded = (newModule: Module) => {
     setCourse(prevCourse => {
       if (!prevCourse) return null;
-      const updatedModules = [...prevCourse.modules, newModule];
-      updateCourseModules(course.id, updatedModules);
-      return { ...prevCourse, modules: updatedModules };
+      return { ...prevCourse, modules: [...prevCourse.modules, newModule] };
     });
   };
   
@@ -98,7 +104,6 @@ export default function CourseDetailPage() {
     setCourse(prevCourse => {
       if (!prevCourse) return null;
       const newModules = prevCourse.modules.map(m => m.id === updatedModule.id ? updatedModule : m);
-      updateCourseModules(course.id, newModules);
       return { ...prevCourse, modules: newModules };
     });
   };
@@ -163,7 +168,7 @@ export default function CourseDetailPage() {
                 <AccordionItem value={module.id} key={module.id}>
                     <AccordionTrigger className="font-semibold hover:no-underline">
                         <div className="flex items-center gap-4">
-                            {iconMap[module.type]}
+                            {iconMap[module.type as keyof typeof iconMap]}
                             <span>{module.title}</span>
                             <span className="text-sm font-normal text-muted-foreground">({module.duration} min)</span>
                         </div>
@@ -221,3 +226,5 @@ export default function CourseDetailPage() {
     </div>
   );
 }
+
+    
