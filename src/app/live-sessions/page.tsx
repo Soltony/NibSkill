@@ -1,21 +1,18 @@
 
-
 "use client"
 
-import { useState, useEffect, useContext } from "react"
-import { liveSessions as initialLiveSessions, type LiveSession, users, User } from '@/lib/data';
+import { useState, useEffect } from "react"
+import { liveSessions as initialLiveSessions, type LiveSession, users } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Clock, Mic, Video, Radio, Sparkles, CheckSquare } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import Link from "next/link";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import { UserContext } from "../layout";
 import { useToast } from "@/hooks/use-toast";
 
 const SESSIONS_STORAGE_KEY = "skillup-live-sessions"

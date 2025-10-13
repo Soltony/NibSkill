@@ -1,6 +1,5 @@
 
 
-
 import {
   Table,
   TableBody,
@@ -89,5 +88,3 @@ export default async function CourseManagementPage() {
       </div>
   )
 }
-
-

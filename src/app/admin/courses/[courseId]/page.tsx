@@ -22,8 +22,8 @@ import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
 import { ModuleContent } from '@/components/module-content';
-import prisma from '@/lib/db';
 import type { Course } from '@prisma/client';
+import prisma from "@/lib/db"
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -53,6 +53,7 @@ export default function CourseDetailPage() {
   useEffect(() => {
     async function fetchCourse() {
         if (courseId) {
+            // This is a mock fetch. In a real app, you'd fetch from your API.
             const fetchedCourse = await prisma.course.findUnique({
                 where: { id: courseId },
                 include: { modules: true, product: true }
@@ -226,5 +227,3 @@ export default function CourseDetailPage() {
     </div>
   );
 }
-
-    

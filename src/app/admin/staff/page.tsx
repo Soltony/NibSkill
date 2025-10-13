@@ -1,5 +1,4 @@
 
-
 "use client"
 import { districts as initialDistricts, branches as initialBranches, departments as initialDepartments } from "@/lib/data"
 import {
@@ -115,14 +114,14 @@ export default function StaffManagementPage() {
     const { type, data } = itemToDelete;
     let name = '';
     if (type === 'district') {
-      setDistricts(prev => prev.filter(d => d.id !== data.id));
       name = (data as District).name;
+      setDistricts(prev => prev.filter(d => d.id !== data.id));
     } else if (type === 'branch') {
-      setBranches(prev => prev.filter(b => b.id !== data.id));
       name = (data as Branch).name;
+      setBranches(prev => prev.filter(b => b.id !== data.id));
     } else if (type === 'department') {
-      setDepartments(prev => prev.filter(d => d.id !== data.id));
       name = (data as Department).name;
+      setDepartments(prev => prev.filter(d => d.id !== data.id));
     }
     
     toast({

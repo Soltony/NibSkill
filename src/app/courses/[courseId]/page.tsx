@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import { useState, useMemo, useEffect, useContext } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { courses as initialCourses, quizzes as initialQuizzes, type Module, type Course, type Quiz as QuizType } from '@/lib/data';
@@ -68,7 +67,6 @@ export default function CourseDetailPage() {
   const allModulesCompleted = progress === 100;
 
   if (!course) {
-    // Let useEffect handle finding the course, show loading or not found
     return <div>Loading course...</div>;
   }
 

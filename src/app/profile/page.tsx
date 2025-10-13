@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import {
@@ -10,8 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { users, badges as allBadges, type User, type Badge as BadgeType, UserBadge, UserCompletedCourse } from "@/lib/data"
-import { Award, BookOpenCheck, CheckCircle, Footprints, Medal, Target, Trophy, FileText, CalendarDays } from "lucide-react"
+import { type Badge as BadgeType, UserBadge, UserCompletedCourse } from "@/lib/data"
+import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -67,8 +66,8 @@ export default function ProfilePage() {
                 include: { badge: true }
             })
             setCurrentUser(user);
-            setCompletedCourses(courses);
-            setUserBadges(badges);
+            setCompletedCourses(courses as any);
+            setUserBadges(badges as any);
         }
         setLoading(false);
     }
@@ -83,7 +82,7 @@ export default function ProfilePage() {
   const coursesCompletedCount = completedCourses.length;
   const avgScore = coursesCompletedCount > 0
     ? Math.round(
-        completedCourses.reduce((acc, c) => acc + c.score, 0) /
+        completedCourses.reduce((acc, c) => acc.score + c.score, 0) /
           coursesCompletedCount
       )
     : 0

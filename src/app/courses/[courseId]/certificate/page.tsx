@@ -1,15 +1,12 @@
 
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import {
-  Card,
-  CardContent
+  Card
 } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { GraduationCap, MoveLeft, Download } from "lucide-react";
+import { MoveLeft, Download } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { courses as initialCourses, users, type Course } from "@/lib/data";
 import { Button } from "@/components/ui/button";

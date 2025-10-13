@@ -1,5 +1,4 @@
 
-
 import { CourseCard } from '@/components/course-card';
 import {
   Card,

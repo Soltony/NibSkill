@@ -1,5 +1,4 @@
 
-
 import { notFound } from "next/navigation"
 import prisma from "@/lib/db"
 import { Progress } from "@/components/ui/progress"
@@ -7,25 +6,6 @@ import { CourseCard } from "@/components/course-card"
 import { MoveLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-
-// Mock function - in a real app, this would be based on the logged-in user
-async function getUserProgressForCourses(courseIds: string[]) {
-    // For now, let's return a map with random progress
-    const progressMap = new Map<string, number>();
-    const courses = await prisma.course.findMany({
-        where: { id: { in: courseIds } },
-        include: { modules: true }
-    });
-
-    courses.forEach(course => {
-        // This is a placeholder logic. A real app would fetch user-specific progress.
-        const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
-        const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
-        progressMap.set(course.id, progress);
-    });
-    
-    return progressMap;
-}
 
 export default async function LearningPathDetailPage({ params }: { params: { pathId: string } }) {
   const learningPath = await prisma.learningPath.findUnique({
