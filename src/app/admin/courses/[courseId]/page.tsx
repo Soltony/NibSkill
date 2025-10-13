@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import type { Module, Quiz as QuizType } from '@/lib/data';
+import type { Quiz as QuizType } from '@/lib/data';
 import { quizzes as initialQuizzes } from '@/lib/data';
 import {
   Accordion,
@@ -53,11 +53,6 @@ export default function CourseDetailPage() {
   useEffect(() => {
     async function fetchCourse() {
         if (courseId) {
-            // This is a mock fetch. In a real app, you'd fetch from your API.
-            // Using a server action or API route would be more robust.
-            // For now, we simulate by getting data from a server-side function
-            // but this won't work in a real client component.
-            // This is a placeholder for actual data fetching logic.
              try {
                 const res = await fetch(`/api/courses/${courseId}`);
                 if (res.ok) {
@@ -71,7 +66,7 @@ export default function CourseDetailPage() {
             }
         }
     }
-    // fetchCourse();
+    fetchCourse();
     
     // In a real app, quizzes would be fetched from the DB
     const storedQuizzes = localStorage.getItem("skillup-quizzes");
@@ -184,7 +179,7 @@ export default function CourseDetailPage() {
                     </AccordionTrigger>
                     <AccordionContent>
                     <div className="space-y-4 p-4 bg-muted/50 rounded-md">
-                        <ModuleContent module={module as Module} />
+                        <ModuleContent module={module as any} />
                         <div className="flex items-center justify-between pt-4 border-t">
                             <div className="flex items-center space-x-2">
                                 <Checkbox
@@ -195,7 +190,7 @@ export default function CourseDetailPage() {
                                 <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
                             </div>
                             {userRole === 'admin' && (
-                                <EditModuleDialog module={module as Module} onModuleUpdated={handleModuleUpdated}>
+                                <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
                                     <Button variant="ghost" size="sm">
                                         <Pencil className="mr-2 h-4 w-4" />
                                         Edit Module
