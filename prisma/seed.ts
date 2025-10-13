@@ -87,26 +87,34 @@ async function main() {
 
   // Seed Badges
   await prisma.badge.createMany({
-    data: initialBadges.map(({icon, ...rest}) => ({...rest, iconName: icon})),
+    data: initialBadges.map(({iconName, ...rest}) => ({...rest, icon: iconName})),
     skipDuplicates: true
   });
 
   // Assign badges to user-1
   const user1 = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
   if (user1) {
-    await prisma.user.update({
-        where: { id: user1.id },
-        data: {
-            badges: {
-                create: [
-                    { badgeId: 'badge-1' },
-                    { badgeId: 'badge-4' }
-                ]
-            }
-        }
-    })
+    try {
+      await prisma.user.update({
+          where: { id: user1.id },
+          data: {
+              badges: {
+                  create: [
+                      { badgeId: 'badge-1' },
+                      { badgeId: 'badge-4' }
+                  ]
+              }
+          }
+      })
+      console.log('Seeded badges and assigned to user');
+    } catch (e: any) {
+      if (e.code === 'P2002') {
+        console.log('Badges already assigned to user.');
+      } else {
+        throw e;
+      }
+    }
   }
-  console.log('Seeded badges and assigned to user');
 
   // Seed Products
   for (const product of initialProducts) {
@@ -243,8 +251,10 @@ async function main() {
   if (user1ForCompletion) {
     const course4 = await prisma.course.findUnique({ where: { id: 'course-4' } });
     if (course4) {
-      await prisma.userCompletedCourse.create({
-        data: {
+      await prisma.userCompletedCourse.upsert({
+        where: { userId_courseId: { userId: user1ForCompletion.id, courseId: course4.id } },
+        update: {},
+        create: {
           userId: user1ForCompletion.id,
           courseId: course4.id,
           completionDate: new Date('2024-05-10'),
@@ -295,3 +305,4 @@ main()
     
 
     
+
