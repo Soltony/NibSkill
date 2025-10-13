@@ -32,7 +32,7 @@ export function LearningPathClient({ paths, courses }: LearningPathClientProps) 
   )
 }
 
-function LearningPathActions({ path, courses }: { path: LearningPathWithCourses, courses: Course[]}) {
+export function LearningPathActions({ path, courses }: { path: LearningPathWithCourses, courses: Course[]}) {
     const [pathToDelete, setPathToDelete] = useState<LearningPath | null>(null);
     const { toast } = useToast();
 
@@ -83,5 +83,3 @@ function LearningPathActions({ path, courses }: { path: LearningPathWithCourses,
       </>
     )
 }
-
-LearningPathClient.Actions = LearningPathActions;

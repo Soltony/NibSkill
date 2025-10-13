@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
-import { LearningPathClient } from "./learning-path-client"
+import { LearningPathClient, LearningPathActions } from "./learning-path-client"
 
 export default async function LearningPathManagementPage() {
   const learningPaths = await prisma.learningPath.findMany({
@@ -70,7 +70,7 @@ export default async function LearningPathManagementPage() {
                     {path.courses.length}
                   </TableCell>
                   <TableCell className="text-right">
-                    <LearningPathClient.Actions path={path} courses={courses} />
+                    <LearningPathActions path={path} courses={courses} />
                   </TableCell>
                 </TableRow>
               ))}
