@@ -16,6 +16,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Form,
   FormControl,
   FormField,
@@ -24,8 +34,9 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import type { Department } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
+import { updateDepartment, deleteDepartment } from "@/app/actions/staff-actions"
+import type { Department } from "@prisma/client"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
@@ -33,10 +44,9 @@ const formSchema = z.object({
 
 type EditDepartmentDialogProps = {
   department: Department
-  onDepartmentUpdated: (department: Department) => void
 }
 
-export function EditDepartmentDialog({ department, onDepartmentUpdated }: EditDepartmentDialogProps) {
+export function EditDepartmentDialog({ department }: EditDepartmentDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -55,17 +65,21 @@ export function EditDepartmentDialog({ department, onDepartmentUpdated }: EditDe
     }
   }, [open, department, form])
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const updatedDepartment: Department = {
-      ...department,
-      name: values.name,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await updateDepartment(department.id, values);
+    if (result.success) {
+      toast({
+        title: "Department Updated",
+        description: `The department "${values.name}" has been successfully updated.`,
+      })
+      setOpen(false)
+    } else {
+      toast({
+        title: "Error",
+        description: result.message,
+        variant: "destructive",
+      })
     }
-    onDepartmentUpdated(updatedDepartment)
-    toast({
-      title: "Department Updated",
-      description: `The department "${updatedDepartment.name}" has been successfully updated.`,
-    })
-    setOpen(false)
   }
 
   return (
@@ -96,11 +110,55 @@ export function EditDepartmentDialog({ department, onDepartmentUpdated }: EditDe
               )}
             />
             <DialogFooter>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
   )
+}
+
+export function DeleteDepartmentButton({ department }: { department: Department }) {
+    const [open, setOpen] = useState(false);
+    const { toast } = useToast();
+
+    const handleDelete = async () => {
+        const result = await deleteDepartment(department.id);
+        if (result.success) {
+            toast({
+                title: "Department Deleted",
+                description: `The department "${department.name}" has been deleted.`,
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: result.message,
+                variant: "destructive",
+            });
+        }
+        setOpen(false);
+    };
+
+    return (
+        <>
+            <Button variant="destructive-outline" size="sm" onClick={() => setOpen(true)}>Delete</Button>
+            <AlertDialog open={open} onOpenChange={setOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the department <span className="font-semibold">"{department.name}"</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
+    );
 }

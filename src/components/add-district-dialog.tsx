@@ -25,18 +25,14 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { PlusCircle } from "lucide-react"
-import type { District } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
+import { addDistrict } from "@/app/actions/staff-actions"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
 })
 
-type AddDistrictDialogProps = {
-  onDistrictAdded: (district: District) => void
-}
-
-export function AddDistrictDialog({ onDistrictAdded }: AddDistrictDialogProps) {
+export function AddDistrictDialog() {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -47,18 +43,22 @@ export function AddDistrictDialog({ onDistrictAdded }: AddDistrictDialogProps) {
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const newDistrict: District = {
-      id: `dist-${Date.now()}`,
-      name: values.name,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addDistrict(values)
+    if (result.success) {
+      toast({
+        title: "District Added",
+        description: `The district "${values.name}" has been successfully created.`,
+      })
+      setOpen(false)
+      form.reset()
+    } else {
+      toast({
+        title: "Error",
+        description: result.message,
+        variant: "destructive",
+      })
     }
-    onDistrictAdded(newDistrict)
-    toast({
-      title: "District Added",
-      description: `The district "${newDistrict.name}" has been successfully created.`,
-    })
-    setOpen(false)
-    form.reset()
   }
 
   return (
@@ -91,7 +91,9 @@ export function AddDistrictDialog({ onDistrictAdded }: AddDistrictDialogProps) {
               )}
             />
             <DialogFooter>
-              <Button type="submit">Create District</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating..." : "Create District"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
