@@ -172,7 +172,6 @@ async function main() {
       where: { id: path.id },
       update: {},
       create: {
-        id: path.id,
         title: path.title,
         description: path.description,
         courses: {
