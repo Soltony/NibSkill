@@ -19,6 +19,7 @@ import { Quiz } from '@/components/quiz';
 import { Video, FileText, Presentation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -34,7 +35,7 @@ export default function CourseDetailPage() {
   const courseId = typeof params.courseId === 'string' ? params.courseId : '';
   const { toast } = useToast();
   
-  const [course, setCourse] = useState<Course | undefined>();
+  const [course, setCourse] = useState<Course | null>(null);
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [allQuizzes, setAllQuizzes] = useState<QuizType[]>([]);
 
@@ -46,7 +47,8 @@ export default function CourseDetailPage() {
     const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY);
     const coursesSource = storedCourses ? JSON.parse(storedCourses) : initialCourses;
     setAllCourses(coursesSource);
-    setCourse(coursesSource.find((c: Course) => c.id === courseId));
+    const currentCourse = coursesSource.find((c: Course) => c.id === courseId);
+    setCourse(currentCourse ?? null);
 
     const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
     setAllQuizzes(storedQuizzes ? JSON.parse(storedQuizzes) : initialQuizzes);
@@ -60,7 +62,10 @@ export default function CourseDetailPage() {
 
   const progress = useMemo(() => {
     if (!course || course.modules.length === 0) return 0;
-    const completedModules = course.modules.filter((m) => m.isCompleted).length;
+    // const completedModules = course.modules.filter((m) => m.isCompleted).length;
+    // return Math.round((completedModules / course.modules.length) * 100);
+    // Mock progress for demo
+    const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
     return Math.round((completedModules / course.modules.length) * 100);
   }, [course]);
   
@@ -71,27 +76,32 @@ export default function CourseDetailPage() {
   }
 
   const handleModuleCompletion = (moduleId: string, completed: boolean) => {
-    setCourse(prevCourse => {
-      if (!prevCourse) return undefined;
-      const newModules = prevCourse.modules.map(m => m.id === moduleId ? { ...m, isCompleted: completed } : m);
-      const updatedCourse = { ...prevCourse, modules: newModules };
+     toast({
+        title: "Action Not Implemented",
+        description: "User-specific progress tracking is not implemented in this prototype."
+    })
+    // setCourse(prevCourse => {
+    //   if (!prevCourse) return undefined;
+    //   const newModules = prevCourse.modules.map(m => m.id === moduleId ? { ...m, isCompleted: completed } : m);
+    //   const updatedCourse = { ...prevCourse, modules: newModules };
       
-      setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
+    //   setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
 
-      return updatedCourse;
-    });
+    //   return updatedCourse;
+    // });
   };
 
   const handleStartQuiz = () => {
-    if (allModulesCompleted) {
-      setShowQuiz(true);
-    } else {
-      toast({
-        title: "Complete all modules",
-        description: "Please complete all modules before starting the quiz.",
-        variant: "destructive",
-      });
-    }
+    setShowQuiz(true);
+    // if (allModulesCompleted) {
+    //   setShowQuiz(true);
+    // } else {
+    //   toast({
+    //     title: "Complete all modules",
+    //     description: "Please complete all modules before starting the quiz.",
+    //     variant: "destructive",
+    //   });
+    // }
   };
   
   const handleQuizComplete = () => {
@@ -105,13 +115,17 @@ export default function CourseDetailPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="relative mb-8 h-64 w-full overflow-hidden rounded-lg shadow-lg">
-        <Image
-          src={course.image.imageUrl}
-          alt={course.image.description}
-          fill
-          className="object-cover"
-          data-ai-hint={course.image.imageHint}
-        />
+        {course.image ? (
+            <Image
+            src={course.image.imageUrl}
+            alt={course.image.description}
+            fill
+            className="object-cover"
+            data-ai-hint={course.image.imageHint}
+            />
+        ) : (
+            <Skeleton className="h-full w-full" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
         <div className="absolute bottom-0 p-6">
             <h1 className="text-4xl font-bold text-white font-headline">{course.title}</h1>
@@ -138,7 +152,7 @@ export default function CourseDetailPage() {
                 <AccordionItem value={module.id} key={module.id}>
                     <AccordionTrigger className="font-semibold hover:no-underline">
                         <div className="flex items-center gap-4">
-                            {iconMap[module.type]}
+                            {iconMap[module.type as keyof typeof iconMap]}
                             <span>{module.title}</span>
                             <span className="text-sm font-normal text-muted-foreground">({module.duration} min)</span>
                         </div>
@@ -150,7 +164,7 @@ export default function CourseDetailPage() {
                             <div className="flex items-center space-x-2">
                                 <Checkbox
                                     id={`complete-${module.id}`}
-                                    checked={module.isCompleted}
+                                    // checked={module.isCompleted}
                                     onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
                                 />
                                 <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
@@ -169,13 +183,13 @@ export default function CourseDetailPage() {
 
             <div className="mt-8 text-center">
                 {quiz ? (
-                    <Button size="lg" onClick={handleStartQuiz} disabled={!allModulesCompleted}>
+                    <Button size="lg" onClick={handleStartQuiz}>
                         Take Quiz
                     </Button>
                 ) : (
                     <p className="text-muted-foreground">Quiz not available for this course.</p>
                 )}
-                {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
+                {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz (feature disabled for demo).</p>}
             </div>
         </>
       ) : quiz ? (

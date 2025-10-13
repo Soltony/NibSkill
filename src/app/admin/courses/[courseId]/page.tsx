@@ -24,6 +24,7 @@ import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
 import { ModuleContent } from '@/components/module-content';
 import type { Course, Module as TModule, Product } from '@prisma/client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -138,13 +139,17 @@ export default function CourseDetailPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="relative mb-8 h-64 w-full overflow-hidden rounded-lg shadow-lg">
-        <Image
-          src={course.imageUrl ?? ''}
-          alt={course.imageDescription ?? ''}
-          fill
-          className="object-cover"
-          data-ai-hint={course.imageHint ?? ''}
-        />
+        {course.imageUrl ? (
+            <Image
+            src={course.imageUrl}
+            alt={course.imageDescription ?? ''}
+            fill
+            className="object-cover"
+            data-ai-hint={course.imageHint ?? ''}
+            />
+        ) : (
+            <Skeleton className="h-full w-full" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
         <div className="absolute bottom-0 p-6">
             <h1 className="text-4xl font-bold text-white font-headline">{course.title}</h1>
