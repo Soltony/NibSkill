@@ -35,6 +35,8 @@ export type User = {
   branch: string;
   avatarUrl: string;
   phoneNumber?: string;
+  completedCourses?: { courseId: string; completionDate: Date; score: number }[];
+  badges?: Badge[];
 };
 
 export type Product = {
@@ -76,7 +78,7 @@ export type LiveSession = {
   speaker: string;
   keyTakeaways: string;
   dateTime: Date;
-  platform: 'Zoom' | 'Google Meet';
+  platform: 'Zoom' | 'Google_Meet';
   joinUrl: string;
   recordingUrl?: string;
   attendees?: string[]; // Array of user IDs
@@ -85,7 +87,7 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
-  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank';
+  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank';
   options: { id: string; text: string }[];
   correctAnswerId: string; // Also used for true/false (value will be 'true' or 'false') and fill-in-the-blank (value is the answer)
 };
@@ -182,6 +184,13 @@ export const users: User[] = [
     district: 'North Region',
     branch: 'Main Office',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
+    completedCourses: [
+      { courseId: 'course-4', completionDate: new Date('2024-05-10'), score: 100 },
+    ],
+    badges: [
+      { id: 'badge-1', title: 'First Steps', description: 'Complete your first course.', icon: 'Footprints' },
+      { id: 'badge-4', title: 'Perfect Score', description: 'Get a 100% on a quiz.', icon: 'Target' },
+    ]
   },
   {
     id: 'user-2',
@@ -338,7 +347,7 @@ export const liveSessions: LiveSession[] = [
     speaker: 'John Smith, Principal Engineer',
     keyTakeaways: 'Practical experience with the Pulsar SDK, tips for efficient development, and a complete sample project to take away.',
     dateTime: new Date(new Date().getTime() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
-    platform: 'Google Meet',
+    platform: 'Google_Meet',
     joinUrl: 'https://meet.google.com/abc-defg-hij',
     recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     attendees: ['user-1'],
@@ -354,7 +363,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q1-1',
         text: 'What is the primary new capability of FusionX?',
-        type: 'multiple-choice',
+        type: 'multiple_choice',
         options: [
           { id: 'o1-1-1', text: 'AI-powered analytics' },
           { id: 'o1-1-2', text: 'Decentralized storage' },
@@ -366,7 +375,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q1-2',
         text: 'FusionX is primarily targeting enterprise clients.',
-        type: 'true-false',
+        type: 'true_false',
         options: [
             { id: 'true', text: 'True' },
             { id: 'false', text: 'False' },
@@ -376,7 +385,7 @@ export const quizzes: Quiz[] = [
        {
         id: 'q1-3',
         text: 'What technology powers the new analytics features? ______ Learning.',
-        type: 'fill-in-the-blank',
+        type: 'fill_in_the_blank',
         options: [],
         correctAnswerId: 'Machine',
       },
@@ -390,7 +399,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q4-1',
         text: 'What is a key part of the Nova Suite sales strategy?',
-        type: 'multiple-choice',
+        type: 'multiple_choice',
         options: [
           { id: 'o4-1-1', text: 'Focusing only on technical specs' },
           { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
@@ -514,5 +523,3 @@ export const notifications: Notification[] = [
         isRead: true,
     },
 ];
-
-    
