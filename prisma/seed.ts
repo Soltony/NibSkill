@@ -12,7 +12,6 @@ import {
     liveSessions as initialLiveSessions,
     quizzes as initialQuizzes,
     roles as initialRoles,
-    initialRegistrationFields
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -44,13 +43,11 @@ async function main() {
   // Seed Roles and Permissions
   for (const role of initialRoles) {
     await prisma.role.upsert({
-      where: { id: role.id },
+      where: { name: role.name },
       update: {
-        name: role.name,
         permissions: role.permissions as any,
       },
       create: {
-        id: role.id,
         name: role.name,
         permissions: role.permissions as any,
       },
@@ -63,19 +60,16 @@ async function main() {
     const { department, district, branch, role, completedCourses, badges: userBadges, ...userData } = user;
 
     // Find the corresponding IDs from the seeded data
-    const departmentRecord = await prisma.department.findFirst({ where: { name: department } });
-    const districtRecord = await prisma.district.findFirst({ where: { name: district } });
-    const branchRecord = await prisma.branch.findFirst({ where: { name: branch } });
-    const roleRecord = await prisma.role.findUnique({ where: { id: role } });
+    const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
+    const districtRecord = await prisma.district.findUnique({ where: { name: district } });
+    const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id } });
+    const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
     
-    // This removes the invalid coursesCompleted field
-    const { coursesCompleted, ...validUserData } = userData as any;
-
     await prisma.user.upsert({
       where: { email: user.email },
       update: {},
       create: {
-        ...validUserData,
+        ...userData,
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
@@ -86,52 +80,43 @@ async function main() {
   console.log('Seeded users');
 
   // Seed Badges
-  await prisma.badge.createMany({
-    data: initialBadges,
-    skipDuplicates: true
-  });
+  for (const badge of initialBadges) {
+    await prisma.badge.upsert({
+        where: { title: badge.title },
+        update: {},
+        create: badge,
+    });
+  }
 
   // Assign badges to user-1
   const user1 = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
-  if (user1) {
-    try {
-      await prisma.user.update({
-          where: { id: user1.id },
-          data: {
-              badges: {
-                  create: [
-                      { badgeId: 'badge-1' },
-                      { badgeId: 'badge-4' }
-                  ]
-              }
-          }
-      })
-      console.log('Seeded badges and assigned to user');
-    } catch (e: any) {
-      if (e.code === 'P2002') {
-        console.log('Badges already assigned to user.');
-      } else {
-        throw e;
-      }
-    }
+  const firstStepsBadge = await prisma.badge.findUnique({ where: { title: 'First Steps' }});
+  const perfectScoreBadge = await prisma.badge.findUnique({ where: { title: 'Perfect Score' }});
+
+  if (user1 && firstStepsBadge && perfectScoreBadge) {
+    await prisma.userBadge.upsert({
+        where: { userId_badgeId: { userId: user1.id, badgeId: firstStepsBadge.id } },
+        update: {},
+        create: { userId: user1.id, badgeId: firstStepsBadge.id },
+    });
+    await prisma.userBadge.upsert({
+        where: { userId_badgeId: { userId: user1.id, badgeId: perfectScoreBadge.id } },
+        update: {},
+        create: { userId: user1.id, badgeId: perfectScoreBadge.id },
+    });
+    console.log('Seeded badges and assigned to user');
   }
 
   // Seed Products
   for (const product of initialProducts) {
+    const { image, ...productData } = product;
     await prisma.product.upsert({
-        where: { id: product.id },
-        update: {
-            name: product.name,
-            description: product.description,
-            imageUrl: product.image.imageUrl,
-            imageHint: product.image.imageHint,
-        },
+        where: { name: product.name },
+        update: {},
         create: {
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            imageUrl: product.image.imageUrl,
-            imageHint: product.image.imageHint,
+            ...productData,
+            imageUrl: image.imageUrl,
+            imageHint: image.imageHint,
         }
     })
   }
@@ -172,10 +157,15 @@ async function main() {
       where: { id: path.id },
       update: {},
       create: {
+        id: path.id,
         title: path.title,
         description: path.description,
         courses: {
-          connect: path.courseIds.map(id => ({ id }))
+          create: path.courseIds.map(courseId => ({
+            course: {
+              connect: { id: courseId }
+            }
+          }))
         }
       }
     });
@@ -188,10 +178,12 @@ async function main() {
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
-              ...sessionData
+              ...sessionData,
+              platform: session.platform === 'Google Meet' ? 'Google_Meet' : 'Zoom'
           },
           create: {
               ...sessionData,
+              platform: session.platform === 'Google Meet' ? 'Google_Meet' : 'Zoom'
           }
       });
   }
@@ -211,17 +203,19 @@ async function main() {
             where: { id: question.id },
             update: {
                 ...questionData,
+                type: question.type.replace('-', '_') as any,
                 quizId: createdQuiz.id
             },
             create: {
                 ...questionData,
+                type: question.type.replace('-', '_') as any,
                 quizId: createdQuiz.id
             }
         });
 
         if (question.type === 'multiple-choice' || question.type === 'true-false') {
             for (const option of options) {
-                await prisma.questionOption.upsert({
+                await prisma.option.upsert({
                     where: { id: option.id },
                     update: {
                         text: option.text,
@@ -257,30 +251,6 @@ async function main() {
     }
   }
   console.log('Seeded user completed courses');
-
-
-  // Seed Registration Fields
-  await prisma.registrationField.createMany({
-    data: initialRegistrationFields.map(({ id, label }) => ({ id, label })),
-    skipDuplicates: true,
-  });
-
-  for (const field of initialRegistrationFields) {
-    await prisma.registrationFieldSetting.upsert({
-        where: { fieldId: field.id },
-        update: {
-            enabled: field.enabled,
-            required: field.required,
-        },
-        create: {
-            fieldId: field.id,
-            enabled: field.enabled,
-            required: field.required,
-        }
-    });
-  }
-  console.log('Seeded registration fields and settings');
-
 
   console.log(`Seeding finished.`)
 }
