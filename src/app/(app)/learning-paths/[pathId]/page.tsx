@@ -1,64 +1,53 @@
 
-"use client"
-
-import { useState, useMemo, useEffect } from "react"
-import { useParams } from "next/navigation"
-import {
-  courses as initialCourses,
-  learningPaths as initialLearningPaths,
-  type Course,
-  type LearningPath,
-} from "@/lib/data"
+import { notFound } from "next/navigation"
+import prisma from "@/lib/db"
 import { Progress } from "@/components/ui/progress"
 import { CourseCard } from "@/components/course-card"
 import { MoveLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
-const COURSES_STORAGE_KEY = "skillup-courses"
-const LEARNING_PATHS_STORAGE_KEY = "skillup-learning-paths"
+// Mock function - in a real app, this would be based on the logged-in user
+async function getUserProgressForCourses(courseIds: string[]) {
+    // For now, let's return a map with random progress
+    const progressMap = new Map<string, number>();
+    const courses = await prisma.course.findMany({
+        where: { id: { in: courseIds } },
+        include: { modules: true }
+    });
 
-export default function LearningPathDetailPage() {
-  const params = useParams()
-  const pathId = params.pathId as string
-
-  const [learningPath, setLearningPath] = useState<LearningPath | undefined>()
-  const [coursesInPath, setCoursesInPath] = useState<Course[]>([])
-  const [isLoaded, setIsLoaded] = useState(false)
-
-  useEffect(() => {
-    const storedPaths = localStorage.getItem(LEARNING_PATHS_STORAGE_KEY)
-    const paths = storedPaths
-      ? JSON.parse(storedPaths)
-      : initialLearningPaths
-    setLearningPath(paths.find((p: LearningPath) => p.id === pathId))
-
-    const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY)
-    const allCourses = storedCourses
-      ? JSON.parse(storedCourses)
-      : initialCourses
+    courses.forEach(course => {
+        // This is a placeholder logic. A real app would fetch user-specific progress.
+        const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
+        const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
+        progressMap.set(course.id, progress);
+    });
     
-    const currentPath = paths.find((p: LearningPath) => p.id === pathId);
-    if (currentPath) {
-        const filteredCourses = allCourses.filter((c: Course) => currentPath.courseIds.includes(c.id));
-        setCoursesInPath(filteredCourses);
-    }
+    return progressMap;
+}
 
-    setIsLoaded(true)
-  }, [pathId])
+export default async function LearningPathDetailPage({ params }: { params: { pathId: string } }) {
+  const learningPath = await prisma.learningPath.findUnique({
+    where: { id: params.pathId },
+    include: { courses: { include: { modules: true } } },
+  })
 
-  const overallProgress = useMemo(() => {
-    if (!coursesInPath || coursesInPath.length === 0) return 0
-    const totalProgress = coursesInPath.reduce(
-      (sum, course) => sum + course.progress,
-      0
-    )
-    return Math.round(totalProgress / coursesInPath.length)
-  }, [coursesInPath])
-
-  if (!isLoaded || !learningPath) {
-    return <div>Loading...</div>
+  if (!learningPath) {
+    notFound();
   }
+
+  const coursesWithProgress = await Promise.all(
+    learningPath.courses.map(async course => {
+        // This is a placeholder for actual user progress tracking
+        const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
+        const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
+        return { ...course, progress };
+    })
+  );
+
+  const overallProgress = coursesWithProgress.length > 0
+    ? Math.round(coursesWithProgress.reduce((sum, course) => sum + course.progress, 0) / coursesWithProgress.length)
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -86,11 +75,11 @@ export default function LearningPathDetailPage() {
       <div>
         <h2 className="text-2xl font-semibold font-headline mb-4">Courses in this Path</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {coursesInPath.map((course) => (
+          {coursesWithProgress.map((course) => (
             <CourseCard key={course.id} course={course} />
           ))}
         </div>
-        {coursesInPath.length === 0 && (
+        {coursesWithProgress.length === 0 && (
             <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-lg">
                 <p>No courses have been added to this learning path yet.</p>
             </div>

@@ -26,10 +26,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { PlusCircle } from "lucide-react"
-import type { Course, LearningPath } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Checkbox } from "./ui/checkbox"
 import { ScrollArea } from "./ui/scroll-area"
+import { addLearningPath } from "@/app/actions/learning-path-actions"
+import type { Course } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
@@ -41,13 +42,9 @@ const formSchema = z.object({
 
 type AddLearningPathDialogProps = {
   courses: Course[]
-  onPathAdded: (path: LearningPath) => void
 }
 
-export function AddLearningPathDialog({
-  courses,
-  onPathAdded,
-}: AddLearningPathDialogProps) {
+export function AddLearningPathDialog({ courses }: AddLearningPathDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -60,20 +57,22 @@ export function AddLearningPathDialog({
     },
   })
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const newPath: LearningPath = {
-      id: `path-${Date.now()}`,
-      title: values.title,
-      description: values.description,
-      courseIds: values.courseIds,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await addLearningPath(values);
+    if (result.success) {
+      toast({
+        title: "Learning Path Added",
+        description: `The path "${values.title}" has been successfully created.`,
+      })
+      setOpen(false)
+      form.reset()
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-    onPathAdded(newPath)
-    toast({
-      title: "Learning Path Added",
-      description: `The path "${newPath.title}" has been successfully created.`,
-    })
-    setOpen(false)
-    form.reset()
   }
 
   return (
@@ -172,7 +171,9 @@ export function AddLearningPathDialog({
               )}
             />
             <DialogFooter>
-              <Button type="submit">Create Learning Path</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Creating..." : "Create Learning Path"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

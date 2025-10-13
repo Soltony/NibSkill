@@ -1,14 +1,6 @@
 
-"use client"
-
-import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
-import {
-  courses as initialCourses,
-  learningPaths as initialLearningPaths,
-  type Course,
-  type LearningPath,
-} from "@/lib/data"
+import prisma from "@/lib/db"
 import {
   Card,
   CardContent,
@@ -20,57 +12,47 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { BookMarked } from "lucide-react"
 
-const COURSES_STORAGE_KEY = "skillup-courses"
-const LEARNING_PATHS_STORAGE_KEY = "skillup-learning-paths"
+async function LearningPathCard({ path }: { path: { id: string; title: string; description: string | null; courses: any[] } }) {
 
-const LearningPathCard = ({ path, courses }: { path: LearningPath, courses: Course[]}) => {
+    const progress = 0; // Placeholder for progress calculation
 
-    const progress = useMemo(() => {
-        const pathCourses = courses.filter(c => path.courseIds.includes(c.id));
-        if (pathCourses.length === 0) return 0;
-        const totalProgress = pathCourses.reduce((sum, course) => sum + course.progress, 0);
-        return Math.round(totalProgress / pathCourses.length);
-    }, [path, courses]);
+    // A real implementation would calculate user-specific progress
+    const totalProgress = path.courses.reduce((sum, course) => {
+        const completedModules = (course.modules.length % 5); // Mock progress
+        return sum + (course.modules.length > 0 ? (completedModules / course.modules.length) * 100 : 0);
+    }, 0);
+
+    const overallProgress = path.courses.length > 0 ? Math.round(totalProgress / path.courses.length) : 0;
+
 
     return (
-    <Link href={`/learning-paths/${path.id}`} className="block h-full transition-transform hover:scale-[1.02]">
-        <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-xl">
-            <CardHeader>
-                <BookMarked className="h-8 w-8 text-accent mb-2" />
-                <CardTitle className="font-headline text-xl">{path.title}</CardTitle>
-                <CardDescription>{path.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">{path.courseIds.length} {path.courseIds.length === 1 ? 'course' : 'courses'}</p>
-            </CardContent>
-            <CardFooter className="flex flex-col items-start gap-2">
-                 <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
-                    <span>Progress</span>
-                    <span>{progress}%</span>
-                </div>
-                <Progress value={progress} />
-            </CardFooter>
-        </Card>
-    </Link>
+        <Link href={`/learning-paths/${path.id}`} className="block h-full transition-transform hover:scale-[1.02]">
+            <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-xl">
+                <CardHeader>
+                    <BookMarked className="h-8 w-8 text-accent mb-2" />
+                    <CardTitle className="font-headline text-xl">{path.title}</CardTitle>
+                    <CardDescription>{path.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1">
+                    <p className="text-sm font-medium text-muted-foreground">{path.courses.length} {path.courses.length === 1 ? 'course' : 'courses'}</p>
+                </CardContent>
+                <CardFooter className="flex flex-col items-start gap-2">
+                    <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
+                        <span>Progress</span>
+                        <span>{overallProgress}%</span>
+                    </div>
+                    <Progress value={overallProgress} />
+                </CardFooter>
+            </Card>
+        </Link>
     )
 }
 
-
-export default function LearningPathsPage() {
-  const [courses, setCourses] = useState<Course[]>([])
-  const [learningPaths, setLearningPaths] = useState<LearningPath[]>([])
-  const [isLoaded, setIsLoaded] = useState(false)
-
-  useEffect(() => {
-    const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY)
-    setCourses(storedCourses ? JSON.parse(storedCourses) : initialCourses)
-
-    const storedPaths = localStorage.getItem(LEARNING_PATHS_STORAGE_KEY)
-    setLearningPaths(
-      storedPaths ? JSON.parse(storedPaths) : initialLearningPaths
-    )
-    setIsLoaded(true)
-  }, [])
+export default async function LearningPathsPage() {
+  const learningPaths = await prisma.learningPath.findMany({
+    include: { courses: { include: { modules: true } } },
+    orderBy: { title: 'asc' }
+  });
 
   return (
     <div className="space-y-8">
@@ -83,7 +65,7 @@ export default function LearningPathsPage() {
 
        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {learningPaths.map((path) => (
-            <LearningPathCard key={path.id} path={path} courses={courses} />
+            <LearningPathCard key={path.id} path={path} />
           ))}
         </div>
         {learningPaths.length === 0 && (

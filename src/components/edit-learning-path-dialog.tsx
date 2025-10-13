@@ -25,32 +25,26 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import type { Course, LearningPath } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Checkbox } from "./ui/checkbox"
 import { ScrollArea } from "./ui/scroll-area"
+import { updateLearningPath } from "@/app/actions/learning-path-actions"
+import type { LearningPath, Course } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
-  description: z
-    .string()
-    .min(10, "Description must be at least 10 characters."),
+  description: z.string().min(10, "Description must be at least 10 characters."),
   courseIds: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one course.",
   }),
 })
 
 type EditLearningPathDialogProps = {
-  learningPath: LearningPath
+  learningPath: LearningPath & { courses: Course[] }
   courses: Course[]
-  onPathUpdated: (path: LearningPath) => void
 }
 
-export function EditLearningPathDialog({
-  learningPath,
-  courses,
-  onPathUpdated,
-}: EditLearningPathDialogProps) {
+export function EditLearningPathDialog({ learningPath, courses }: EditLearningPathDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -58,8 +52,8 @@ export function EditLearningPathDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: learningPath.title,
-      description: learningPath.description,
-      courseIds: learningPath.courseIds,
+      description: learningPath.description ?? "",
+      courseIds: learningPath.courses.map(c => c.id),
     },
   })
 
@@ -67,25 +61,27 @@ export function EditLearningPathDialog({
     if (open) {
       form.reset({
         title: learningPath.title,
-        description: learningPath.description,
-        courseIds: learningPath.courseIds,
+        description: learningPath.description ?? "",
+        courseIds: learningPath.courses.map(c => c.id),
       })
     }
   }, [open, learningPath, form])
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const updatedPath: LearningPath = {
-      ...learningPath,
-      title: values.title,
-      description: values.description,
-      courseIds: values.courseIds,
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const result = await updateLearningPath(learningPath.id, values);
+    if (result.success) {
+      toast({
+        title: "Learning Path Updated",
+        description: `The path "${values.title}" has been successfully updated.`,
+      })
+      setOpen(false)
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        })
     }
-    onPathUpdated(updatedPath)
-    toast({
-      title: "Learning Path Updated",
-      description: `The path "${updatedPath.title}" has been successfully updated.`,
-    })
-    setOpen(false)
   }
 
   return (
@@ -184,7 +180,9 @@ export function EditLearningPathDialog({
               )}
             />
             <DialogFooter>
-              <Button type="submit">Save Changes</Button>
+               <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
