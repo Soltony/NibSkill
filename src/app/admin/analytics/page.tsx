@@ -1,10 +1,11 @@
 
 "use client"
 
+import { useState } from "react";
 import Link from "next/link";
 import { analyticsData } from "@/lib/data"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, HelpCircle, ArrowRight } from "lucide-react"
+import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, HelpCircle, ArrowRight, Loader2 } from "lucide-react"
 import { AnalyticsCharts } from "@/components/analytics-charts"
 import {
   Table,
@@ -15,10 +16,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Medal } from "lucide-react"
+import { generateProgressReportCsv } from "@/app/actions/analytics-actions";
+import { useToast } from "@/hooks/use-toast";
 
 const rankIcons = [
     <Medal key="gold" className="h-6 w-6 text-yellow-500" />,
@@ -28,6 +31,41 @@ const rankIcons = [
 
 export default function AnalyticsPage() {
   const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement, quizQuestionAnalysis } = analyticsData
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
+
+  const handleGenerateReport = async () => {
+    setIsGenerating(true);
+    try {
+        const csvData = await generateProgressReportCsv();
+
+        if (csvData) {
+            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'progress_report.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast({
+                title: "Report Generated",
+                description: "Your progress report has been downloaded.",
+            });
+        } else {
+             throw new Error("No data returned from server.");
+        }
+    } catch (error) {
+        console.error("Failed to generate report:", error);
+        toast({
+            title: "Error Generating Report",
+            description: "Could not generate the CSV report. Please try again later.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsGenerating(false);
+    }
+  };
   
   return (
     <div className="space-y-8">
@@ -38,12 +76,14 @@ export default function AnalyticsPage() {
               High-level insights into your team's learning and development.
             </p>
         </div>
-        <FeatureNotImplementedDialog
-            title="Generate Report"
-            description="In a full application, this would generate a comprehensive CSV report of all analytics data for offline analysis and distribution to department heads."
-            triggerText="Download Report"
-            triggerIcon={<Download className="mr-2 h-4 w-4" />}
-        />
+        <Button onClick={handleGenerateReport} disabled={isGenerating}>
+            {isGenerating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <Download className="mr-2 h-4 w-4" />
+            )}
+            {isGenerating ? "Generating..." : "Download Report"}
+        </Button>
       </div>
       
       <div className="grid gap-4 md:grid-cols-3">
@@ -226,3 +266,5 @@ export default function AnalyticsPage() {
     </div>
   )
 }
+
+    
