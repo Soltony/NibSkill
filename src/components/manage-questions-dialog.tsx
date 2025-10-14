@@ -46,9 +46,7 @@ const questionSchema = z.object({
   text: z.string().min(1, "Question text cannot be empty."),
   type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
   options: z.array(optionSchema),
-  correctAnswerId: z.string({ required_error: "A correct answer is required." }).min(1, "A correct answer is required."),
-  // A temporary field to hold the fill-in-the-blank answer
-  fillBlankAnswer: z.string().optional(),
+  correctAnswerId: z.string().min(1, "A correct answer is required."),
 })
 
 const formSchema = z.object({
@@ -69,38 +67,34 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     resolver: zodResolver(formSchema),
   })
 
-  useEffect(() => {
-    if (open) {
-      form.reset({
-        passingScore: quiz.passingScore,
-        questions: quiz.questions.map(q => ({
-            ...q, 
-            type: q.type.replace('_', '-') as any,
-            // Pre-populate the temporary field for existing fill-in-the-blank questions
-            fillBlankAnswer: q.type === 'fill_in_the_blank' ? q.correctAnswerId : undefined
-        })),
-      })
-    }
-  }, [open, quiz, form])
-
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "questions",
   })
+  
+  useEffect(() => {
+    if (open) {
+      const questionsWithCorrectAnswerHandling = quiz.questions.map(q => {
+        let correctAnswerId = q.correctAnswerId;
+        if (q.type === 'multiple_choice' || q.type === 'true_false') {
+          correctAnswerId = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
+        }
+        return {
+          ...q,
+          type: q.type.replace('_', '-') as any,
+          correctAnswerId: correctAnswerId,
+        };
+      });
+
+      form.reset({
+        passingScore: quiz.passingScore,
+        questions: questionsWithCorrectAnswerHandling,
+      })
+    }
+  }, [open, quiz, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-     // Before submitting, synchronize the fill-in-the-blank answers
-    const processedValues = {
-      ...values,
-      questions: values.questions.map(q => {
-        if (q.type === 'fill_in_the_blank') {
-          return { ...q, correctAnswerId: q.fillBlankAnswer || '' };
-        }
-        return q;
-      })
-    };
-
-    const result = await updateQuiz(quiz.id, processedValues);
+    const result = await updateQuiz(quiz.id, values);
     if (result.success) {
       toast({
         title: "Quiz Updated",
@@ -116,7 +110,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     }
   }
 
-  const addQuestion = (type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank') => {
+  const addQuestion = (type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank') => {
     let newQuestion: z.infer<typeof questionSchema>;
     const questionId = `new-q-${Date.now()}`;
 
@@ -152,7 +146,6 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
           type: 'fill-in-the-blank',
           options: [],
           correctAnswerId: "",
-          fillBlankAnswer: "", // Initialize temporary field
         };
         break;
     }
@@ -223,7 +216,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                       )}
                     />
 
-                    {question.type === 'multiple-choice' && (
+                    {question.type === 'multiple_choice' && (
                       <Controller
                           control={form.control}
                           name={`questions.${qIndex}.correctAnswerId`}
@@ -235,7 +228,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                               >
                                   {(form.watch(`questions.${qIndex}.options`)).map((option, oIndex) => (
                                       <div key={option.id} className="flex items-center gap-2 group/option">
-                                          <RadioGroupItem value={option.id} id={`${question.id}-${option.id}`} />
+                                          <RadioGroupItem value={option.text} id={`${question.id}-${option.id}`} />
                                           <Label htmlFor={`${question.id}-${option.id}`} className="font-normal flex-1 cursor-pointer">
                                               <FormField
                                                   control={form.control}
@@ -270,11 +263,11 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                           render={({ field }) => (
                             <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center gap-4">
                                 <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="true" id={`${question.id}-true`}/>
+                                  <RadioGroupItem value="True" id={`${question.id}-true`}/>
                                   <Label htmlFor={`${question.id}-true`} className="font-normal">True</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="false" id={`${question.id}-false`}/>
+                                  <RadioGroupItem value="False" id={`${question.id}-false`}/>
                                   <Label htmlFor={`${question.id}-false`} className="font-normal">False</Label>
                                 </div>
                             </RadioGroup>
@@ -282,10 +275,10 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                         />
                     )}
 
-                    {question.type === 'fill-in-the-blank' && (
+                    {question.type === 'fill_in_the_blank' && (
                        <FormField
                           control={form.control}
-                          name={`questions.${qIndex}.fillBlankAnswer`}
+                          name={`questions.${qIndex}.correctAnswerId`}
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Correct Answer</FormLabel>
