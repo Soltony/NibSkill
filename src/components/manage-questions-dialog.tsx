@@ -121,7 +121,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
         newQuestion = {
           id: questionId,
           text: "",
-          type: 'multiple-choice',
+          type: 'multiple_choice',
           options: [
             { id: `new-o-${Date.now()}-1`, text: "" },
             { id: `new-o-${Date.now()}-2`, text: "" },
@@ -133,7 +133,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
         newQuestion = {
           id: questionId,
           text: "",
-          type: 'true-false',
+          type: 'true_false',
           options: [
             { id: 'true-option', text: 'True' },
             { id: 'false-option', text: 'False' },
@@ -141,11 +141,11 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
           correctAnswerId: "",
         };
         break;
-      case 'fill-in-the-blank':
+      case 'fill_in_the_blank':
         newQuestion = {
           id: questionId,
           text: "",
-          type: 'fill-in-the-blank',
+          type: 'fill_in_the_blank',
           options: [],
           correctAnswerId: "",
         };
@@ -156,7 +156,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
 
   const addOption = (questionIndex: number) => {
     const question = form.getValues(`questions.${questionIndex}`);
-    if (question.type === 'multiple-choice') {
+    if (question.type === 'multiple_choice') {
       const newOptions = [...question.options, { id: `new-o-${Date.now()}`, text: "" }];
       update(questionIndex, { ...question, options: newOptions });
     }
@@ -164,7 +164,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
 
   const removeOption = (questionIndex: number, optionIndex: number) => {
     const question = form.getValues(`questions.${questionIndex}`);
-    if (question.type === 'multiple-choice') {
+    if (question.type === 'multiple_choice') {
       const newOptions = question.options.filter((_, i) => i !== optionIndex);
       update(questionIndex, { ...question, options: newOptions });
     }
@@ -209,7 +209,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                       name={`questions.${qIndex}.text`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Question {qIndex + 1} ({question.type?.replace('-', ' ') || 'New Question'})</FormLabel>
+                          <FormLabel>Question {qIndex + 1} ({question.type?.replace(/_/g, ' ')})</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter question text" {...field} />
                           </FormControl>
@@ -258,7 +258,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                       />
                     )}
 
-                    {question.type === 'true-false' && (
+                    {question.type === 'true_false' && (
                        <Controller
                           control={form.control}
                           name={`questions.${qIndex}.correctAnswerId`}
@@ -313,13 +313,13 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                 )}
 
                 <div className="flex justify-center gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => addQuestion('multiple-choice')}>
+                  <Button type="button" variant="outline" onClick={() => addQuestion('multiple_choice')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Multiple Choice
                   </Button>
-                   <Button type="button" variant="outline" onClick={() => addQuestion('true-false')}>
+                   <Button type="button" variant="outline" onClick={() => addQuestion('true_false')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> True/False
                   </Button>
-                   <Button type="button" variant="outline" onClick={() => addQuestion('fill-in-the-blank')}>
+                   <Button type="button" variant="outline" onClick={() => addQuestion('fill_in_the_blank')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Fill in the Blank
                   </Button>
                 </div>
@@ -337,5 +337,3 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     </Dialog>
   )
 }
-
-    
