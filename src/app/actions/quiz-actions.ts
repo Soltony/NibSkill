@@ -34,12 +34,12 @@ export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
 }
 
 const optionSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().optional(), // ID is optional for new options
   text: z.string().min(1, "Option text cannot be empty."),
 })
 
 const questionSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().optional(), // ID is optional for new questions
   text: z.string().min(1, "Question text cannot be empty."),
   type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
   options: z.array(optionSchema),
@@ -85,70 +85,83 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                     type: qData.type as QuestionType,
                 };
                 
-                let upsertedQuestion;
-
                 if (isNewQuestion) {
-                     if (qData.type === 'fill_in_the_blank') {
-                        upsertedQuestion = await tx.question.create({
+                    if (qData.type === 'fill_in_the_blank') {
+                        await tx.question.create({
                             data: {
                                 ...questionPayload,
                                 quizId: quizId,
-                                correctAnswerId: qData.correctAnswerId,
+                                correctAnswerId: qData.correctAnswerId, // The answer text itself
                             }
                         });
-                    } else {
-                        const questionWithoutCorrectAnswer = await tx.question.create({
+                    } else { // Multiple choice or True/False
+                        // 1. Create the question with a placeholder answer
+                        const tempQuestion = await tx.question.create({
                             data: {
                                 ...questionPayload,
                                 quizId: quizId,
-                                correctAnswerId: 'placeholder' // Temp value
+                                correctAnswerId: 'placeholder'
                             }
                         });
 
-                        const createdOptions = await tx.option.createManyAndReturn({
-                           data: qData.options.map(opt => ({ text: opt.text, questionId: questionWithoutCorrectAnswer.id }))
-                        });
-
+                        // 2. Create the options
+                        const createdOptions = await Promise.all(qData.options.map(opt => 
+                            tx.option.create({
+                                data: {
+                                    text: opt.text,
+                                    questionId: tempQuestion.id
+                                }
+                            })
+                        ));
+                        
+                        // 3. Find the correct option ID
                         const correctOption = createdOptions.find(opt => opt.text === qData.correctAnswerId);
                         if (!correctOption) {
-                            throw new Error(`Correct answer "${qData.correctAnswerId}" not found for new question "${qData.text}"`);
+                            throw new Error(`Correct answer text "${qData.correctAnswerId}" not found among created options for question "${qData.text}"`);
                         }
                         
-                        upsertedQuestion = await tx.question.update({
-                            where: { id: questionWithoutCorrectAnswer.id },
+                        // 4. Update the question with the real correct answer ID
+                        await tx.question.update({
+                            where: { id: tempQuestion.id },
                             data: { correctAnswerId: correctOption.id }
                         });
                     }
                 } else { // This is an existing question
-                    upsertedQuestion = await tx.question.update({
+                    await tx.question.update({
                         where: { id: qData.id },
                         data: questionPayload,
                     });
 
                      if (qData.type === 'multiple_choice' || qData.type === 'true_false') {
-                        await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
+                        // Delete old options and create new ones to handle adds/deletes/updates
+                        await tx.option.deleteMany({ where: { questionId: qData.id } });
                         
-                        const createdOptions = await tx.option.createManyAndReturn({
-                            data: qData.options.map(opt => ({
-                                text: opt.text,
-                                questionId: upsertedQuestion.id
-                            })),
-                        });
+                        const createdOptions = await Promise.all(qData.options.map(opt => 
+                            tx.option.create({
+                                data: {
+                                    text: opt.text,
+                                    questionId: qData.id!
+                                }
+                            })
+                        ));
 
                         const correctOption = createdOptions.find(opt => opt.text === qData.correctAnswerId);
                         
                         if (!correctOption) {
-                            throw new Error(`Correct answer "${qData.correctAnswerId}" not found for question "${qData.text}"`);
+                            throw new Error(`Correct answer text "${qData.correctAnswerId}" not found for existing question "${qData.text}"`);
                         }
 
+                        // Update the question's correct answer ID
                         await tx.question.update({
-                            where: { id: upsertedQuestion.id },
+                            where: { id: qData.id },
                             data: { correctAnswerId: correctOption.id }
                         });
                     } else if (qData.type === 'fill_in_the_blank') {
-                        await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
+                        // Ensure no options exist
+                        await tx.option.deleteMany({ where: { questionId: qData.id } });
+                        // Update the correct answer text
                         await tx.question.update({
-                            where: { id: upsertedQuestion.id },
+                            where: { id: qData.id },
                             data: { correctAnswerId: qData.correctAnswerId }
                         });
                     }

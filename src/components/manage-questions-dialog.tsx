@@ -37,12 +37,12 @@ type QuizWithRelations = Quiz & {
 }
 
 const optionSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   text: z.string().min(1, "Option text cannot be empty."),
 })
 
 const questionSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   text: z.string().min(1, "Question text cannot be empty."),
   type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
   options: z.array(optionSchema),
@@ -75,14 +75,17 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
   useEffect(() => {
     if (open) {
       const questionsWithCorrectAnswerHandling = quiz.questions.map(q => {
-        let correctAnswerId = q.correctAnswerId;
+        let correctAnswerValue = '';
         if (q.type === 'multiple_choice' || q.type === 'true_false') {
-          correctAnswerId = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
+          // For choice questions, the ID we store is the TEXT of the correct option for form handling
+          correctAnswerValue = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
+        } else { // fill_in_the_blank
+          correctAnswerValue = q.correctAnswerId;
         }
         return {
           ...q,
           type: q.type.replace('_', '-') as any,
-          correctAnswerId: correctAnswerId || "", // Ensure it's never null/undefined
+          correctAnswerId: correctAnswerValue,
         };
       });
 
@@ -112,36 +115,35 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
 
   const addQuestion = (type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank') => {
     let newQuestion: z.infer<typeof questionSchema>;
-    const questionId = `new-q-${Date.now()}`;
 
     switch (type) {
       case 'multiple_choice':
         newQuestion = {
-          id: questionId,
+          id: undefined, // No ID for new questions
           text: "",
           type: 'multiple_choice',
           options: [
-            { id: `new-o-${Date.now()}-1`, text: "" },
-            { id: `new-o-${Date.now()}-2`, text: "" },
+            { id: undefined, text: "" },
+            { id: undefined, text: "" },
           ],
           correctAnswerId: "",
         };
         break;
       case 'true_false':
         newQuestion = {
-          id: questionId,
+          id: undefined,
           text: "",
           type: 'true_false',
           options: [
-            { id: 'true-option', text: 'True' },
-            { id: 'false-option', text: 'False' },
+            { id: undefined, text: 'True' },
+            { id: undefined, text: 'False' },
           ],
           correctAnswerId: "",
         };
         break;
       case 'fill_in_the_blank':
         newQuestion = {
-          id: questionId,
+          id: undefined,
           text: "",
           type: 'fill_in_the_blank',
           options: [],
@@ -155,7 +157,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
   const addOption = (questionIndex: number) => {
     const question = form.getValues(`questions.${questionIndex}`);
     if (question.type === 'multiple_choice') {
-      const newOptions = [...question.options, { id: `new-o-${Date.now()}`, text: "" }];
+      const newOptions = [...question.options, { id: undefined, text: "" }];
       update(questionIndex, { ...question, options: newOptions });
     }
   }
@@ -227,9 +229,9 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                                   className="space-y-2"
                               >
                                   {(form.watch(`questions.${qIndex}.options`)).map((option, oIndex) => (
-                                      <div key={option.id} className="flex items-center gap-2 group/option">
-                                          <RadioGroupItem value={option.text} id={`${question.id}-${option.id}`} />
-                                          <Label htmlFor={`${question.id}-${option.id}`} className="font-normal flex-1 cursor-pointer">
+                                      <div key={option.id || oIndex} className="flex items-center gap-2 group/option">
+                                          <RadioGroupItem value={option.text} id={`${question.id || qIndex}-${option.id || oIndex}`} />
+                                          <Label htmlFor={`${question.id || qIndex}-${option.id || oIndex}`} className="font-normal flex-1 cursor-pointer">
                                               <FormField
                                                   control={form.control}
                                                   name={`questions.${qIndex}.options.${oIndex}.text`}
