@@ -60,62 +60,53 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             return { success: false, message: "Invalid data provided. Check question and option fields." }
         }
 
-        const { passingScore, questions } = validatedFields.data;
+        const { passingScore, questions: incomingQuestions } = validatedFields.data;
 
         await prisma.$transaction(async (tx) => {
-            // 1. Update the passing score
             await tx.quiz.update({
                 where: { id: quizId },
                 data: { passingScore },
             });
 
-            const existingQuestions = await tx.question.findMany({
-                where: { quizId: quizId },
-                select: { id: true }
-            });
-            const existingQuestionIds = existingQuestions.map(q => q.id);
-            const incomingQuestionIds = questions.map(q => q.id);
+            const existingQuestionIds = (await tx.question.findMany({ where: { quizId }, select: { id: true } })).map(q => q.id);
+            const incomingQuestionIds = incomingQuestions.map(q => q.id).filter(id => !id.startsWith('new-q-'));
 
-            // 2. Delete questions that are no longer in the submission
-            const questionsToDelete = existingQuestionIds.filter(id => !incomingQuestionIds.includes(id));
-            if (questionsToDelete.length > 0) {
-                await tx.question.deleteMany({
-                    where: { id: { in: questionsToDelete } },
-                });
+            const questionIdsToDelete = existingQuestionIds.filter(id => !incomingQuestionIds.includes(id));
+            if (questionIdsToDelete.length > 0) {
+                await tx.question.deleteMany({ where: { id: { in: questionIdsToDelete } } });
             }
 
-            // 3. Upsert (create or update) questions
-            for (const qData of questions) {
-                const isNewQuestion = !qData.id.startsWith('question-');
+            for (const qData of incomingQuestions) {
+                const isNewQuestion = qData.id.startsWith('new-q-');
                 
                 const questionPayload = {
                     text: qData.text,
                     type: qData.type.replace('-', '_') as QuestionType,
                     correctAnswerId: qData.correctAnswerId,
-                    quizId: quizId,
                 };
 
                 const upsertedQuestion = await tx.question.upsert({
-                    where: { id: isNewQuestion ? `__temp_id_${qData.id}` : qData.id }, // Use a non-existent ID for creation
-                    create: questionPayload,
+                    where: { id: isNewQuestion ? `__temp_id__${qData.id}` : qData.id },
+                    create: { ...questionPayload, quizId },
                     update: questionPayload,
                 });
-
-                // Handle options only for relevant question types
+                
                 if (qData.type === 'multiple_choice' || qData.type === 'true-false') {
-                    // Delete existing options for this question to ensure a clean slate
-                    await tx.option.deleteMany({
-                        where: { questionId: upsertedQuestion.id }
-                    });
+                    // For existing questions, delete old options before creating new ones
+                    if (!isNewQuestion) {
+                         await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
+                    }
+                   
+                    const optionsToCreate = qData.options.map(opt => ({
+                        id: opt.id.startsWith('new-o-') ? undefined : opt.id,
+                        text: opt.text,
+                        questionId: upsertedQuestion.id
+                    }));
 
-                    // Create the new set of options
-                    if (qData.options.length > 0) {
+                    if (optionsToCreate.length > 0) {
                         await tx.option.createMany({
-                            data: qData.options.map(opt => ({
-                                id: !opt.id.startsWith('option-') && !opt.id.startsWith('new-o-') ? opt.id : undefined,
-                                text: opt.text,
-                                questionId: upsertedQuestion.id,
-                            }))
+                           data: optionsToCreate,
+                           skipDuplicates: true // This can be useful for true/false
                         });
                     }
                 }
@@ -123,7 +114,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
         });
 
         revalidatePath('/admin/quizzes');
-        revalidatePath(`/admin/quizzes/${quizId}`); // Also revalidate specific quiz if there's a detail page
+        revalidatePath(`/admin/quizzes/${quizId}`);
         return { success: true, message: 'Quiz updated successfully.' };
 
     } catch (error) {

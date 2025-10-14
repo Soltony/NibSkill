@@ -30,7 +30,7 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
 import { Label } from "./ui/label"
 import { ScrollArea } from "./ui/scroll-area"
 import { updateQuiz } from "@/app/actions/quiz-actions"
-import type { Quiz, Question, Option as OptionType, QuestionType } from "@prisma/client"
+import type { Quiz, Question, Option as OptionType } from "@prisma/client"
 
 type QuizWithRelations = Quiz & {
   questions: (Question & { options: OptionType[] })[]
@@ -47,6 +47,8 @@ const questionSchema = z.object({
   type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
   options: z.array(optionSchema),
   correctAnswerId: z.string({ required_error: "A correct answer is required." }).min(1, "A correct answer is required."),
+  // A temporary field to hold the fill-in-the-blank answer
+  fillBlankAnswer: z.string().optional(),
 })
 
 const formSchema = z.object({
@@ -71,7 +73,12 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     if (open) {
       form.reset({
         passingScore: quiz.passingScore,
-        questions: quiz.questions.map(q => ({...q, type: q.type.replace('_', '-') as any})),
+        questions: quiz.questions.map(q => ({
+            ...q, 
+            type: q.type.replace('_', '-') as any,
+            // Pre-populate the temporary field for existing fill-in-the-blank questions
+            fillBlankAnswer: q.type === 'fill_in_the_blank' ? q.correctAnswerId : undefined
+        })),
       })
     }
   }, [open, quiz, form])
@@ -82,7 +89,18 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
   })
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = await updateQuiz(quiz.id, values);
+     // Before submitting, synchronize the fill-in-the-blank answers
+    const processedValues = {
+      ...values,
+      questions: values.questions.map(q => {
+        if (q.type === 'fill_in_the_blank') {
+          return { ...q, correctAnswerId: q.fillBlankAnswer || '' };
+        }
+        return q;
+      })
+    };
+
+    const result = await updateQuiz(quiz.id, processedValues);
     if (result.success) {
       toast({
         title: "Quiz Updated",
@@ -134,6 +152,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
           type: 'fill-in-the-blank',
           options: [],
           correctAnswerId: "",
+          fillBlankAnswer: "", // Initialize temporary field
         };
         break;
     }
@@ -266,7 +285,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                     {question.type === 'fill-in-the-blank' && (
                        <FormField
                           control={form.control}
-                          name={`questions.${qIndex}.correctAnswerId`}
+                          name={`questions.${qIndex}.fillBlankAnswer`}
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Correct Answer</FormLabel>
