@@ -1,6 +1,4 @@
 
-"use client"
-
 import {
   Card,
   CardContent,
@@ -9,14 +7,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { type Badge as BadgeType, UserBadge, UserCompletedCourse } from "@/lib/data"
 import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import prisma from "@/lib/db"
-import { useEffect, useState } from "react"
-import type { Course } from "@prisma/client"
+import type { User, Badge as BadgeType, UserBadge, UserCompletedCourse, Course, Department } from "@prisma/client"
 
 const badgeIcons: { [key: string]: React.ReactNode } = {
     Footprints: <Footprints className="h-10 w-10" />,
@@ -43,40 +39,34 @@ function BadgeCard({ badge }: { badge: BadgeType }) {
     )
 }
 
-export default function ProfilePage() {
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [completedCourses, setCompletedCourses] = useState<(UserCompletedCourse & { course: Course })[]>([]);
-  const [userBadges, setUserBadges] = useState<(UserBadge & { badge: BadgeType })[]>([]);
-  const [loading, setLoading] = useState(true);
+async function getProfileData() {
+    const user = await prisma.user.findFirst({
+        where: { role: { name: 'Staff' } },
+        include: { department: true }
+    });
 
-
-  useEffect(() => {
-    async function fetchData() {
-        const user = await prisma.user.findFirst({
-            where: { role: { name: 'Staff' } },
-        });
-
-        if (user) {
-            const courses = await prisma.userCompletedCourse.findMany({
-                where: { userId: user.id },
-                include: { course: true }
-            });
-            const badges = await prisma.userBadge.findMany({
-                where: { userId: user.id },
-                include: { badge: true }
-            })
-            setCurrentUser(user);
-            setCompletedCourses(courses as any);
-            setUserBadges(badges as any);
-        }
-        setLoading(false);
+    if (!user) {
+        return { currentUser: null, completedCourses: [], userBadges: [] };
     }
-    fetchData();
-  }, [])
 
+    const completedCourses = await prisma.userCompletedCourse.findMany({
+        where: { userId: user.id },
+        include: { course: true }
+    });
 
-  if (loading || !currentUser) {
-    return <div>Loading profile...</div>
+    const userBadges = await prisma.userBadge.findMany({
+        where: { userId: user.id },
+        include: { badge: true }
+    });
+    
+    return { currentUser: user, completedCourses, userBadges };
+}
+
+export default async function ProfilePage() {
+  const { currentUser, completedCourses, userBadges } = await getProfileData();
+
+  if (!currentUser) {
+    return <div>Could not find staff user. Please seed the database.</div>
   }
 
   const coursesCompletedCount = completedCourses.length;
@@ -129,7 +119,7 @@ export default function ProfilePage() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{userBadges.length || 0}</div>
+            <div className="text-2xl font-bold">{userBadges.length}</div>
             <p className="text-xs text-muted-foreground">Total unique achievements.</p>
           </CardContent>
         </Card>
@@ -176,7 +166,7 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {userBadges && userBadges.length > 0 ? (
+          {userBadges.length > 0 ? (
              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {userBadges.map(userBadge => (
                     <BadgeCard key={userBadge.badgeId} badge={userBadge.badge} />

@@ -23,9 +23,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { Quiz as QuizType, Question } from '@/lib/data';
 import { Input } from './ui/input';
 import { Award, Frown, BookCopy } from 'lucide-react';
+import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
+
+type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
 
 type Answers = {
   [questionId: string]: string;
@@ -41,7 +43,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
   };
 
   const isAnswered = (q: Question) => {
-    if (q.type === 'fill-in-the-blank') {
+    if (q.type === 'fill_in_the_blank') {
       return answers[q.id] && answers[q.id].trim() !== '';
     }
     return !!answers[q.id];
@@ -51,7 +53,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
     e.preventDefault();
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
-       if (q.type === 'fill-in-the-blank') {
+       if (q.type === 'fill_in_the_blank') {
         if (answers[q.id]?.trim().toLowerCase() === q.correctAnswerId.trim().toLowerCase()) {
           correctAnswers++;
         }
@@ -84,7 +86,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                 <p className="mb-4 font-semibold">
                   {index + 1}. {q.text}
                 </p>
-                {q.type === 'multiple-choice' && (
+                {q.type === 'multiple_choice' && (
                    <RadioGroup
                     onValueChange={(value) => handleAnswerChange(q.id, value)}
                     className="space-y-2"
@@ -99,7 +101,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                     ))}
                   </RadioGroup>
                 )}
-                 {q.type === 'true-false' && (
+                 {q.type === 'true_false' && (
                   <RadioGroup
                     onValueChange={(value) => handleAnswerChange(q.id, value)}
                     className="space-y-2"
@@ -114,7 +116,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                     </div>
                   </RadioGroup>
                 )}
-                 {q.type === 'fill-in-the-blank' && (
+                 {q.type === 'fill_in_the_blank' && (
                   <Input
                     placeholder="Type your answer here..."
                     onChange={(e) => handleAnswerChange(q.id, e.target.value)}

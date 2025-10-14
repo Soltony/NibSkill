@@ -4,7 +4,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { courses as initialCourses, quizzes as initialQuizzes, type Module, type Course, type Quiz as QuizType } from '@/lib/data';
 import {
   Accordion,
   AccordionContent,
@@ -20,6 +19,7 @@ import { Video, FileText, Presentation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -27,44 +27,43 @@ const iconMap = {
   slides: <Presentation className="h-5 w-5 text-accent" />,
 };
 
-const COURSES_STORAGE_KEY = "skillup-courses";
-const QUIZZES_STORAGE_KEY = "skillup-quizzes";
+type CourseWithRelations = Course & {
+    modules: Module[];
+    product: Product | null;
+    quiz: (TQuiz & { questions: (Question & { options: TOption[] })[] }) | null;
+};
 
 export default function CourseDetailPage() {
   const params = useParams();
   const courseId = typeof params.courseId === 'string' ? params.courseId : '';
   const { toast } = useToast();
   
-  const [course, setCourse] = useState<Course | null>(null);
-  const [allCourses, setAllCourses] = useState<Course[]>([]);
-  const [allQuizzes, setAllQuizzes] = useState<QuizType[]>([]);
-
-  const quiz = useMemo(() => allQuizzes.find((q) => q.courseId === courseId), [courseId, allQuizzes]);
-
+  const [course, setCourse] = useState<CourseWithRelations | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
 
   useEffect(() => {
-    const storedCourses = localStorage.getItem(COURSES_STORAGE_KEY);
-    const coursesSource = storedCourses ? JSON.parse(storedCourses) : initialCourses;
-    setAllCourses(coursesSource);
-    const currentCourse = coursesSource.find((c: Course) => c.id === courseId);
-    setCourse(currentCourse ?? null);
-
-    const storedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
-    setAllQuizzes(storedQuizzes ? JSON.parse(storedQuizzes) : initialQuizzes);
-  }, [courseId]);
-
-  useEffect(() => {
-    if (allCourses.length > 0) {
-      localStorage.setItem(COURSES_STORAGE_KEY, JSON.stringify(allCourses));
+    async function fetchCourse() {
+      if (courseId) {
+        try {
+          const res = await fetch(`/api/courses/${courseId}?quiz=true`);
+          if (res.ok) {
+            const data = await res.json();
+            setCourse(data);
+          } else {
+            toast({ title: "Error", description: "Failed to fetch course details.", variant: "destructive" });
+          }
+        } catch (error) {
+          toast({ title: "Error", description: "Could not connect to the server.", variant: "destructive" });
+        }
+      }
     }
-  }, [allCourses]);
+    fetchCourse();
+  }, [courseId, toast]);
 
   const progress = useMemo(() => {
     if (!course || course.modules.length === 0) return 0;
-    // const completedModules = course.modules.filter((m) => m.isCompleted).length;
-    // return Math.round((completedModules / course.modules.length) * 100);
-    // Mock progress for demo
+    // In a real app, completion would be per-user.
+    // We'll mock it based on index for demonstration.
     const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
     return Math.round((completedModules / course.modules.length) * 100);
   }, [course]);
@@ -72,36 +71,26 @@ export default function CourseDetailPage() {
   const allModulesCompleted = progress === 100;
 
   if (!course) {
-    return <div>Loading course...</div>;
+    return (
+        <div className="mx-auto max-w-4xl space-y-8">
+            <Skeleton className="h-64 w-full rounded-lg" />
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+        </div>
+    );
   }
 
   const handleModuleCompletion = (moduleId: string, completed: boolean) => {
-     toast({
-        title: "Action Not Implemented",
-        description: "User-specific progress tracking is not implemented in this prototype."
-    })
-    // setCourse(prevCourse => {
-    //   if (!prevCourse) return undefined;
-    //   const newModules = prevCourse.modules.map(m => m.id === moduleId ? { ...m, isCompleted: completed } : m);
-    //   const updatedCourse = { ...prevCourse, modules: newModules };
-      
-    //   setAllCourses(prevAllCourses => prevAllCourses.map(c => c.id === courseId ? updatedCourse : c));
-
-    //   return updatedCourse;
-    // });
+    toast({
+      title: "Action Not Implemented",
+      description: "User-specific progress tracking is not implemented in this prototype."
+    });
   };
 
   const handleStartQuiz = () => {
     setShowQuiz(true);
-    // if (allModulesCompleted) {
-    //   setShowQuiz(true);
-    // } else {
-    //   toast({
-    //     title: "Complete all modules",
-    //     description: "Please complete all modules before starting the quiz.",
-    //     variant: "destructive",
-    //   });
-    // }
   };
   
   const handleQuizComplete = () => {
@@ -112,16 +101,18 @@ export default function CourseDetailPage() {
     setShowQuiz(false);
   }
 
+  const quiz = course.quiz as QuizType | undefined;
+
   return (
     <div className="mx-auto max-w-4xl">
       <div className="relative mb-8 h-64 w-full overflow-hidden rounded-lg shadow-lg">
-        {course.image ? (
+        {course.imageUrl ? (
             <Image
-            src={course.image.imageUrl}
-            alt={course.image.description}
-            fill
-            className="object-cover"
-            data-ai-hint={course.image.imageHint}
+              src={course.imageUrl}
+              alt={course.imageDescription ?? ''}
+              fill
+              className="object-cover"
+              data-ai-hint={course.imageHint ?? ''}
             />
         ) : (
             <Skeleton className="h-full w-full" />
@@ -159,12 +150,11 @@ export default function CourseDetailPage() {
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-4 p-4 bg-muted/50 rounded-md">
-                        <ModuleContent module={module} />
+                        <ModuleContent module={module as any} />
                         <div className="flex items-center justify-between pt-4 border-t">
                             <div className="flex items-center space-x-2">
                                 <Checkbox
                                     id={`complete-${module.id}`}
-                                    // checked={module.isCompleted}
                                     onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
                                 />
                                 <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>

@@ -17,7 +17,7 @@ async function LearningPathCard({ path }: { path: any }) {
     const totalProgress = path.courses.reduce((sum: number, courseRelation: any) => {
         const course = courseRelation.course;
         // Mock progress
-        const completedModules = (course.modules.length % 5); 
+        const completedModules = course.modules.filter((m: any, i: number) => i < course.title.length % course.modules.length).length;
         return sum + (course.modules.length > 0 ? (completedModules / course.modules.length) * 100 : 0);
     }, 0);
 
@@ -49,7 +49,15 @@ async function LearningPathCard({ path }: { path: any }) {
 
 export default async function LearningPathsPage() {
   const learningPaths = await prisma.learningPath.findMany({
-    include: { courses: { include: { course: { include: { modules: true } } } } },
+    include: { 
+        courses: { 
+            include: { 
+                course: { 
+                    include: { modules: true } 
+                } 
+            } 
+        } 
+    },
     orderBy: { title: 'asc' }
   });
 

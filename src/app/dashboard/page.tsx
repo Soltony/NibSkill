@@ -22,7 +22,7 @@ async function getCurrentUser() {
 
 async function getDashboardData() {
     const courses = await prisma.course.findMany({
-        include: { modules: true }
+        include: { modules: true, product: true }
     });
 
     const liveSessions = await prisma.liveSession.findMany({
@@ -116,6 +116,11 @@ export default async function DashboardPage() {
                   </div>
                 </li>
               ))}
+               {liveSessions.length === 0 && (
+                  <li className="text-center text-muted-foreground py-8">
+                    No upcoming live sessions scheduled.
+                  </li>
+               )}
             </ul>
           </CardContent>
         </Card>

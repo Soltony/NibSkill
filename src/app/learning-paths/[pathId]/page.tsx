@@ -10,21 +10,24 @@ import Link from "next/link"
 export default async function LearningPathDetailPage({ params }: { params: { pathId: string } }) {
   const learningPath = await prisma.learningPath.findUnique({
     where: { id: params.pathId },
-    include: { courses: { include: { course: { include: { modules: true } } } } },
+    include: { 
+      courses: { 
+        orderBy: { order: 'asc' },
+        include: { course: { include: { modules: true, product: true } } } 
+      } 
+    },
   })
 
   if (!learningPath) {
     notFound();
   }
 
-  const coursesWithProgress = await Promise.all(
-    learningPath.courses.map(async ({ course }) => {
-        // This is a placeholder for actual user progress tracking
-        const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
-        const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
-        return { ...course, progress };
-    })
-  );
+  const coursesWithProgress = learningPath.courses.map(({ course }) => {
+      // This is a placeholder for actual user progress tracking
+      const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
+      const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
+      return { ...course, progress };
+  });
 
   const overallProgress = coursesWithProgress.length > 0
     ? Math.round(coursesWithProgress.reduce((sum, course) => sum + course.progress, 0) / coursesWithProgress.length)

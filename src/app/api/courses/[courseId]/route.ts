@@ -7,6 +7,9 @@ export async function GET(
   { params }: { params: { courseId: string } }
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includeQuiz = searchParams.get('quiz') === 'true';
+
     const course = await prisma.course.findUnique({
       where: {
         id: params.courseId,
@@ -14,6 +17,15 @@ export async function GET(
       include: {
         modules: true,
         product: true,
+        quiz: includeQuiz ? {
+          include: {
+            questions: {
+              include: {
+                options: true,
+              },
+            },
+          },
+        } : false,
       },
     });
 
