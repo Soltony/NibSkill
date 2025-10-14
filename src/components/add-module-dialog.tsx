@@ -86,6 +86,9 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
   const removeFile = () => {
     setFileName(null);
     form.setValue("content", "", { shouldValidate: true });
+    // Also clear the file input
+    const fileInput = document.getElementById('module-file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
   }
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -120,7 +123,7 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
     switch(watchedType) {
         case 'video': return 'video/*';
         case 'pdf': return '.pdf';
-        case 'slides': return '.ppt, .pptx';
+        case 'slides': return '.ppt, .pptx, .key';
         default: return '';
     }
   }
@@ -209,25 +212,36 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
                 name="content"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Content File</FormLabel>
+                        <FormLabel>Content</FormLabel>
+                        <FormControl>
+                           <Input placeholder="Or paste a URL (e.g., for YouTube)" {...field} disabled={!!fileName} />
+                        </FormControl>
+                        
                         {fileName ? (
-                            <div className="flex items-center justify-between rounded-md border border-input bg-background p-2">
-                                <span className="truncate text-sm">{fileName}</span>
+                            <div className="flex items-center justify-between rounded-md border border-input bg-muted p-2">
+                                <span className="truncate text-sm pl-2">{fileName}</span>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={removeFile}>
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
                         ) : (
-                            <FormControl>
-                                <Button asChild variant="outline" className="w-full">
-                                    <label>
-                                        <FileUp className="mr-2 h-4 w-4" />
-                                        Upload File
-                                        <Input type="file" accept={getAcceptType()} className="sr-only" onChange={handleFileUpload} />
-                                    </label>
-                                </Button>
-                            </FormControl>
+                             <div className="flex items-center gap-2">
+                                <div className="w-full border-t border-dashed"></div>
+                                <span className="text-xs text-muted-foreground">OR</span>
+                                <div className="w-full border-t border-dashed"></div>
+                             </div>
                         )}
+                        
+                        {!fileName && (
+                          <Button asChild variant="outline" className="w-full">
+                              <label>
+                                  <FileUp className="mr-2 h-4 w-4" />
+                                  Upload File
+                                  <Input id="module-file-input" type="file" accept={getAcceptType()} className="sr-only" onChange={handleFileUpload} />
+                              </label>
+                          </Button>
+                        )}
+
                         <FormMessage />
                     </FormItem>
                 )}

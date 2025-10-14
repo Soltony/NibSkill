@@ -4,7 +4,7 @@
 import React from 'react';
 import type { Module } from '@/lib/data';
 import { Button } from './ui/button';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Download } from 'lucide-react';
 
 const YouTubeEmbed = ({ url }: { url: string }) => {
     try {
@@ -51,34 +51,48 @@ const LocalVideoPlayer = ({ url }: { url: string }) => {
 
 export const ModuleContent = ({ module }: { module: Module }) => {
 
+    const isUploadedContent = module.content.startsWith('data:');
+    const isExternalUrl = module.content.startsWith('https://');
+    const isYouTubeUrl = isExternalUrl && (module.content.includes('youtube.com') || module.content.includes('youtu.be'));
+
     const renderContent = () => {
         if (!module.content) {
             return <p className="text-muted-foreground">No content has been assigned to this module yet.</p>
         }
 
         if (module.type === 'video') {
-             if (module.content.startsWith('https://') && (module.content.includes('youtube.com') || module.content.includes('youtu.be'))) {
+             if (isYouTubeUrl) {
                 return <YouTubeEmbed url={module.content} />;
              }
-             if (module.content.startsWith('data:video')) {
+             if (isUploadedContent) {
                 return <LocalVideoPlayer url={module.content} />;
              }
         }
         
-        if (module.type === 'pdf' || module.type === 'slides' || module.content.startsWith('https://')) {
+        if (isExternalUrl) {
             return (
                  <Button asChild variant="outline">
                     <a href={module.content} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="mr-2 h-4 w-4" />
-                        Open {module.type} content
+                        Open External Content
                     </a>
                 </Button>
             );
         }
 
-        return <p className="text-muted-foreground">Unsupported content type for this module.</p>;
-    }
+        if (isUploadedContent) {
+             return (
+                 <Button asChild>
+                    <a href={module.content} download={`skillup_${module.type}_${module.id}`}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Material
+                    </a>
+                </Button>
+            );
+        }
 
+        return <p className="text-muted-foreground">Unsupported or invalid content link for this module.</p>;
+    }
 
     return (
         <div className="space-y-4">

@@ -99,6 +99,8 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
   const removeFile = () => {
     setFileName(null);
     form.setValue("content", "", { shouldValidate: true });
+    const fileInput = document.getElementById('edit-module-file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
   }
 
 
@@ -138,7 +140,7 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
     switch(watchedType) {
         case 'video': return 'video/*';
         case 'pdf': return '.pdf';
-        case 'slides': return '.ppt, .pptx';
+        case 'slides': return '.ppt, .pptx, .key';
         default: return '';
     }
   }
@@ -223,26 +225,36 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
                 name="content"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Content File</FormLabel>
+                        <FormLabel>Content</FormLabel>
+                        <FormControl>
+                           <Input placeholder="Or paste a URL (e.g., for YouTube)" {...field} disabled={!!fileName} />
+                        </FormControl>
+                        
                         {fileName ? (
-                             <div className="flex items-center justify-between rounded-md border border-input bg-background p-2">
-                                <span className="truncate text-sm">{fileName}</span>
+                             <div className="flex items-center justify-between rounded-md border border-input bg-muted p-2">
+                                <span className="truncate text-sm pl-2">{fileName}</span>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={removeFile}>
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
                         ) : (
-                             <FormControl>
-                                <Button asChild variant="outline" className="w-full">
-                                    <label>
-                                        <FileUp className="mr-2 h-4 w-4" />
-                                        Upload New File
-                                        <Input type="file" accept={getAcceptType()} className="sr-only" onChange={handleFileUpload} />
-                                    </label>
-                                </Button>
-                            </FormControl>
+                            <div className="flex items-center gap-2">
+                               <div className="w-full border-t border-dashed"></div>
+                               <span className="text-xs text-muted-foreground">OR</span>
+                               <div className="w-full border-t border-dashed"></div>
+                            </div>
                         )}
-                    <FormMessage />
+                        
+                        {!fileName && (
+                          <Button asChild variant="outline" className="w-full">
+                              <label>
+                                  <FileUp className="mr-2 h-4 w-4" />
+                                  Upload New File
+                                  <Input id="edit-module-file-input" type="file" accept={getAcceptType()} className="sr-only" onChange={handleFileUpload} />
+                              </label>
+                          </Button>
+                        )}
+                        <FormMessage />
                     </FormItem>
                 )}
             />
