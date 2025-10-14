@@ -57,6 +57,7 @@ import {
 import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
 import { Switch } from "@/components/ui/switch"
 import { AddFieldDialog } from "@/components/add-field-dialog"
+import { AddRoleDialog } from "@/components/add-role-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
 
 type UserWithRole = User & { role: RoleType };
@@ -278,12 +279,7 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                   Define roles to control user access and permissions across the application.
                 </CardDescription>
               </div>
-              <FeatureNotImplementedDialog
-                title="Add New Role"
-                description="Adding new roles is not supported in this prototype. In a full application, this would open a form to create a new role and define its permissions, which would require code changes to be recognized by the system."
-                triggerText="Add Role"
-                triggerIcon={<PlusCircle className="mr-2 h-4 w-4" />}
-              />
+              <AddRoleDialog />
             </CardHeader>
             <CardContent>
               <Table>

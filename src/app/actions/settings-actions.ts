@@ -65,6 +65,50 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
     }
 }
 
+const permissionSchema = z.object({
+  c: z.boolean(),
+  r: z.boolean(),
+  u: z.boolean(),
+  d: z.boolean(),
+});
+
+const addRoleSchema = z.object({
+  name: z.string().min(2, "Role name must be at least 2 characters."),
+  permissions: z.object({
+    courses: permissionSchema,
+    users: permissionSchema,
+    analytics: permissionSchema,
+    products: permissionSchema,
+    quizzes: permissionSchema,
+    staff: permissionSchema,
+    liveSessions: permissionSchema,
+  })
+})
+
+export async function addRole(values: z.infer<typeof addRoleSchema>) {
+    try {
+        const validatedFields = addRoleSchema.safeParse(values);
+        if (!validatedFields.success) {
+            return { success: false, message: 'Invalid data provided.' };
+        }
+        
+        await prisma.role.create({
+            data: {
+                name: validatedFields.data.name,
+                permissions: validatedFields.data.permissions,
+            }
+        });
+
+        revalidatePath('/admin/settings');
+        return { success: true, message: 'Role created successfully.' };
+
+    } catch (error) {
+        console.error("Error creating role:", error);
+        return { success: false, message: 'Failed to create role.' };
+    }
+}
+
+
 export async function deleteRole(roleId: string) {
     try {
         await prisma.role.delete({ where: { id: roleId }});
