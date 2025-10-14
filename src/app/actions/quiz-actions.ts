@@ -69,7 +69,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             });
 
             const existingQuestionIds = (await tx.question.findMany({ where: { quizId }, select: { id: true } })).map(q => q.id);
-            const incomingQuestionIds = incomingQuestions.map(q => q.id).filter(id => !!id);
+            const incomingQuestionIds = incomingQuestions.map(q => q.id).filter((id): id is string => !!id);
 
             // Delete questions that are no longer in the submission
             const questionIdsToDelete = existingQuestionIds.filter(id => !incomingQuestionIds.includes(id));
@@ -79,6 +79,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
 
             for (const qData of incomingQuestions) {
                 const isNewQuestion = !qData.id;
+                
                 const questionPayload = {
                     text: qData.text,
                     type: qData.type as QuestionType,
@@ -87,25 +88,46 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                 let upsertedQuestion;
 
                 if (isNewQuestion) {
-                    upsertedQuestion = await tx.question.create({
-                        data: {
-                            ...questionPayload,
-                            quizId: quizId,
-                            correctAnswerId: 'placeholder', // Temp value
+                     if (qData.type === 'fill_in_the_blank') {
+                        upsertedQuestion = await tx.question.create({
+                            data: {
+                                ...questionPayload,
+                                quizId: quizId,
+                                correctAnswerId: qData.correctAnswerId,
+                            }
+                        });
+                    } else {
+                        const questionWithoutCorrectAnswer = await tx.question.create({
+                            data: {
+                                ...questionPayload,
+                                quizId: quizId,
+                                correctAnswerId: 'placeholder' // Temp value
+                            }
+                        });
+
+                        const createdOptions = await tx.option.createManyAndReturn({
+                           data: qData.options.map(opt => ({ text: opt.text, questionId: questionWithoutCorrectAnswer.id }))
+                        });
+
+                        const correctOption = createdOptions.find(opt => opt.text === qData.correctAnswerId);
+                        if (!correctOption) {
+                            throw new Error(`Correct answer "${qData.correctAnswerId}" not found for new question "${qData.text}"`);
                         }
-                    });
-                } else {
+                        
+                        upsertedQuestion = await tx.question.update({
+                            where: { id: questionWithoutCorrectAnswer.id },
+                            data: { correctAnswerId: correctOption.id }
+                        });
+                    }
+                } else { // This is an existing question
                     upsertedQuestion = await tx.question.update({
                         where: { id: qData.id },
                         data: questionPayload,
                     });
-                }
 
-                // Handle options and correct answer
-                if (qData.type === 'multiple_choice' || qData.type === 'true_false') {
-                    await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
-                    
-                    if (qData.options.length > 0) {
+                     if (qData.type === 'multiple_choice' || qData.type === 'true_false') {
+                        await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
+                        
                         const createdOptions = await tx.option.createManyAndReturn({
                             data: qData.options.map(opt => ({
                                 text: opt.text,
@@ -123,17 +145,13 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                             where: { id: upsertedQuestion.id },
                             data: { correctAnswerId: correctOption.id }
                         });
-                    } else {
-                         throw new Error(`Multiple choice/True-False question "${qData.text}" must have options.`);
+                    } else if (qData.type === 'fill_in_the_blank') {
+                        await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
+                        await tx.question.update({
+                            where: { id: upsertedQuestion.id },
+                            data: { correctAnswerId: qData.correctAnswerId }
+                        });
                     }
-                } else if (qData.type === 'fill_in_the_blank') {
-                    // For fill in the blank, the answer is stored directly.
-                    // Also, delete any orphaned options if type was changed.
-                    await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
-                    await tx.question.update({
-                        where: { id: upsertedQuestion.id },
-                        data: { correctAnswerId: qData.correctAnswerId }
-                    });
                 }
             }
         });
