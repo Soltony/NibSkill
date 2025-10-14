@@ -35,11 +35,14 @@ async function getDashboardData() {
             dateTime: 'asc'
         }
     });
+    
+    const user = await getCurrentUser();
 
     // We'll calculate progress on the server for simplicity. 
     // In a real app, this would be a more complex query based on user progress records.
     const coursesWithProgress = courses.map(course => {
-        const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
+        const userName = user?.name || '';
+        const completedModules = course.modules.filter((m, i) => i < (userName.length + course.title.length) % course.modules.length).length;
         const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
         return { ...course, progress };
     });

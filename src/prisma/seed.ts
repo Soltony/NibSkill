@@ -69,11 +69,13 @@ async function main() {
     const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
     
     // Hash password before saving
-    const hashedPassword = await bcrypt.hash(password || 'password', 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     await prisma.user.upsert({
       where: { email: user.email },
-      update: {},
+      update: {
+        password: hashedPassword,
+      },
       create: {
         ...userData,
         password: hashedPassword,
@@ -279,6 +281,13 @@ async function main() {
     }
   });
   console.log('Seeded certificate template');
+
+
+  // Seed Registration Fields
+  await prisma.registrationField.createMany({
+    data: initialRegistrationFields,
+    skipDuplicates: true,
+  });
 
 
   console.log(`Seeding finished.`)
