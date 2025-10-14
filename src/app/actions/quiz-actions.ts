@@ -34,12 +34,12 @@ export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
 }
 
 const optionSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   text: z.string().min(1, "Option text cannot be empty."),
 })
 
 const questionSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   text: z.string().min(1, "Question text cannot be empty."),
   type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
   options: z.array(optionSchema),
@@ -69,111 +69,90 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             });
 
             const existingQuestionIds = (await tx.question.findMany({ where: { quizId }, select: { id: true } })).map(q => q.id);
-            const incomingQuestionIds = incomingQuestions.map(q => q.id).filter(id => !id.startsWith('new-q-'));
+            const incomingQuestionIds = incomingQuestions.map(q => q.id).filter(id => !!id);
 
+            // Delete questions that are no longer in the submission
             const questionIdsToDelete = existingQuestionIds.filter(id => !incomingQuestionIds.includes(id));
             if (questionIdsToDelete.length > 0) {
                 await tx.question.deleteMany({ where: { id: { in: questionIdsToDelete } } });
             }
 
             for (const qData of incomingQuestions) {
-                const isNewQuestion = qData.id.startsWith('new-q-');
+                const isNewQuestion = !qData.id;
+                const questionPayload = {
+                    text: qData.text,
+                    type: qData.type as QuestionType,
+                };
                 
+                let upsertedQuestion;
+
                 if (isNewQuestion) {
-                    const questionPayload = {
-                        text: qData.text,
-                        type: qData.type as QuestionType,
-                    };
+                    upsertedQuestion = await tx.question.create({
+                        data: {
+                            ...questionPayload,
+                            quizId: quizId,
+                            correctAnswerId: 'placeholder', // Temp value
+                        }
+                    });
+                } else {
+                    upsertedQuestion = await tx.question.update({
+                        where: { id: qData.id },
+                        data: questionPayload,
+                    });
+                }
+
+                // Handle options and correct answer
+                if (qData.type === 'multiple_choice' || qData.type === 'true_false') {
+                    await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
                     
-                    if (qData.type === 'fill_in_the_blank') {
-                        await tx.question.create({
-                            data: {
-                                ...questionPayload,
-                                quizId: quizId,
-                                correctAnswerId: qData.correctAnswerId,
-                            }
-                        });
-                    } else { // multiple_choice or true_false
-                        const newQuestion = await tx.question.create({
-                           data: {
-                               ...questionPayload,
-                               quizId: quizId,
-                               correctAnswerId: 'placeholder', // Temporary value
-                           }
-                        });
-                        
-                        const optionsToCreate = qData.options.map(opt => ({
-                            text: opt.text,
-                            questionId: newQuestion.id,
-                        }));
-                        
+                    if (qData.options.length > 0) {
                         const createdOptions = await tx.option.createManyAndReturn({
-                            data: optionsToCreate,
+                            data: qData.options.map(opt => ({
+                                text: opt.text,
+                                questionId: upsertedQuestion.id
+                            })),
                         });
 
                         const correctOption = createdOptions.find(opt => opt.text === qData.correctAnswerId);
-
+                        
                         if (!correctOption) {
-                            throw new Error(`Correct answer "${qData.correctAnswerId}" not found in created options for question "${qData.text}"`);
+                            throw new Error(`Correct answer "${qData.correctAnswerId}" not found for question "${qData.text}"`);
                         }
 
                         await tx.question.update({
-                            where: { id: newQuestion.id },
+                            where: { id: upsertedQuestion.id },
                             data: { correctAnswerId: correctOption.id }
                         });
+                    } else {
+                         throw new Error(`Multiple choice/True-False question "${qData.text}" must have options.`);
                     }
+                } else if (qData.type === 'fill_in_the_blank') {
+                    // For fill in the blank, the answer is stored directly.
+                    // Also, delete any orphaned options if type was changed.
+                    await tx.option.deleteMany({ where: { questionId: upsertedQuestion.id } });
+                    await tx.question.update({
+                        where: { id: upsertedQuestion.id },
+                        data: { correctAnswerId: qData.correctAnswerId }
+                    });
+                }
+            }
+        });
+        
+        revalidatePath('/admin/quizzes');
+        revalidatePath(`/admin/quizzes/${quizId}`);
 
-                } else { // It's an existing question
-                    const questionPayload = {
-                        text: qData.text,
-                        type: qData.type as QuestionType,
-                    };
-
-                    if (qData.type === 'fill_in_the_blank') {
-                        await tx.question.update({
-                            where: { id: qData.id },
-                            data: {
-                                ...questionPayload,
-                                correctAnswerId: qData.correctAnswerId,
-                            }
-                        });
-                         await tx.option.deleteMany({ where: { questionId: qData.id } });
-
-                    } else { // multiple_choice or true_false
-                        await tx.question.update({
-                            where: { id: qData.id },
-                            data: questionPayload,
-                        });
-                        
-                        await tx.option.deleteMany({ where: { questionId: qData.id } });
-                        
-                        const optionsToCreate = qData.options.map(opt => ({
-                            text: opt.text,
-                            questionId: qData.id
-                        }));
-                        
-                        const createdOptions = await tx.option.createManyAndReturn({
-                            data: optionsToCreate,
-                        });
-
-                        const correctOption = createdOptions.find(opt => opt.text === qData.correctAnswerId);
-
-                         if (!correctOption) {
-                            throw new Error(`Correct answer "${qData.correctAnswerId}" not found in created options for question "${qData.text}"`);
-                        }
-                        
-                        await tx.question.update({
-                            where: { id: qData.id },
-                            data: { correctAnswerId: correctOption.id }
-                        });
+        const updatedQuiz = await prisma.quiz.findUnique({
+            where: { id: quizId },
+            include: {
+                questions: {
+                    include: {
+                        options: true
                     }
                 }
             }
         });
 
-        revalidatePath('/admin/quizzes');
-        revalidatePath(`/admin/quizzes/${quizId}`);
-        return { success: true, message: 'Quiz updated successfully.' };
+        return { success: true, message: 'Quiz updated successfully.', data: updatedQuiz };
 
     } catch (error: any) {
         console.error("Error updating quiz:", error);
