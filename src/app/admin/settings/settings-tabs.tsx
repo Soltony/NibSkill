@@ -5,7 +5,7 @@ import { useState } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Role as RoleType, Permission as PermissionType, RegistrationField } from "@prisma/client"
+import type { User, Role as RoleType, Permission as PermissionType, RegistrationField } from "@prisma/client"
 import {
   Table,
   TableBody,
@@ -59,7 +59,7 @@ import { Switch } from "@/components/ui/switch"
 import { AddFieldDialog } from "@/components/add-field-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
 
-type UserWithRole = any;
+type UserWithRole = User & { role: RoleType };
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -211,7 +211,8 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
   };
 
 
-  const permissionKeys = roles[0] ? Object.keys(roles[0].permissions as any) as (keyof RoleType['permissions'])[] : [];
+  const permissionKeys = (roles[0]?.permissions && Object.keys(roles[0].permissions as object)) as (keyof RoleType['permissions'])[] || [];
+
 
   return (
     <>
