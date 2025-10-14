@@ -76,15 +76,13 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     if (open) {
       const questionsWithCorrectAnswerHandling = quiz.questions.map(q => {
         let correctAnswerId = q.correctAnswerId;
-        // For multiple choice and true/false, the correct answer ID is the ID of the option.
-        // We need to find the text of that option to set the initial value of the radio group.
         if (q.type === 'multiple_choice' || q.type === 'true_false') {
           correctAnswerId = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
         }
         return {
           ...q,
           type: q.type.replace('_', '-') as any,
-          correctAnswerId: correctAnswerId,
+          correctAnswerId: correctAnswerId || "", // Ensure it's never null/undefined
         };
       });
 
@@ -117,7 +115,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     const questionId = `new-q-${Date.now()}`;
 
     switch (type) {
-      case 'multiple-choice':
+      case 'multiple_choice':
         newQuestion = {
           id: questionId,
           text: "",
@@ -129,7 +127,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
           correctAnswerId: "",
         };
         break;
-      case 'true-false':
+      case 'true_false':
         newQuestion = {
           id: questionId,
           text: "",
