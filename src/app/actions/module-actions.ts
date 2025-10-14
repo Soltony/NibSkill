@@ -10,7 +10,7 @@ const formSchema = z.object({
   type: z.enum(["video", "pdf", "slides"]),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   description: z.string().min(10, "Description is required."),
-  content: z.string().url("Please enter a valid URL."),
+  content: z.string().min(1, "Content is required."),
 })
 
 export async function addModule(courseId: string, values: z.infer<typeof formSchema>) {

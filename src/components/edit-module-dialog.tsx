@@ -1,8 +1,7 @@
 
-
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, ChangeEvent } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -36,13 +35,14 @@ import type { Module } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Textarea } from "./ui/textarea"
 import { updateModule } from "@/app/actions/module-actions"
+import { FileUp, X } from "lucide-react"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
   type: z.enum(["video", "pdf", "slides"], { required_error: "Please select a module type." }),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   description: z.string().min(10, "Description is required."),
-  content: z.string().url("Please enter a valid URL."),
+  content: z.string().min(1, "Content is required."),
 })
 
 type EditModuleDialogProps = {
@@ -54,17 +54,13 @@ type EditModuleDialogProps = {
 export function EditModuleDialog({ module, onModuleUpdated, children }: EditModuleDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
+  const [fileName, setFileName] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: module.title,
-      type: module.type,
-      duration: module.duration,
-      description: module.description,
-      content: module.content,
-    },
   })
+  
+  const watchedType = form.watch('type');
 
   useEffect(() => {
     if (open) {
@@ -74,9 +70,34 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
         duration: module.duration,
         description: module.description,
         content: module.content,
-      })
+      });
+
+      if (module.type !== 'video' && module.content.startsWith('data:')) {
+        setFileName('Previously uploaded file');
+      } else {
+        setFileName(null);
+      }
     }
   }, [open, module, form])
+
+
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        form.setValue("content", dataUrl, { shouldValidate: true });
+        setFileName(file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeFile = () => {
+    setFileName(null);
+    form.setValue("content", "", { shouldValidate: true });
+  }
 
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -93,6 +114,7 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
             description: `The module "${updatedModule.title}" has been updated.`,
         })
         setOpen(false)
+        setFileName(null);
     } else {
         toast({
             title: "Error updating module",
@@ -102,8 +124,16 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
     }
   }
 
+  const onOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+        form.reset();
+        setFileName(null);
+    }
+    setOpen(isOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -147,7 +177,7 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Module Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(value) => { field.onChange(value); form.setValue('content', ''); setFileName(null); }} value={field.value}>
                           <FormControl>
                               <SelectTrigger>
                                   <SelectValue placeholder="Select a type" />
@@ -182,10 +212,31 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
                 name="content"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Content URL</FormLabel>
-                    <FormControl>
-                        <Input placeholder="https://..." {...field} />
-                    </FormControl>
+                    <FormLabel>{watchedType === 'video' ? 'Content URL' : 'Content File'}</FormLabel>
+                     {watchedType === 'video' ? (
+                        <FormControl>
+                            <Input placeholder="https://youtube.com/watch?v=..." {...field} />
+                        </FormControl>
+                     ) : (
+                        fileName ? (
+                             <div className="flex items-center justify-between rounded-md border border-input bg-background p-2">
+                                <span className="truncate text-sm">{fileName}</span>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={removeFile}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                             <FormControl>
+                                <Button asChild variant="outline" className="w-full">
+                                    <label>
+                                        <FileUp className="mr-2 h-4 w-4" />
+                                        Upload New File
+                                        <Input type="file" accept={watchedType === 'pdf' ? '.pdf' : '.ppt, .pptx'} className="sr-only" onChange={handleFileUpload} />
+                                    </label>
+                                </Button>
+                            </FormControl>
+                        )
+                     )}
                     <FormMessage />
                     </FormItem>
                 )}
