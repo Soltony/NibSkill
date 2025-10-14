@@ -57,8 +57,9 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
         if (answers[q.id]?.trim().toLowerCase() === q.correctAnswerId.trim().toLowerCase()) {
           correctAnswers++;
         }
-      } else {
-        if (answers[q.id] === q.correctAnswerId) {
+      } else { // Multiple Choice and True/False
+        const correctOption = q.options.find(opt => opt.id === q.correctAnswerId);
+        if (correctOption && answers[q.id] === correctOption.text) {
           correctAnswers++;
         }
       }
@@ -86,34 +87,19 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                 <p className="mb-4 font-semibold">
                   {index + 1}. {q.text}
                 </p>
-                {q.type === 'multiple_choice' && (
+                {(q.type === 'multiple_choice' || q.type === 'true_false') && (
                    <RadioGroup
                     onValueChange={(value) => handleAnswerChange(q.id, value)}
                     className="space-y-2"
                   >
                     {q.options.map((opt) => (
                       <div key={opt.id} className="flex items-center space-x-2">
-                        <RadioGroupItem value={opt.id} id={`${q.id}-${opt.id}`} />
+                        <RadioGroupItem value={opt.text} id={`${q.id}-${opt.id}`} />
                         <Label htmlFor={`${q.id}-${opt.id}`} className="font-normal cursor-pointer">
                           {opt.text}
                         </Label>
                       </div>
                     ))}
-                  </RadioGroup>
-                )}
-                 {q.type === 'true_false' && (
-                  <RadioGroup
-                    onValueChange={(value) => handleAnswerChange(q.id, value)}
-                    className="space-y-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="true" id={`${q.id}-true`} />
-                      <Label htmlFor={`${q.id}-true`} className="font-normal cursor-pointer">True</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="false" id={`${q.id}-false`} />
-                      <Label htmlFor={`${q.id}-false`} className="font-normal cursor-pointer">False</Label>
-                    </div>
                   </RadioGroup>
                 )}
                  {q.type === 'fill_in_the_blank' && (

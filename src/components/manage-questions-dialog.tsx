@@ -77,14 +77,14 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
       const questionsWithCorrectAnswerHandling = quiz.questions.map(q => {
         let correctAnswerValue = '';
         if (q.type === 'multiple_choice' || q.type === 'true_false') {
-          // For choice questions, the ID we store is the TEXT of the correct option for form handling
+          // For choice questions, the form value is the TEXT of the correct option
           correctAnswerValue = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
         } else { // fill_in_the_blank
-          correctAnswerValue = q.correctAnswerId;
+          correctAnswerValue = q.correctAnswerId || '';
         }
         return {
           ...q,
-          type: q.type.replace('_', '-') as any,
+          options: q.options || [],
           correctAnswerId: correctAnswerValue,
         };
       });
@@ -119,7 +119,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     switch (type) {
       case 'multiple_choice':
         newQuestion = {
-          id: undefined, // No ID for new questions
+          id: undefined,
           text: "",
           type: 'multiple_choice',
           options: [
@@ -203,7 +203,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
             <ScrollArea className="h-[55vh] p-4 border rounded-md">
               <div className="space-y-8">
                 {fields.map((question, qIndex) => (
-                  <div key={question.id} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
+                  <div key={question.id || qIndex} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
                      <FormField
                       control={form.control}
                       name={`questions.${qIndex}.text`}
@@ -228,7 +228,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                                   value={controllerField.value}
                                   className="space-y-2"
                               >
-                                  {(form.watch(`questions.${qIndex}.options`)).map((option, oIndex) => (
+                                  {(form.watch(`questions.${qIndex}.options`) || []).map((option, oIndex) => (
                                       <div key={option.id || oIndex} className="flex items-center gap-2 group/option">
                                           <RadioGroupItem value={option.text} id={`${question.id || qIndex}-${option.id || oIndex}`} />
                                           <Label htmlFor={`${question.id || qIndex}-${option.id || oIndex}`} className="font-normal flex-1 cursor-pointer">
@@ -264,14 +264,12 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                           name={`questions.${qIndex}.correctAnswerId`}
                           render={({ field }) => (
                             <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center gap-4">
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="True" id={`${question.id}-true`}/>
-                                  <Label htmlFor={`${question.id}-true`} className="font-normal">True</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="False" id={`${question.id}-false`}/>
-                                  <Label htmlFor={`${question.id}-false`} className="font-normal">False</Label>
-                                </div>
+                                {(form.watch(`questions.${qIndex}.options`) || []).map(option => (
+                                  <div key={option.text} className="flex items-center space-x-2">
+                                    <RadioGroupItem value={option.text} id={`${question.id || qIndex}-${option.text}`}/>
+                                    <Label htmlFor={`${question.id || qIndex}-${option.text}`} className="font-normal">{option.text}</Label>
+                                  </div>
+                                ))}
                             </RadioGroup>
                           )}
                         />
