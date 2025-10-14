@@ -35,6 +35,20 @@ const YouTubeEmbed = ({ url }: { url: string }) => {
     }
 };
 
+const LocalVideoPlayer = ({ url }: { url: string }) => {
+    return (
+        <div className="aspect-video w-full">
+            <video
+                controls
+                className="w-full h-full rounded-lg"
+                src={url}
+            >
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    );
+}
+
 export const ModuleContent = ({ module }: { module: Module }) => {
 
     const renderContent = () => {
@@ -42,11 +56,16 @@ export const ModuleContent = ({ module }: { module: Module }) => {
             return <p className="text-muted-foreground">No content has been assigned to this module yet.</p>
         }
 
-        if (module.type === 'video' && (module.content.includes('youtube.com') || module.content.includes('youtu.be'))) {
-            return <YouTubeEmbed url={module.content} />;
+        if (module.type === 'video') {
+             if (module.content.startsWith('https://') && (module.content.includes('youtube.com') || module.content.includes('youtu.be'))) {
+                return <YouTubeEmbed url={module.content} />;
+             }
+             if (module.content.startsWith('data:video')) {
+                return <LocalVideoPlayer url={module.content} />;
+             }
         }
         
-        if (module.type === 'pdf' || module.type === 'slides' || module.type === 'video') {
+        if (module.type === 'pdf' || module.type === 'slides' || module.content.startsWith('https://')) {
             return (
                  <Button asChild variant="outline">
                     <a href={module.content} target="_blank" rel="noopener noreferrer">
@@ -57,7 +76,7 @@ export const ModuleContent = ({ module }: { module: Module }) => {
             );
         }
 
-        return <p className="text-muted-foreground">Unsupported module type.</p>;
+        return <p className="text-muted-foreground">Unsupported content type for this module.</p>;
     }
 
 

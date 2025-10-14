@@ -10,7 +10,9 @@ const formSchema = z.object({
   type: z.enum(["video", "pdf", "slides"]),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   description: z.string().min(10, "Description is required."),
-  content: z.string().min(1, "Content is required."),
+  content: z.string().min(1, "Content is required.").refine(val => val.startsWith('https://') || val.startsWith('data:'), {
+    message: "Content must be a valid URL or a file upload.",
+  }),
 })
 
 export async function addModule(courseId: string, values: z.infer<typeof formSchema>) {

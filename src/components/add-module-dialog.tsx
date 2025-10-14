@@ -42,7 +42,9 @@ const formSchema = z.object({
   type: z.enum(["video", "pdf", "slides"], { required_error: "Please select a module type." }),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   description: z.string().min(10, "Description is required."),
-  content: z.string().min(1, "Content is required."),
+  content: z.string().min(1, "Content is required.").refine(val => val.startsWith('https://') || val.startsWith('data:'), {
+    message: "Content must be a valid URL or a file upload.",
+  }),
 })
 
 type AddModuleDialogProps = {
@@ -112,6 +114,15 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
         setFileName(null);
     }
     setOpen(isOpen);
+  }
+
+  const getAcceptType = () => {
+    switch(watchedType) {
+        case 'video': return 'video/*';
+        case 'pdf': return '.pdf';
+        case 'slides': return '.ppt, .pptx';
+        default: return '';
+    }
   }
 
   return (
@@ -198,31 +209,25 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
                 name="content"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>{watchedType === 'video' ? 'Content URL' : 'Content File'}</FormLabel>
-                         {watchedType === 'video' ? (
+                        <FormLabel>Content File</FormLabel>
+                        {fileName ? (
+                            <div className="flex items-center justify-between rounded-md border border-input bg-background p-2">
+                                <span className="truncate text-sm">{fileName}</span>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={removeFile}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
                             <FormControl>
-                                <Input placeholder="https://youtube.com/watch?v=..." {...field} />
+                                <Button asChild variant="outline" className="w-full">
+                                    <label>
+                                        <FileUp className="mr-2 h-4 w-4" />
+                                        Upload File
+                                        <Input type="file" accept={getAcceptType()} className="sr-only" onChange={handleFileUpload} />
+                                    </label>
+                                </Button>
                             </FormControl>
-                         ) : (
-                            fileName ? (
-                                <div className="flex items-center justify-between rounded-md border border-input bg-background p-2">
-                                    <span className="truncate text-sm">{fileName}</span>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={removeFile}>
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ) : (
-                                <FormControl>
-                                    <Button asChild variant="outline" className="w-full">
-                                        <label>
-                                            <FileUp className="mr-2 h-4 w-4" />
-                                            Upload File
-                                            <Input type="file" accept={watchedType === 'pdf' ? '.pdf' : '.ppt, .pptx'} className="sr-only" onChange={handleFileUpload} />
-                                        </label>
-                                    </Button>
-                                </FormControl>
-                            )
-                         )}
+                        )}
                         <FormMessage />
                     </FormItem>
                 )}
