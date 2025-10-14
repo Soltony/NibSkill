@@ -63,7 +63,6 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
         const { passingScore, questions: incomingQuestions } = validatedFields.data;
 
         await prisma.$transaction(async (tx) => {
-            // 1. Update the quiz's passing score
             await tx.quiz.update({
                 where: { id: quizId },
                 data: { passingScore },
@@ -72,20 +71,18 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             const existingQuestionIds = (await tx.question.findMany({ where: { quizId }, select: { id: true } })).map(q => q.id);
             const incomingQuestionIds = incomingQuestions.map(q => q.id).filter(id => !id.startsWith('new-q-'));
 
-            // 2. Delete questions that are no longer in the list
             const questionIdsToDelete = existingQuestionIds.filter(id => !incomingQuestionIds.includes(id));
             if (questionIdsToDelete.length > 0) {
                 await tx.question.deleteMany({ where: { id: { in: questionIdsToDelete } } });
             }
 
-            // 3. Upsert questions and their options
             for (const qData of incomingQuestions) {
                 const isNewQuestion = qData.id.startsWith('new-q-');
                 
                 const questionPayload = {
                     text: qData.text,
                     type: qData.type as QuestionType,
-                    correctAnswerId: qData.type === 'fill_in_the_blank' ? qData.correctAnswerId : undefined,
+                    // We'll set correctAnswerId after we have IDs for the options
                 };
                 
                 let upsertedQuestion;
@@ -102,7 +99,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                         where: { id: qData.id },
                         data: questionPayload,
                     });
-                     // Delete old options for existing questions before creating new ones
+                    // Delete old options for existing questions before creating new ones
                     await tx.option.deleteMany({ where: { questionId: qData.id } });
                 }
 
@@ -113,12 +110,11 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                     }));
 
                     if (optionsToCreate.length > 0) {
-                        const createdOptions = await tx.option.createManyAndReturn({
+                       const createdOptions = await tx.option.createManyAndReturn({
                            data: optionsToCreate,
-                           skipDuplicates: true
+                           skipDuplicates: true // Should not be needed but as a safeguard
                         });
                         
-                        // Find the newly created option that matches the text of the correct answer
                         const correctOption = createdOptions.find(opt => opt.text === qData.correctAnswerId);
 
                         if(correctOption) {
@@ -128,6 +124,11 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                             });
                         }
                     }
+                } else if (qData.type === 'fill_in_the_blank') {
+                    await tx.question.update({
+                        where: { id: upsertedQuestion.id },
+                        data: { correctAnswerId: qData.correctAnswerId }
+                    });
                 }
             }
         });
@@ -141,3 +142,5 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
         return { success: false, message: "Failed to update quiz. An unexpected error occurred." };
     }
 }
+
+    
