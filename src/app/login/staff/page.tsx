@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from 'next/navigation';
@@ -48,7 +49,7 @@ export default function StaffLoginPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" defaultValue="password" required />
+              <Input id="password" type="password" defaultValue="skillup123" required />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">

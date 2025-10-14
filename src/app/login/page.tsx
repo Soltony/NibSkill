@@ -97,7 +97,7 @@ export default function LoginPage() {
                       id="staff-password" 
                       name="staff-password" 
                       type={showStaffPassword ? 'text' : 'password'} 
-                      defaultValue="password" 
+                      defaultValue="skillup123" 
                       required 
                       className="pr-10"
                     />
@@ -144,7 +144,7 @@ export default function LoginPage() {
                       id="admin-password"
                       name="admin-password"
                       type={showAdminPassword ? 'text' : 'password'}
-                      defaultValue="password" 
+                      defaultValue="skillup123" 
                       required 
                       className="pr-10"
                     />
