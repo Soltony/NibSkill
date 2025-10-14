@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, ChangeEvent } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -28,10 +28,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { updateProduct } from "@/app/actions/product-actions"
 import type { Product } from "@prisma/client"
+import Image from "next/image"
+import { X } from "lucide-react"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
+  imageUrl: z.string().url("An image is required."),
+  imageHint: z.string().optional(),
 })
 
 type EditProductDialogProps = {
@@ -41,12 +45,14 @@ type EditProductDialogProps = {
 export function EditProductDialog({ product }: EditProductDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
+  const [imageUrl, setImageUrl] = useState<string | null>(product.imageUrl);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: product.name,
       description: product.description,
+      imageUrl: product.imageUrl,
     },
   })
   
@@ -55,9 +61,29 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
       form.reset({
         name: product.name,
         description: product.description,
+        imageUrl: product.imageUrl,
       })
+      setImageUrl(product.imageUrl)
     }
   }, [open, product, form])
+
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setImageUrl(dataUrl);
+        form.setValue("imageUrl", dataUrl, { shouldValidate: true });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageUrl(null);
+    form.setValue("imageUrl", "", { shouldValidate: true });
+  }
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const result = await updateProduct(product.id, values);
@@ -115,6 +141,28 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="imageUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product Image</FormLabel>
+                   {imageUrl ? (
+                     <div className="relative aspect-video w-full">
+                       <Image src={imageUrl} alt="Product image preview" fill className="rounded-md object-cover" />
+                       <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full" onClick={removeImage}>
+                         <X className="h-4 w-4" />
+                       </Button>
+                     </div>
+                   ) : (
+                    <FormControl>
+                      <Input type="file" accept="image/png, image/jpeg, image/gif" onChange={handleImageUpload} />
+                    </FormControl>
+                   )}
                   <FormMessage />
                 </FormItem>
               )}
