@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +29,7 @@ type ReportDataItem = {
     branch: string;
     courseId: string;
     courseTitle: string;
-    progress: number;
+    score: number | undefined | null;
 }
 
 type ProgressReportClientProps = {
@@ -97,7 +96,7 @@ export function ProgressReportClient({
 
   const handleDownloadCsv = () => {
     setIsGeneratingCsv(true);
-    const headers = ['Staff Member', 'Course', 'Department', 'District', 'Branch', 'Progress (%)'];
+    const headers = ['Staff Member', 'Course', 'Department', 'District', 'Branch', 'Score (%)'];
     const csvRows = [
         headers.join(','),
         ...filteredReport.map(item => [
@@ -106,7 +105,7 @@ export function ProgressReportClient({
             `"${item.department}"`,
             `"${item.district}"`,
             `"${item.branch}"`,
-            item.progress
+            item.score !== null && item.score !== undefined ? item.score : 'N/A'
         ].join(','))
     ];
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
@@ -129,17 +128,18 @@ export function ProgressReportClient({
     doc.setFontSize(11);
     doc.setTextColor(100);
 
-    const tableColumn = ["Staff", "Course", "Dept", "District", "Branch", "Progress"];
+    const tableColumn = ["Staff", "Course", "Dept", "District", "Branch", "Score"];
     const tableRows: (string|number)[][] = [];
 
     filteredReport.forEach(item => {
+        const scoreDisplay = item.score !== null && item.score !== undefined ? `${item.score}%` : 'N/A';
         const row = [
             item.userName,
             item.courseTitle,
             item.department,
             item.district,
             item.branch,
-            `${item.progress}%`
+            scoreDisplay
         ];
         tableRows.push(row);
     });
@@ -162,7 +162,7 @@ export function ProgressReportClient({
             <div>
               <CardTitle>Detailed Progress Report</CardTitle>
               <CardDescription>
-                Filterable report of course progress for every staff member.
+                Filterable report of course scores for every staff member.
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -234,7 +234,7 @@ export function ProgressReportClient({
                 <TableHead>Department</TableHead>
                 <TableHead>District</TableHead>
                 <TableHead>Branch</TableHead>
-                <TableHead className="w-[150px]">Progress</TableHead>
+                <TableHead className="text-right">Score</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -245,11 +245,12 @@ export function ProgressReportClient({
                   <TableCell>{item.department}</TableCell>
                   <TableCell>{item.district}</TableCell>
                   <TableCell>{item.branch}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={item.progress} className="h-2" />
-                      <span className="text-muted-foreground font-mono text-sm">{item.progress}%</span>
-                    </div>
+                  <TableCell className="text-right font-medium">
+                    {item.score !== null && item.score !== undefined ? (
+                      <span>{item.score}%</span>
+                    ) : (
+                      <span className="text-muted-foreground">Not Taken</span>
+                    )}
                   </TableCell>
                 </TableRow>
               )) : (
