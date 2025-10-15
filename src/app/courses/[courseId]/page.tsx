@@ -1,9 +1,9 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   Accordion,
@@ -15,7 +15,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Quiz } from '@/components/quiz';
 import { Video, FileText, Presentation, Music, Bookmark } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
@@ -44,7 +43,6 @@ export default function CourseDetailPage() {
   const { toast } = useToast();
   
   const [course, setCourse] = useState<CourseWithRelations | null>(null);
-  const [showQuiz, setShowQuiz] = useState(false);
 
   useEffect(() => {
     async function fetchCourse() {
@@ -94,18 +92,6 @@ export default function CourseDetailPage() {
     });
   };
 
-  const handleStartQuiz = () => {
-    setShowQuiz(true);
-  };
-  
-  const handleQuizComplete = () => {
-    toast({
-        title: "Course Completed!",
-        description: `Congratulations on completing the "${course.title}" course.`,
-    });
-    setShowQuiz(false);
-  }
-
   const quiz = course.quiz as QuizType | undefined;
 
   return (
@@ -141,7 +127,6 @@ export default function CourseDetailPage() {
         <h2 className="text-2xl font-semibold font-headline">Course Modules</h2>
       </div>
 
-      {!showQuiz ? (
         <>
             <Accordion type="single" collapsible className="w-full" defaultValue={course.modules.length > 0 ? course.modules[0].id : undefined}>
                 {course.modules.map((module) => (
@@ -188,8 +173,8 @@ export default function CourseDetailPage() {
 
             <div className="mt-8 text-center">
                 {quiz ? (
-                    <Button size="lg" onClick={handleStartQuiz}>
-                        Take Quiz
+                    <Button size="lg" asChild>
+                      <Link href={`/courses/${course.id}/quiz`}>Take Quiz</Link>
                     </Button>
                 ) : (
                     <p className="text-muted-foreground">Quiz not available for this course.</p>
@@ -197,12 +182,6 @@ export default function CourseDetailPage() {
                 {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz (feature disabled for demo).</p>}
             </div>
         </>
-      ) : quiz ? (
-        <Quiz quiz={quiz} onComplete={handleQuizComplete} />
-      ) : (
-        <p>Quiz not available for this course.</p>
-      )}
-
     </div>
   );
 }

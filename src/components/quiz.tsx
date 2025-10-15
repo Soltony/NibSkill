@@ -114,9 +114,19 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
     }
   };
 
+  if (!currentQuestion) {
+    return (
+      <Card>
+        <CardContent>
+          <p>This quiz has no questions.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <>
-      <Card className="mt-8 shadow-lg">
+      <Card className="w-full max-w-3xl mx-auto shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Knowledge Check</CardTitle>
             <CardDescription>
@@ -145,7 +155,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
 
             {currentQuestion && (
               <div>
-                <p className="mb-4 font-semibold">
+                <p className="mb-4 font-semibold text-lg">
                   {currentQuestion.text}
                 </p>
                 {(currentQuestion.type === 'multiple_choice' || currentQuestion.type === 'true_false') && (
@@ -155,9 +165,9 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                     className="space-y-2"
                   >
                     {currentQuestion.options.map((opt) => (
-                      <div key={opt.id} className="flex items-center space-x-2">
+                      <div key={opt.id} className="flex items-center space-x-3 rounded-md border p-3 hover:bg-muted/50 has-[[data-state=checked]]:bg-muted">
                         <RadioGroupItem value={opt.id} id={`${currentQuestion.id}-${opt.id}`} />
-                        <Label htmlFor={`${currentQuestion.id}-${opt.id}`} className="font-normal cursor-pointer">
+                        <Label htmlFor={`${currentQuestion.id}-${opt.id}`} className="font-normal cursor-pointer flex-1">
                           {opt.text}
                         </Label>
                       </div>
