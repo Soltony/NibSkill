@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Search } from "lucide-react"
+import { Search, FileDown, FileText, Loader2 } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Course, Department, District, Branch } from '@prisma/client';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -53,6 +55,8 @@ export function ProgressReportClient({
   const [courseFilter, setCourseFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isGeneratingCsv, setIsGeneratingCsv] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const filteredReport = useMemo(() => {
     return reportData.filter(item => {
@@ -71,7 +75,6 @@ export function ProgressReportClient({
   const paginatedReport = filteredReport.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   useEffect(() => {
-    // Reset to first page whenever filters change
     setCurrentPage(1);
   }, [departmentFilter, districtFilter, branchFilter, courseFilter, searchTerm]);
 
@@ -92,14 +95,87 @@ export function ProgressReportClient({
   
   const isBranchFilterDisabled = districtFilter === 'all' || availableBranches.length === 0;
 
+  const handleDownloadCsv = () => {
+    setIsGeneratingCsv(true);
+    const headers = ['Staff Member', 'Course', 'Department', 'District', 'Branch', 'Progress (%)'];
+    const csvRows = [
+        headers.join(','),
+        ...filteredReport.map(item => [
+            `"${item.userName}"`,
+            `"${item.courseTitle}"`,
+            `"${item.department}"`,
+            `"${item.district}"`,
+            `"${item.branch}"`,
+            item.progress
+        ].join(','))
+    ];
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'progress_report.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setIsGeneratingCsv(false);
+  }
+
+  const handleDownloadPdf = () => {
+    setIsGeneratingPdf(true);
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Detailed Progress Report", 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+
+    const tableColumn = ["Staff", "Course", "Dept", "District", "Branch", "Progress"];
+    const tableRows: (string|number)[][] = [];
+
+    filteredReport.forEach(item => {
+        const row = [
+            item.userName,
+            item.courseTitle,
+            item.department,
+            item.district,
+            item.branch,
+            `${item.progress}%`
+        ];
+        tableRows.push(row);
+    });
+
+    (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 30,
+    });
+
+    doc.save('progress_report.pdf');
+    setIsGeneratingPdf(false);
+  }
+
   return (
     <div className="space-y-8">
        <Card>
         <CardHeader>
-          <CardTitle>Detailed Progress Report</CardTitle>
-          <CardDescription>
-            Filterable report of course progress for every staff member.
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle>Detailed Progress Report</CardTitle>
+              <CardDescription>
+                Filterable report of course progress for every staff member.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+                <Button onClick={handleDownloadCsv} disabled={isGeneratingCsv}>
+                    {isGeneratingCsv ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                    {isGeneratingCsv ? "Generating..." : "Download CSV"}
+                </Button>
+                <Button onClick={handleDownloadPdf} disabled={isGeneratingPdf} variant="outline">
+                    {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

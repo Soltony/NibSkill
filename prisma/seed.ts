@@ -70,7 +70,7 @@ async function main() {
     const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
     
     // Hash password before saving
-    const hashedPassword = await bcrypt.hash(password || 'password', 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     await prisma.user.upsert({
       where: { email: user.email },

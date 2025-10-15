@@ -39,6 +39,7 @@ import type { Course, Quiz } from "@prisma/client"
 const formSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
   passingScore: z.coerce.number().min(0, "Passing score must be at least 0.").max(100, "Passing score cannot exceed 100."),
+  timeLimit: z.coerce.number().min(0, "Time limit must be a positive number or 0 for no limit."),
 })
 
 type AddQuizDialogProps = {
@@ -54,6 +55,7 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       passingScore: 80,
+      timeLimit: 0,
     }
   })
 
@@ -68,7 +70,7 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
         description: `A new quiz has been created. You can now add questions.`,
       })
       setOpen(false)
-      form.reset({ passingScore: 80, courseId: undefined })
+      form.reset({ passingScore: 80, timeLimit: 0, courseId: undefined })
     } else {
         toast({
             title: "Error",
@@ -120,19 +122,34 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="passingScore"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Passing Score (%)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="0" max="100" placeholder="e.g., 80" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="passingScore"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Passing Score (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" max="100" placeholder="e.g., 80" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="timeLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Time Limit (min)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" placeholder="0 for none" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting || availableCourses.length === 0}>
                 {form.formState.isSubmitting ? "Creating..." : "Create Quiz"}

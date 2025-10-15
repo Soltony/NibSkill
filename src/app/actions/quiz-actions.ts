@@ -9,6 +9,7 @@ import type { QuestionType } from '@prisma/client'
 const quizFormSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
   passingScore: z.coerce.number().min(0, "Passing score must be at least 0.").max(100, "Passing score cannot exceed 100."),
+  timeLimit: z.coerce.number().min(0, "Time limit must be a positive number or 0 for no limit."),
 })
 
 export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
@@ -22,6 +23,7 @@ export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
             data: {
                 courseId: validatedFields.data.courseId,
                 passingScore: validatedFields.data.passingScore,
+                timeLimit: validatedFields.data.timeLimit,
             }
         });
 
@@ -48,6 +50,7 @@ const questionSchema = z.object({
 
 const updateQuizFormSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
+  timeLimit: z.coerce.number().min(0),
   questions: z.array(questionSchema),
 })
 
@@ -60,25 +63,22 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             return { success: false, message: "Invalid data provided. Check question and option fields." }
         }
 
-        const { passingScore, questions: incomingQuestions } = validatedFields.data;
+        const { passingScore, timeLimit, questions: incomingQuestions } = validatedFields.data;
 
         await prisma.$transaction(async (tx) => {
-            // 1. Update the quiz's passing score
             await tx.quiz.update({
                 where: { id: quizId },
-                data: { passingScore },
+                data: { passingScore, timeLimit },
             });
 
             const existingQuestionIds = (await tx.question.findMany({ where: { quizId }, select: { id: true } })).map(q => q.id);
             const incomingQuestionIds = incomingQuestions.map(q => q.id).filter((id): id is string => !!id);
             
-            // 2. Delete questions that are no longer present in the form submission
             const questionIdsToDelete = existingQuestionIds.filter(id => !incomingQuestionIds.includes(id));
             if (questionIdsToDelete.length > 0) {
                 await tx.question.deleteMany({ where: { id: { in: questionIdsToDelete } } });
             }
 
-            // 3. Process each incoming question to either create or update it
             for (const qData of incomingQuestions) {
                 const isNewQuestion = !qData.id;
                 
@@ -87,49 +87,41 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                     type: qData.type as QuestionType,
                 };
 
-                let upsertedQuestion;
-
                 if (isNewQuestion) {
                     if (qData.type === 'fill_in_the_blank') {
-                        // For new fill-in-the-blank, create directly with the answer
-                        upsertedQuestion = await tx.question.create({
+                        await tx.question.create({
                             data: {
                                 ...questionPayload,
                                 quizId: quizId,
                                 correctAnswerId: qData.correctAnswerId, // The answer text itself
                             }
                         });
-                    } else { // Multiple choice or True/False - a two-step process
-                        // Step A: Create question with a placeholder answer
+                    } else { 
                         const tempQuestion = await tx.question.create({
                             data: { ...questionPayload, quizId: quizId, correctAnswerId: 'placeholder' }
                         });
                         
-                        // Step B: Create the options
                         const createdOptions = await Promise.all(qData.options.map(opt => 
                             tx.option.create({
                                 data: { text: opt.text, questionId: tempQuestion.id }
                             })
                         ));
                         
-                        // Step C: Find the correct option ID based on the text value from the form
                         const correctOption = createdOptions.find(opt => opt.text === qData.correctAnswerId);
                         if (!correctOption) throw new Error(`Correct answer "${qData.correctAnswerId}" not found among new options for question "${qData.text}"`);
 
-                        // Step D: Update the question with the real correct option ID
-                        upsertedQuestion = await tx.question.update({
+                        await tx.question.update({
                             where: { id: tempQuestion.id },
                             data: { correctAnswerId: correctOption.id }
                         });
                     }
-                } else { // This is an existing question, so we update it
-                    upsertedQuestion = await tx.question.update({
+                } else { // This is an existing question
+                    await tx.question.update({
                         where: { id: qData.id },
                         data: questionPayload,
                     });
 
                      if (qData.type === 'multiple_choice' || qData.type === 'true_false') {
-                        // For existing choice questions, sync options
                         await tx.option.deleteMany({ where: { questionId: qData.id } });
                         
                         const createdOptions = await Promise.all(qData.options.map(opt => 
@@ -144,7 +136,6 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                             data: { correctAnswerId: correctOption.id }
                         });
                     } else if (qData.type === 'fill_in_the_blank') {
-                        // For fill-in-the-blank, ensure no options exist and set the answer text
                         await tx.option.deleteMany({ where: { questionId: qData.id } });
                         await tx.question.update({
                             where: { id: qData.id },

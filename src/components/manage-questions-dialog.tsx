@@ -51,6 +51,7 @@ const questionSchema = z.object({
 
 const formSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
+  timeLimit: z.coerce.number().min(0),
   questions: z.array(questionSchema),
 })
 
@@ -77,9 +78,8 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
       const questionsWithCorrectAnswerHandling = quiz.questions.map(q => {
         let correctAnswerValue = '';
         if (q.type === 'multiple_choice' || q.type === 'true_false') {
-          // For choice questions, the form value is the TEXT of the correct option
           correctAnswerValue = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
-        } else { // fill_in_the_blank
+        } else {
           correctAnswerValue = q.correctAnswerId || '';
         }
         return {
@@ -91,6 +91,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
 
       form.reset({
         passingScore: quiz.passingScore,
+        timeLimit: quiz.timeLimit || 0,
         questions: questionsWithCorrectAnswerHandling,
       })
     }
@@ -138,7 +139,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
             { id: undefined, text: 'True' },
             { id: undefined, text: 'False' },
           ],
-          correctAnswerId: "",
+          correctAnswerId: "True",
         };
         break;
       case 'fill_in_the_blank':
@@ -186,19 +187,34 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             
-            <FormField
-              control={form.control}
-              name="passingScore"
-              render={({ field }) => (
-                <FormItem className="mb-4">
-                  <FormLabel>Passing Score (%)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="0" max="100" className="w-48" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <FormField
+                control={form.control}
+                name="passingScore"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Passing Score (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" max="100" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="timeLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Time Limit (minutes)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" placeholder="0 for none" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <ScrollArea className="h-[55vh] p-4 border rounded-md">
               <div className="space-y-8">
@@ -228,10 +244,11 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                                   value={controllerField.value}
                                   className="space-y-2"
                               >
+                                  <FormLabel>Options (select the correct one)</FormLabel>
                                   {(form.watch(`questions.${qIndex}.options`) || []).map((option, oIndex) => (
                                       <div key={option.id || oIndex} className="flex items-center gap-2 group/option">
-                                          <RadioGroupItem value={option.text} id={`${question.id || qIndex}-${option.id || oIndex}`} />
-                                          <Label htmlFor={`${question.id || qIndex}-${option.id || oIndex}`} className="font-normal flex-1 cursor-pointer">
+                                          <RadioGroupItem value={option.text} id={`${qIndex}-${oIndex}`} />
+                                          <Label htmlFor={`${qIndex}-${oIndex}`} className="font-normal flex-1 cursor-pointer">
                                               <FormField
                                                   control={form.control}
                                                   name={`questions.${qIndex}.options.${oIndex}.text`}
@@ -264,10 +281,11 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                           name={`questions.${qIndex}.correctAnswerId`}
                           render={({ field }) => (
                             <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center gap-4">
+                                <FormLabel>Correct Answer:</FormLabel>
                                 {(form.watch(`questions.${qIndex}.options`) || []).map(option => (
                                   <div key={option.text} className="flex items-center space-x-2">
-                                    <RadioGroupItem value={option.text} id={`${question.id || qIndex}-${option.text}`}/>
-                                    <Label htmlFor={`${question.id || qIndex}-${option.text}`} className="font-normal">{option.text}</Label>
+                                    <RadioGroupItem value={option.text} id={`${qIndex}-${option.text}`}/>
+                                    <Label htmlFor={`${qIndex}-${option.text}`} className="font-normal">{option.text}</Label>
                                   </div>
                                 ))}
                             </RadioGroup>
