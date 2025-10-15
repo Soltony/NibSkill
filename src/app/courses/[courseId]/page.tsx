@@ -30,10 +30,12 @@ const iconMap = {
   audio: <Music className="h-5 w-5 text-accent" />,
 };
 
+type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
+
 type CourseWithRelations = Course & {
     modules: Module[];
     product: Product | null;
-    quiz: (TQuiz & { questions: (Question & { options: TOption[] })[] }) | null;
+    quiz: QuizType | null;
 };
 
 export default function CourseDetailPage() {

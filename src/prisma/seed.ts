@@ -1,5 +1,6 @@
 
-import { PrismaClient, QuestionType, LiveSessionPlatform } from '@prisma/client'
+
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -158,8 +159,8 @@ async function main() {
     for (const module of modules) {
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...module, courseId: createdCourse.id },
-        create: { ...module, courseId: createdCourse.id },
+        update: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
+        create: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
       });
     }
   }

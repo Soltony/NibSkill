@@ -49,7 +49,7 @@ export type Module = {
   id: string;
   title: string;
   description: string;
-  type: 'video' | 'pdf' | 'slides';
+  type: 'video' | 'pdf' | 'slides' | 'audio';
   duration: number; // in minutes
   content: string; // URL to the content
 };

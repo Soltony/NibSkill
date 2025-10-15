@@ -5,6 +5,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { ModuleType } from '@prisma/client'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -27,7 +28,7 @@ export async function addModule(courseId: string, values: z.infer<typeof formSch
             data: {
                 courseId,
                 ...validatedFields.data,
-                type: validatedFields.data.type,
+                type: validatedFields.data.type as ModuleType,
             }
         });
 
@@ -50,7 +51,7 @@ export async function updateModule(id: string, values: z.infer<typeof formSchema
             where: { id },
             data: {
                 ...validatedFields.data,
-                type: validatedFields.data.type,
+                type: validatedFields.data.type as ModuleType,
             }
         });
         
