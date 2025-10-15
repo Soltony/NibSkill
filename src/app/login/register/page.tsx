@@ -30,7 +30,7 @@ import type { RegistrationField as TRegistrationField, District, Branch, Departm
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import prisma from "@/lib/db";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 const baseSchema = z.object({
@@ -52,31 +52,39 @@ export default function RegisterPage() {
 
   useEffect(() => {
     async function fetchFormData() {
-      // In a real app, you would fetch this data from an API route
-      // For this prototype, we'll use Prisma directly in a client component, which is not recommended for production.
-      const fields = await prisma.registrationField.findMany({ where: { enabled: true } });
-      const districtsData = await prisma.district.findMany();
-      const branchesData = await prisma.branch.findMany();
-      const departmentsData = await prisma.department.findMany();
-
-      setRegistrationFields(fields);
-      setDistricts(districtsData);
-      setBranches(branchesData);
-      setDepartments(departmentsData);
-
-      let schema = baseSchema as z.ZodObject<any>;
-      fields.forEach((field) => {
-        if (field.required) {
-          schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
-        } else {
-          schema = schema.extend({ [field.id]: z.string().optional() });
+      try {
+        const response = await fetch('/api/registration-data');
+        if (!response.ok) {
+          throw new Error('Failed to fetch registration data');
         }
-      });
-      setDynamicSchema(schema as any);
-      setIsLoaded(true);
+        const { fields, districtsData, branchesData, departmentsData } = await response.json();
+
+        setRegistrationFields(fields);
+        setDistricts(districtsData);
+        setBranches(branchesData);
+        setDepartments(departmentsData);
+
+        let schema = baseSchema as z.ZodObject<any>;
+        fields.forEach((field: TRegistrationField) => {
+          if (field.required) {
+            schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
+          } else {
+            schema = schema.extend({ [field.id]: z.string().optional() });
+          }
+        });
+        setDynamicSchema(schema as any);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Could not load registration form. Please try again later.",
+          variant: "destructive"
+        })
+      } finally {
+        setIsLoaded(true);
+      }
     }
     fetchFormData();
-  }, []);
+  }, [toast]);
 
   const form = useForm<z.infer<typeof dynamicSchema>>({
     resolver: zodResolver(dynamicSchema),
@@ -117,7 +125,26 @@ export default function RegisterPage() {
   const availableBranches = branches.filter(b => b.districtId === selectedDistrict);
 
   if (!isLoaded) {
-    return <div>Loading form...</div>
+    return (
+        <main className="flex min-h-screen items-center justify-center bg-secondary p-4">
+            <Card className="w-full max-w-md shadow-2xl">
+                <CardHeader className="text-center">
+                  <div className="mx-auto mb-4"><Logo /></div>
+                  <CardTitle className="font-headline text-3xl">Create an Account</CardTitle>
+                  <CardDescription>Enter your details to register as a staff member.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                </CardContent>
+                <CardFooter className="flex flex-col gap-4">
+                    <Skeleton className="h-10 w-full" />
+                </CardFooter>
+            </Card>
+        </main>
+    )
   }
 
   return (
