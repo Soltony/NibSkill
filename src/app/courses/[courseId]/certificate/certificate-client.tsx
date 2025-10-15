@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import type { CertificateTemplate, Course, User } from "@prisma/client";
+import type { CertificateTemplate, Course } from "@prisma/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MoveLeft, Download } from "lucide-react";
@@ -12,15 +12,16 @@ import { Logo } from "@/components/logo";
 type CertificateClientProps = {
     template: CertificateTemplate;
     course: Course;
-    user: User;
+    user: { id: string, name: string };
+    completionDate: Date;
 }
 
-export function CertificateClient({ template, course, user }: CertificateClientProps) {
+export function CertificateClient({ template, course, user, completionDate }: CertificateClientProps) {
 
     const certificateBody = template.body
         .replace('[Student Name]', user.name)
         .replace('[Course Name]', course.title)
-        .replace('[Completion Date]', new Date().toLocaleDateString());
+        .replace('[Completion Date]', completionDate.toLocaleDateString());
     
     return (
         <div className="space-y-8">
@@ -81,7 +82,7 @@ export function CertificateClient({ template, course, user }: CertificateClientP
                     )}
                         <div className="text-center">
                         <div className="h-16"></div>
-                        <p className="font-serif text-xl italic">{new Date().toLocaleDateString()}</p>
+                        <p className="font-serif text-xl italic">{completionDate.toLocaleDateString()}</p>
                         <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
                         <p className="text-sm text-muted-foreground">Date of Issue</p>
                     </div>

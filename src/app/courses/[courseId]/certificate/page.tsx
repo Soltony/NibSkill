@@ -2,8 +2,9 @@
 import { notFound } from "next/navigation";
 import prisma from "@/lib/db";
 import { CertificateClient } from "./certificate-client";
+import { getSession } from "@/lib/auth";
 
-async function getCertificateData(courseId: string) {
+async function getCertificateData(courseId: string, user: { id: string, name: string }) {
     const template = await prisma.certificateTemplate.findUnique({
         where: { id: 'singleton' },
     });
@@ -11,21 +12,32 @@ async function getCertificateData(courseId: string) {
     const course = await prisma.course.findUnique({
         where: { id: courseId },
     });
-
-    // In a real app, you'd get the currently logged-in user.
-    // For this prototype, we'll get the first staff user.
-    const user = await prisma.user.findFirst({
-        where: { role: { name: 'Staff' } },
+    
+    // Check if this specific user has completed this course
+    const completionRecord = await prisma.userCompletedCourse.findFirst({
+        where: {
+            userId: user.id,
+            courseId: courseId
+        }
     });
 
-    return { template, course, user };
+    if (!completionRecord) {
+        return { template: null, course: null };
+    }
+
+    return { template, course, completionDate: completionRecord.completionDate };
 }
 
 
 export default async function UserCertificatePage({ params }: { params: { courseId: string }}) {
-    const { template, course, user } = await getCertificateData(params.courseId);
+    const user = await getSession();
+    if (!user) {
+        notFound();
+    }
 
-    if (!template || !course || !user) {
+    const { template, course, completionDate } = await getCertificateData(params.courseId, user);
+
+    if (!template || !course || !completionDate) {
         notFound();
     }
     
@@ -34,6 +46,7 @@ export default async function UserCertificatePage({ params }: { params: { course
             template={template}
             course={course}
             user={user}
+            completionDate={completionDate}
         />
     )
 }

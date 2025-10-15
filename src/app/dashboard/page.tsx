@@ -12,15 +12,10 @@ import { Radio } from 'lucide-react';
 import Link from 'next/link';
 import prisma from '@/lib/db';
 import type { Course, LiveSession } from '@prisma/client';
+import { getSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-// In a real app, this would come from an authentication system
-async function getCurrentUser() {
-    return await prisma.user.findFirst({
-        where: { role: { name: 'Staff' } },
-    });
-}
-
-async function getDashboardData() {
+async function getDashboardData(userId: string) {
     const courses = await prisma.course.findMany({
         include: { modules: true, product: true }
     });
@@ -36,13 +31,21 @@ async function getDashboardData() {
         }
     });
     
-    const user = await getCurrentUser();
+    const userCompletions = await prisma.userCompletedCourse.findMany({
+        where: { userId: userId },
+        select: { courseId: true, score: true }
+    });
+    
+    const completionsMap = new Map(userCompletions.map(c => [c.courseId, c.score]));
 
     // We'll calculate progress on the server for simplicity. 
     // In a real app, this would be a more complex query based on user progress records.
     const coursesWithProgress = courses.map(course => {
-        const userName = user?.name || '';
-        const completedModules = course.modules.filter((m, i) => i < (userName.length + course.title.length) % course.modules.length).length;
+        if (completionsMap.has(course.id)) {
+            return { ...course, progress: 100 };
+        }
+        // Mock progress for in-progress courses
+        const completedModules = course.modules.filter((m, i) => i < (userId.length + course.title.length) % course.modules.length).length;
         const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
         return { ...course, progress };
     });
@@ -55,12 +58,13 @@ async function getDashboardData() {
 
 
 export default async function DashboardPage() {
-  const currentUser = await getCurrentUser();
-  const { courses, liveSessions } = await getDashboardData();
+  const currentUser = await getSession();
   
   if (!currentUser) {
-    return <div>Could not find staff user. Please seed the database.</div>
+    redirect('/login');
   }
+
+  const { courses, liveSessions } = await getDashboardData(currentUser.id);
 
   return (
     <div className="space-y-8">

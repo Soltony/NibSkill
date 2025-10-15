@@ -3,22 +3,28 @@ import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { SignJWT } from 'jose';
+import { cookies } from 'next/headers';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
 });
 
+const getJwtSecret = () => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error("JWT_SECRET environment variable is not set.");
+    }
+    return new TextEncoder().encode(secret);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log('--- LOGIN ATTEMPT ---');
-    console.log('Request Body:', body);
-
     const validation = loginSchema.safeParse(body);
 
     if (!validation.success) {
-      console.error('Validation failed:', validation.error.flatten());
       return NextResponse.json({ isSuccess: false, errors: ['Invalid email or password format.'] }, { status: 400 });
     }
 
@@ -29,23 +35,16 @@ export async function POST(request: NextRequest) {
       include: { role: true },
     });
 
-    console.log('User found in DB:', user ? { id: user.id, email: user.email, passwordHash: user.password } : null);
-
     if (!user || !user.password) {
-      console.log('Result: User not found or user has no password.');
       return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log(`Password comparison for "${email}": ${isPasswordValid ? 'SUCCESS' : 'FAILURE'}`);
-
 
     if (!isPasswordValid) {
-        console.log('Result: Invalid password.');
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
     }
 
-    // Capture login audit information
     const ipAddress = request.ip || request.headers.get('x-forwarded-for');
     const userAgent = request.headers.get('user-agent');
 
@@ -56,30 +55,33 @@ export async function POST(request: NextRequest) {
         userAgent,
       }
     });
-
-    // In a real app, generate JWT tokens here.
-    // The tokens should include user ID, role, and an expiration date.
-    const accessToken = 'dummy-access-token';
-    const refreshToken = 'dummy-refresh-token';
-
-    const { password: _, ...userWithoutPassword } = user;
     
-    console.log('Result: Login successful!');
-    console.log('---------------------');
-
+    // Create JWT
+    const expirationTime = '24h';
+    const token = await new SignJWT({ userId: user.id, role: user.role.name })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(expirationTime)
+      .sign(getJwtSecret());
+      
+    // Set cookie
+    cookies().set('session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+    });
+    
+    const { password: _, ...userWithoutPassword } = user;
 
     return NextResponse.json({
       isSuccess: true,
-      accessToken,
-      refreshToken,
       user: userWithoutPassword,
       errors: null,
     });
 
   } catch (error) {
-    console.error('--- LOGIN ERROR ---');
-    console.error('An unexpected server error occurred:', error);
-    console.error('-------------------');
+    console.error('Login error:', error);
     return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });
   }
 }

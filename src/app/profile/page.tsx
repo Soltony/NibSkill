@@ -13,6 +13,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import prisma from "@/lib/db"
 import type { User, Badge as BadgeType, UserBadge, UserCompletedCourse, Course, Department } from "@prisma/client"
+import { getSession } from "@/lib/auth"
+import { redirect } from "next/navigation"
 
 const badgeIcons: { [key: string]: React.ReactNode } = {
     Footprints: <Footprints className="h-10 w-10" />,
@@ -39,9 +41,9 @@ function BadgeCard({ badge }: { badge: BadgeType }) {
     )
 }
 
-async function getProfileData() {
+async function getProfileData(userId: string) {
     const user = await prisma.user.findFirst({
-        where: { role: { name: 'Staff' } },
+        where: { id: userId },
         include: { department: true }
     });
 
@@ -64,10 +66,15 @@ async function getProfileData() {
 }
 
 export default async function ProfilePage() {
-  const { currentUser, completedCourses, userBadges } = await getProfileData();
+  const sessionUser = await getSession();
+  if (!sessionUser) {
+    redirect('/login');
+  }
+
+  const { currentUser, completedCourses, userBadges } = await getProfileData(sessionUser.id);
 
   if (!currentUser) {
-    return <div>Could not find staff user. Please seed the database.</div>
+    return <div>Could not find user data. Please try logging in again.</div>
   }
 
   const coursesCompletedCount = completedCourses.length;

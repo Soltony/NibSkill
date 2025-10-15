@@ -1,24 +1,32 @@
 
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 
-// This is a mock API route to simulate getting the current logged-in user.
-// In a real application, this would be handled by your authentication session.
+// This API route gets the current logged-in user from the session cookie.
 export async function GET() {
   try {
-    const user = await prisma.user.findFirst({
-        where: { role: { name: 'Staff' } },
-    });
+    const user = await getSession();
 
     if (!user) {
-        return NextResponse.json({ error: 'Staff user not found. Please seed the database.' }, { status: 404 });
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
     
-    // Omit password from the response
-    const { password, ...userWithoutPassword } = user;
+    // Fetch full user details
+    const fullUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: { role: true }
+    });
+
+    if (!fullUser) {
+        return NextResponse.json({ error: 'User not found in database.' }, { status: 404 });
+    }
+
+    const { password, ...userWithoutPassword } = fullUser;
 
     return NextResponse.json(userWithoutPassword);
   } catch (error) {
+    console.error("Error in mock-user route:", error);
     return NextResponse.json({ error: 'An unexpected server error occurred.' }, { status: 500 });
   }
 }

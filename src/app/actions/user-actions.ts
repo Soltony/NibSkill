@@ -4,6 +4,8 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 
 const completeCourseSchema = z.object({
   userId: z.string(),
@@ -46,4 +48,10 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         console.error("Error recording course completion:", error);
         return { success: false, message: "Failed to record course completion." }
     }
+}
+
+
+export async function logout() {
+  cookies().set('session', '', { expires: new Date(0) })
+  redirect('/login')
 }

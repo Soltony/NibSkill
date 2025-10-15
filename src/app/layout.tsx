@@ -36,26 +36,61 @@ import {
   FilePieChart,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
-import { users } from '@/lib/data';
 import { Separator } from '@/components/ui/separator';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NotificationCenter } from '@/components/notification-center';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { Inter } from 'next/font/google';
+import { logout } from './actions/user-actions';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
-const staffUser = users.find(u => u.role === 'staff')!;
-const adminUser = users.find(u => u.role === 'admin')!;
+// This would typically come from a session context
+type CurrentUser = {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string;
+  role: { name: string };
+};
 
 // Create a context to provide the user role
-export const UserContext = React.createContext<'admin' | 'staff'>('staff');
+export const UserContext = React.createContext<string | null>(null);
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  
-  // This layout is for the main app. The root layout is separate.
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // This is a stand-in for a proper session management hook
+    async function fetchUser() {
+      if (!pathname.startsWith('/login') && pathname !== '/') {
+        try {
+          setIsLoading(true);
+          const res = await fetch('/api/mock-user'); // This fetches the current session user
+          if (res.ok) {
+            const user = await res.json();
+            setCurrentUser(user);
+          } else {
+            // If fetching user fails, they are likely not logged in
+             window.location.href = '/login';
+          }
+        } catch (error) {
+           console.error("Failed to fetch user", error);
+           window.location.href = '/login';
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+      }
+    }
+    fetchUser();
+  }, [pathname]);
+
   if (pathname.startsWith('/login') || pathname === '/') {
     return (
         <html lang="en" suppressHydrationWarning>
@@ -69,8 +104,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Simple logic to switch between user roles for demonstration
   const isAdminView = pathname.startsWith('/admin');
-  const currentUser = isAdminView ? adminUser : staffUser;
-  const userRole = isAdminView ? 'admin' : 'staff';
+  const userRole = currentUser?.role?.name.toLowerCase() || 'staff';
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
@@ -101,6 +135,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return pathname.startsWith(path);
   }
 
+  const handleLogout = async () => {
+    await logout();
+  };
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans`}>
@@ -111,73 +149,91 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <Logo className="text-primary-foreground" />
               </SidebarHeader>
               <SidebarContent>
-                <SidebarMenu>
-                   {isAdminView ? (
-                     <>
-                      <SidebarGroup>
-                        <SidebarGroupLabel>Admin</SidebarGroupLabel>
-                        {adminNavItems.map((item) => (
-                          <SidebarMenuItem key={item.href}>
-                            <Link href={item.href}>
+                 {isLoading ? (
+                    <div className="space-y-2 p-2">
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                    </div>
+                ) : (
+                  <SidebarMenu>
+                    {isAdminView ? (
+                      <>
+                        <SidebarGroup>
+                          <SidebarGroupLabel>Admin</SidebarGroupLabel>
+                          {adminNavItems.map((item) => (
+                            <SidebarMenuItem key={item.href}>
+                              <Link href={item.href}>
+                                <SidebarMenuButton
+                                  isActive={isLinkActive(item.href, item.exact)}
+                                  tooltip={item.label}
+                                >
+                                  <item.icon />
+                                  <span>{item.label}</span>
+                                </SidebarMenuButton>
+                              </Link>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarGroup>
+                        <SidebarMenuItem>
+                            <Link href={'/dashboard'}>
                               <SidebarMenuButton
-                                isActive={isLinkActive(item.href, item.exact)}
-                                tooltip={item.label}
+                                isActive={isLinkActive('/dashboard')}
+                                tooltip={'Staff Dashboard'}
                               >
-                                <item.icon />
-                                <span>{item.label}</span>
+                                <LayoutDashboard />
+                                <span>Staff View</span>
                               </SidebarMenuButton>
                             </Link>
                           </SidebarMenuItem>
-                        ))}
-                      </SidebarGroup>
-                       <SidebarMenuItem>
-                          <Link href={'/dashboard'}>
+                      </>
+                    ) : (
+                      navItems.map((item) => (
+                        <SidebarMenuItem key={item.href}>
+                          <Link href={item.href}>
                             <SidebarMenuButton
-                              isActive={isLinkActive('/dashboard')}
-                              tooltip={'Staff Dashboard'}
+                              isActive={isLinkActive(item.href)}
+                              tooltip={item.label}
                             >
-                              <LayoutDashboard />
-                              <span>Staff View</span>
+                              <item.icon />
+                              <span>{item.label}</span>
                             </SidebarMenuButton>
                           </Link>
                         </SidebarMenuItem>
-                     </>
-                  ) : (
-                    navItems.map((item) => (
-                      <SidebarMenuItem key={item.href}>
-                        <Link href={item.href}>
-                          <SidebarMenuButton
-                            isActive={isLinkActive(item.href)}
-                            tooltip={item.label}
-                          >
-                            <item.icon />
-                            <span>{item.label}</span>
-                          </SidebarMenuButton>
-                        </Link>
-                      </SidebarMenuItem>
-                    ))
-                  )}
-                </SidebarMenu>
+                      ))
+                    )}
+                  </SidebarMenu>
+                )}
               </SidebarContent>
               <SidebarFooter>
                 <Separator className="my-2 bg-sidebar-border" />
-                <div className="flex items-center gap-3 p-2">
-                  <Avatar>
-                    <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-                    <AvatarFallback>
-                      {currentUser.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 overflow-hidden">
-                      <p className="truncate font-semibold text-sm text-sidebar-foreground">{currentUser.name}</p>
-                      <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
-                  </div>
-                  <Link href="/login">
-                      <SidebarMenuButton size="sm" variant="outline" className="h-8 w-8 bg-transparent hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground border-sidebar-border">
+                 {isLoading || !currentUser ? (
+                    <div className="flex items-center gap-3 p-2">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1 space-y-1">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-3 w-32" />
+                        </div>
+                    </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-2">
+                    <Avatar>
+                      <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                      <AvatarFallback>
+                        {currentUser.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 overflow-hidden">
+                        <p className="truncate font-semibold text-sm text-sidebar-foreground">{currentUser.name}</p>
+                        <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
+                    </div>
+                    <form action={handleLogout}>
+                      <SidebarMenuButton type="submit" size="sm" variant="outline" className="h-8 w-8 bg-transparent hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground border-sidebar-border">
                           <LogOut />
                       </SidebarMenuButton>
-                  </Link>
-                </div>
+                    </form>
+                  </div>
+                )}
               </SidebarFooter>
             </Sidebar>
             <SidebarInset>

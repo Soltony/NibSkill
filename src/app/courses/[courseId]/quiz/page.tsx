@@ -14,9 +14,10 @@ type CourseWithQuiz = Course & {
     quiz: QuizType | null;
 };
 
-// In a real app this would come from a session, but for the prototype we'll mock it.
+// In a real app this would come from a session, but for this prototype we'll fetch it
 async function getMockUser() {
-    const res = await fetch('/api/auth/mock-user');
+    // This API route will be replaced by a proper session check
+    const res = await fetch('/api/mock-user');
     return await res.json();
 }
 
@@ -34,9 +35,11 @@ export default function QuizPage() {
             if (courseId) {
                 try {
                     setIsLoading(true);
+                    // This fetch gets the current logged in user from a mock API
+                    // In a real app, this would be part of a session context
                     const [courseRes, userRes] = await Promise.all([
                         fetch(`/api/courses/${courseId}?quiz=true`),
-                        fetch('/api/mock-user') // Fetch the mock user
+                        fetch('/api/mock-user')
                     ]);
                     
                     if (courseRes.ok && userRes.ok) {
@@ -51,7 +54,12 @@ export default function QuizPage() {
                         setCourse(courseData);
                         setUser(userData);
                     } else {
-                        toast({ title: "Error", description: "Failed to fetch quiz details or user.", variant: "destructive" });
+                        if (!userRes.ok) {
+                            // If user is not authenticated, redirect to login
+                            router.push('/login');
+                            return;
+                        }
+                        toast({ title: "Error", description: "Failed to fetch quiz details.", variant: "destructive" });
                         router.replace(`/courses/${courseId}`);
                     }
                 } catch (error) {
@@ -66,8 +74,6 @@ export default function QuizPage() {
     }, [courseId, toast, router]);
 
     const handleQuizComplete = () => {
-        // For now, just navigate back to the course page.
-        // A more advanced implementation might show a results summary first.
         router.push(`/courses/${courseId}`);
     };
     
