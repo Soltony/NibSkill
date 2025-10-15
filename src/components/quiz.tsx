@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Card,
@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from './ui/input';
-import { Award, Frown, BookCopy, AlertTriangle } from 'lucide-react';
+import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
 import { Progress } from './ui/progress';
 
@@ -39,10 +39,17 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(quiz.timeLimit ? quiz.timeLimit * 60 : null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
+  const shuffledQuestions = useMemo(() => {
+    return [...quiz.questions].sort(() => Math.random() - 0.5);
+  }, [quiz.questions]);
+
+  const currentQuestion = shuffledQuestions[currentQuestionIndex];
 
   const handleSubmit = useCallback(() => {
     let correctAnswers = 0;
-    quiz.questions.forEach((q) => {
+    shuffledQuestions.forEach((q) => {
        if (q.type === 'fill_in_the_blank') {
         if (answers[q.id]?.trim().toLowerCase() === q.correctAnswerId.trim().toLowerCase()) {
           correctAnswers++;
@@ -54,10 +61,10 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
         }
       }
     });
-    const finalScore = quiz.questions.length > 0 ? Math.round((correctAnswers / quiz.questions.length) * 100) : 0;
+    const finalScore = shuffledQuestions.length > 0 ? Math.round((correctAnswers / shuffledQuestions.length) * 100) : 0;
     setScore(finalScore);
     setShowResult(true);
-  }, [answers, quiz]);
+  }, [answers, shuffledQuestions]);
   
   useEffect(() => {
     if (timeLeft === null || showResult) return;
@@ -85,7 +92,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
     return !!answers[q.id];
   };
 
-  const isSubmitDisabled = quiz.questions.some(q => !isAnswered(q));
+  const allQuestionsAnswered = shuffledQuestions.every(q => isAnswered(q));
 
   const passed = score >= quiz.passingScore;
 
@@ -94,11 +101,22 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
+  
+  const goToNext = () => {
+    if (currentQuestionIndex < shuffledQuestions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    }
+  };
+
+  const goToPrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+    }
+  };
 
   return (
     <>
       <Card className="mt-8 shadow-lg">
-        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Knowledge Check</CardTitle>
             <CardDescription>
@@ -107,53 +125,70 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                 {quiz.timeLimit > 0 && ` You have ${quiz.timeLimit} minutes.`}
             </CardDescription>
           </CardHeader>
-
-          {quiz.timeLimit > 0 && timeLeft !== null && (
-            <div className="px-6 pb-4">
-                <div className="flex justify-between text-sm font-medium mb-1">
-                    <span>Time Remaining</span>
-                    <span className="font-mono">{formatTime(timeLeft)}</span>
+           <CardContent>
+            {quiz.timeLimit > 0 && timeLeft !== null && (
+                <div className="mb-6">
+                    <div className="flex justify-between text-sm font-medium mb-1">
+                        <span>Time Remaining</span>
+                        <span className="font-mono">{formatTime(timeLeft)}</span>
+                    </div>
+                    <Progress value={(timeLeft / (quiz.timeLimit * 60)) * 100} />
                 </div>
-                <Progress value={(timeLeft / (quiz.timeLimit * 60)) * 100} />
+            )}
+            
+             <div className="mb-6">
+                <div className="flex justify-between text-sm font-medium mb-1">
+                    <span>Question {currentQuestionIndex + 1} of {shuffledQuestions.length}</span>
+                </div>
+                <Progress value={((currentQuestionIndex + 1) / shuffledQuestions.length) * 100} />
             </div>
-          )}
 
-          <CardContent className="space-y-8">
-            {quiz.questions.map((q, index) => (
-              <div key={q.id}>
+            {currentQuestion && (
+              <div>
                 <p className="mb-4 font-semibold">
-                  {index + 1}. {q.text}
+                  {currentQuestion.text}
                 </p>
-                {(q.type === 'multiple_choice' || q.type === 'true_false') && (
+                {(currentQuestion.type === 'multiple_choice' || currentQuestion.type === 'true_false') && (
                    <RadioGroup
-                    onValueChange={(value) => handleAnswerChange(q.id, value)}
+                    value={answers[currentQuestion.id] || ''}
+                    onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
                     className="space-y-2"
                   >
-                    {q.options.map((opt) => (
+                    {currentQuestion.options.map((opt) => (
                       <div key={opt.id} className="flex items-center space-x-2">
-                        <RadioGroupItem value={opt.id} id={`${q.id}-${opt.id}`} />
-                        <Label htmlFor={`${q.id}-${opt.id}`} className="font-normal cursor-pointer">
+                        <RadioGroupItem value={opt.id} id={`${currentQuestion.id}-${opt.id}`} />
+                        <Label htmlFor={`${currentQuestion.id}-${opt.id}`} className="font-normal cursor-pointer">
                           {opt.text}
                         </Label>
                       </div>
                     ))}
                   </RadioGroup>
                 )}
-                 {q.type === 'fill_in_the_blank' && (
+                 {currentQuestion.type === 'fill_in_the_blank' && (
                   <Input
                     placeholder="Type your answer here..."
-                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                    value={answers[currentQuestion.id] || ''}
+                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                   />
                 )}
               </div>
-            ))}
+            )}
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isSubmitDisabled}>
-              Submit Quiz
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" onClick={goToPrevious} disabled={currentQuestionIndex === 0}>
+              <ChevronLeft className="mr-2 h-4 w-4" /> Previous
             </Button>
+            
+            {currentQuestionIndex === shuffledQuestions.length - 1 ? (
+              <Button onClick={handleSubmit} disabled={!allQuestionsAnswered}>
+                Submit Quiz
+              </Button>
+            ) : (
+              <Button onClick={goToNext}>
+                Next <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
           </CardFooter>
-        </form>
       </Card>
       
       <AlertDialog open={showResult} onOpenChange={setShowResult}>
