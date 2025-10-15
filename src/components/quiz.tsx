@@ -25,8 +25,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from './ui/input';
 import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
+import type { Quiz as TQuiz, Question, Option as TOption, User } from '@prisma/client';
 import { Progress } from './ui/progress';
+import { completeCourse } from '@/app/actions/user-actions';
+import { useToast } from '@/hooks/use-toast';
 
 type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
 
@@ -34,12 +36,13 @@ type Answers = {
   [questionId: string]: string;
 };
 
-export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => void }) {
+export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: string, onComplete: () => void }) {
   const [answers, setAnswers] = useState<Answers>({});
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(quiz.timeLimit ? quiz.timeLimit * 60 : null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const { toast } = useToast();
 
   const shuffledQuestions = useMemo(() => {
     return [...quiz.questions].sort(() => Math.random() - 0.5);
@@ -47,7 +50,7 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
 
   const currentQuestion = shuffledQuestions[currentQuestionIndex];
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     let correctAnswers = 0;
     shuffledQuestions.forEach((q) => {
        if (q.type === 'fill_in_the_blank') {
@@ -64,7 +67,23 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
     const finalScore = shuffledQuestions.length > 0 ? Math.round((correctAnswers / shuffledQuestions.length) * 100) : 0;
     setScore(finalScore);
     setShowResult(true);
-  }, [answers, shuffledQuestions]);
+
+    if (finalScore >= quiz.passingScore) {
+      const result = await completeCourse({
+        userId,
+        courseId: quiz.courseId,
+        score: finalScore,
+      });
+
+      if (!result.success) {
+        toast({
+          title: "Error Saving Completion",
+          description: result.message,
+          variant: "destructive"
+        })
+      }
+    }
+  }, [answers, shuffledQuestions, quiz.passingScore, quiz.courseId, userId, toast]);
   
   useEffect(() => {
     if (timeLeft === null || showResult) return;
@@ -132,11 +151,11 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
             <CardDescription>
                 Let's see what you've learned. Answer all questions to complete the course. 
                 The passing score is {quiz.passingScore}%.
-                {quiz.timeLimit > 0 && ` You have ${quiz.timeLimit} minutes.`}
+                {quiz.timeLimit && quiz.timeLimit > 0 && ` You have ${quiz.timeLimit} minutes.`}
             </CardDescription>
           </CardHeader>
            <CardContent>
-            {quiz.timeLimit > 0 && timeLeft !== null && (
+            {quiz.timeLimit && quiz.timeLimit > 0 && timeLeft !== null && (
                 <div className="mb-6">
                     <div className="flex justify-between text-sm font-medium mb-1">
                         <span>Time Remaining</span>

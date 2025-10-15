@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Quiz } from '@/components/quiz';
 import { useToast } from '@/hooks/use-toast';
-import type { Quiz as TQuiz, Question, Option as TOption, Course } from '@prisma/client';
+import type { Quiz as TQuiz, Question, Option as TOption, Course, User } from '@prisma/client';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
@@ -14,12 +14,19 @@ type CourseWithQuiz = Course & {
     quiz: QuizType | null;
 };
 
+// In a real app this would come from a session, but for the prototype we'll mock it.
+async function getMockUser() {
+    const res = await fetch('/api/auth/mock-user');
+    return await res.json();
+}
+
 export default function QuizPage() {
     const params = useParams();
     const router = useRouter();
     const courseId = typeof params.courseId === 'string' ? params.courseId : '';
     const { toast } = useToast();
     const [course, setCourse] = useState<CourseWithQuiz | null>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -27,17 +34,24 @@ export default function QuizPage() {
             if (courseId) {
                 try {
                     setIsLoading(true);
-                    const res = await fetch(`/api/courses/${courseId}?quiz=true`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (!data.quiz) {
+                    const [courseRes, userRes] = await Promise.all([
+                        fetch(`/api/courses/${courseId}?quiz=true`),
+                        fetch('/api/mock-user') // Fetch the mock user
+                    ]);
+                    
+                    if (courseRes.ok && userRes.ok) {
+                        const courseData = await courseRes.json();
+                        const userData = await userRes.json();
+
+                        if (!courseData.quiz) {
                             toast({ title: "No Quiz", description: "This course does not have a quiz.", variant: "destructive" });
                             router.replace(`/courses/${courseId}`);
                             return;
                         }
-                        setCourse(data);
+                        setCourse(courseData);
+                        setUser(userData);
                     } else {
-                        toast({ title: "Error", description: "Failed to fetch quiz details.", variant: "destructive" });
+                        toast({ title: "Error", description: "Failed to fetch quiz details or user.", variant: "destructive" });
                         router.replace(`/courses/${courseId}`);
                     }
                 } catch (error) {
@@ -57,7 +71,7 @@ export default function QuizPage() {
         router.push(`/courses/${courseId}`);
     };
     
-    if (isLoading || !course?.quiz) {
+    if (isLoading || !course?.quiz || !user) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="w-full max-w-3xl space-y-8 p-4">
@@ -75,7 +89,11 @@ export default function QuizPage() {
     
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4">
-            <Quiz quiz={course.quiz} onComplete={handleQuizComplete} />
+            <Quiz 
+                quiz={course.quiz} 
+                userId={user.id}
+                onComplete={handleQuizComplete} 
+            />
         </main>
     );
 }

@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import prisma from "@/lib/db"
@@ -51,7 +51,8 @@ async function getProfileData() {
 
     const completedCourses = await prisma.userCompletedCourse.findMany({
         where: { userId: user.id },
-        include: { course: true }
+        include: { course: true },
+        orderBy: { completionDate: 'desc' }
     });
 
     const userBadges = await prisma.userBadge.findMany({
@@ -81,7 +82,7 @@ export default async function ProfilePage() {
     <div className="space-y-8">
       <div className="flex items-center gap-6">
         <Avatar className="h-24 w-24 border-4 border-primary">
-          <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+          <AvatarImage src={currentUser.avatarUrl ?? ''} alt={currentUser.name} />
           <AvatarFallback className="text-3xl">
             {currentUser.name.charAt(0)}
           </AvatarFallback>
