@@ -31,6 +31,7 @@ import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { initialRegistrationFields } from "@/lib/data";
 
 
 const baseSchema = z.object({
@@ -38,6 +39,17 @@ const baseSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
+
+// Create initial default values from both static and dynamic fields
+const allDefaultValues = {
+  name: "",
+  email: "",
+  password: "",
+  ...initialRegistrationFields.reduce((acc, field) => {
+    acc[field.id] = "";
+    return acc;
+  }, {} as Record<string, string>)
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -48,7 +60,13 @@ export default function RegisterPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   
-  const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
+  const [dynamicSchema, setDynamicSchema] = useState(() => {
+    let schema = baseSchema as z.ZodObject<any>;
+    initialRegistrationFields.forEach((field: TRegistrationField) => {
+        schema = schema.extend({ [field.id]: z.string().optional() });
+    });
+    return schema;
+  });
 
   useEffect(() => {
     async function fetchFormData() {
@@ -88,11 +106,7 @@ export default function RegisterPage() {
 
   const form = useForm<z.infer<typeof dynamicSchema>>({
     resolver: zodResolver(dynamicSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-    },
+    defaultValues: allDefaultValues
   });
 
   const onRegisterUser = async (values: z.infer<typeof dynamicSchema>) => {
