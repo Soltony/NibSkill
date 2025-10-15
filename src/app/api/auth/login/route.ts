@@ -1,5 +1,5 @@
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log('--- LOGIN ATTEMPT ---');
@@ -44,6 +44,18 @@ export async function POST(request: Request) {
         console.log('Result: Invalid password.');
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
     }
+
+    // Capture login audit information
+    const ipAddress = request.ip || request.headers.get('x-forwarded-for');
+    const userAgent = request.headers.get('user-agent');
+
+    await prisma.loginHistory.create({
+      data: {
+        userId: user.id,
+        ipAddress: typeof ipAddress === 'string' ? ipAddress : null,
+        userAgent,
+      }
+    });
 
     // In a real app, generate JWT tokens here.
     // The tokens should include user ID, role, and an expiration date.

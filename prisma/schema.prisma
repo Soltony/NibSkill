@@ -30,6 +30,7 @@ model User {
   completedCourses      UserCompletedCourse[]
   attendedSessions      UserAttendedLiveSession[]
   badges                UserBadge[]
+  loginHistory          LoginHistory[]
 }
 
 model Role {
@@ -80,20 +81,20 @@ model Product {
 }
 
 model Course {
-  id              String                @id @default(cuid())
-  title           String
-  description     String
-  imageUrl        String?
+  id               String                @id @default(cuid())
+  title            String
+  description      String
+  imageUrl         String?
   imageDescription String?
-  imageHint       String?
-  productId       String
-  product         Product               @relation(fields: [productId], references: [id])
-  modules         Module[]
-  quiz            Quiz?
-  learningPaths   LearningPathCourse[]
-  completedBy     UserCompletedCourse[]
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  imageHint        String?
+  productId        String
+  product          Product               @relation(fields: [productId], references: [id])
+  modules          Module[]
+  quiz             Quiz?
+  learningPaths    LearningPathCourse[]
+  completedBy      UserCompletedCourse[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 }
 
 model Module {
@@ -113,7 +114,7 @@ model Quiz {
   id           String     @id @default(cuid())
   courseId     String     @unique
   passingScore Int
-  timeLimit    Int        @default(0)
+  timeLimit    Int?
   course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   questions    Question[]
   createdAt    DateTime   @default(now())
@@ -121,15 +122,15 @@ model Quiz {
 }
 
 model Question {
-  id              String      @id @default(cuid())
+  id              String       @id @default(cuid())
   text            String
   type            QuestionType
   correctAnswerId String
   quizId          String
-  quiz            Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quiz            Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   options         Option[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model Option {
@@ -238,12 +239,23 @@ model CertificateTemplate {
 }
 
 model RegistrationField {
-  id       String   @id
-  label    String
-  enabled  Boolean  @default(false)
-  required Boolean  @default(false)
+  id        String   @id
+  label     String
+  enabled   Boolean  @default(false)
+  required  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model LoginHistory {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginTime  DateTime  @default(now())
+  logoutTime DateTime?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
 }
 
 enum ModuleType {
