@@ -1,10 +1,5 @@
 
 import type { Metadata } from 'next';
-import { Toaster } from '@/components/ui/toaster';
-import '@/app/globals.css';
-import { Inter } from 'next/font/google';
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: 'Quiz - SkillUp',
@@ -17,11 +12,8 @@ export default function QuizLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans bg-muted`}>
+    <div className="bg-muted min-h-screen">
         {children}
-        <Toaster />
-      </body>
-    </html>
+    </div>
   );
 }
