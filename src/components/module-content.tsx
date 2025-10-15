@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -40,11 +41,25 @@ const LocalVideoPlayer = ({ url }: { url: string }) => {
         <div className="aspect-video w-full">
             <video
                 controls
-                className="w-full h-full rounded-lg"
+                className="w-full h-full rounded-lg bg-black"
                 src={url}
             >
                 Your browser does not support the video tag.
             </video>
+        </div>
+    );
+}
+
+const LocalAudioPlayer = ({ url }: { url: string }) => {
+    return (
+        <div>
+            <audio
+                controls
+                className="w-full rounded-lg"
+                src={url}
+            >
+                Your browser does not support the audio tag.
+            </audio>
         </div>
     );
 }
@@ -60,13 +75,27 @@ export const ModuleContent = ({ module }: { module: Module }) => {
             return <p className="text-muted-foreground">No content has been assigned to this module yet.</p>
         }
 
-        if (module.type === 'video') {
-             if (isYouTubeUrl) {
-                return <YouTubeEmbed url={module.content} />;
-             }
-             if (isUploadedContent) {
-                return <LocalVideoPlayer url={module.content} />;
-             }
+        switch (module.type) {
+            case 'video':
+                if (isYouTubeUrl) return <YouTubeEmbed url={module.content} />;
+                if (isUploadedContent) return <LocalVideoPlayer url={module.content} />;
+                break;
+            case 'audio':
+                if (isUploadedContent) return <LocalAudioPlayer url={module.content} />;
+                break;
+            case 'pdf':
+            case 'slides':
+                 if (isUploadedContent) {
+                    return (
+                        <Button asChild>
+                           <a href={module.content} download={`skillup_${module.type}_${module.id}`}>
+                               <Download className="mr-2 h-4 w-4" />
+                               Download Material
+                           </a>
+                       </Button>
+                   );
+                }
+                break;
         }
         
         if (isExternalUrl) {
@@ -75,17 +104,6 @@ export const ModuleContent = ({ module }: { module: Module }) => {
                     <a href={module.content} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Open External Content
-                    </a>
-                </Button>
-            );
-        }
-
-        if (isUploadedContent) {
-             return (
-                 <Button asChild>
-                    <a href={module.content} download={`skillup_${module.type}_${module.id}`}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Material
                     </a>
                 </Button>
             );

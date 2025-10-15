@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -7,7 +8,7 @@ import prisma from '@/lib/db'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
-  type: z.enum(["video", "pdf", "slides"]),
+  type: z.enum(["video", "pdf", "slides", "audio"]),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   description: z.string().min(10, "Description is required."),
   content: z.string().min(1, "Content is required.").refine(val => val.startsWith('https://') || val.startsWith('data:'), {

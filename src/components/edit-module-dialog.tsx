@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect, ChangeEvent } from "react"
@@ -39,7 +40,7 @@ import { FileUp, X } from "lucide-react"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
-  type: z.enum(["video", "pdf", "slides"], { required_error: "Please select a module type." }),
+  type: z.enum(["video", "pdf", "slides", "audio"], { required_error: "Please select a module type." }),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   description: z.string().min(10, "Description is required."),
   content: z.string().min(1, "Content is required.").refine(val => val.startsWith('https://') || val.startsWith('data:'), {
@@ -139,6 +140,7 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
   const getAcceptType = () => {
     switch(watchedType) {
         case 'video': return 'video/*';
+        case 'audio': return 'audio/*';
         case 'pdf': return '.pdf';
         case 'slides': return '.ppt, .pptx, .key';
         default: return '';
@@ -198,6 +200,7 @@ export function EditModuleDialog({ module, onModuleUpdated, children }: EditModu
                           </FormControl>
                           <SelectContent>
                               <SelectItem value="video">Video</SelectItem>
+                              <SelectItem value="audio">Audio</SelectItem>
                               <SelectItem value="pdf">PDF</SelectItem>
                               <SelectItem value="slides">Slides</SelectItem>
                           </SelectContent>

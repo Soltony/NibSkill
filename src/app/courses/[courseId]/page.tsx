@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -15,16 +16,18 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Quiz } from '@/components/quiz';
-import { Video, FileText, Presentation } from 'lucide-react';
+import { Video, FileText, Presentation, Music, Bookmark } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
+import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
   pdf: <FileText className="h-5 w-5 text-accent" />,
   slides: <Presentation className="h-5 w-5 text-accent" />,
+  audio: <Music className="h-5 w-5 text-accent" />,
 };
 
 type CourseWithRelations = Course & {
@@ -152,12 +155,22 @@ export default function CourseDetailPage() {
                       <div className="space-y-4 p-4 bg-muted/50 rounded-md">
                         <ModuleContent module={module as any} />
                         <div className="flex items-center justify-between pt-4 border-t">
-                            <div className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={`complete-${module.id}`}
-                                    onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`complete-${module.id}`}
+                                        onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
+                                    />
+                                    <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
+                                </div>
+                                <FeatureNotImplementedDialog
+                                    title="Bookmark Module"
+                                    description="This feature is not yet implemented. In the future, you will be able to bookmark modules to easily find them later."
+                                    triggerVariant="ghost"
+                                    triggerSize="sm"
+                                    triggerText="Bookmark"
+                                    triggerIcon={<Bookmark className="mr-2 h-4 w-4" />}
                                 />
-                                <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
                             </div>
                         </div>
                     </div>
