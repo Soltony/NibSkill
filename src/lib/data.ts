@@ -1,6 +1,8 @@
 
+
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
+import type { FieldType } from '@prisma/client';
 
 export type District = {
   id: string;
@@ -121,10 +123,12 @@ export type Role = {
 }
 
 export type RegistrationField = {
-  id: string; // Changed to string to allow more flexibility
+  id: string;
   label: string;
+  type: FieldType;
   enabled: boolean;
   required: boolean;
+  options?: string[];
 }
 
 export type Notification = {
@@ -138,10 +142,10 @@ export type Notification = {
 // To add more fields to the registration form, add them to this array.
 // The `id` must be a unique string, and it will be used as the key in the form data.
 export const initialRegistrationFields: RegistrationField[] = [
-    { id: 'phoneNumber', label: 'Phone Number', enabled: true, required: false },
-    { id: 'department', label: 'Department', enabled: true, required: true },
-    { id: 'district', label: 'District', enabled: true, required: true },
-    { id: 'branch', label: 'Branch', enabled: true, required: true },
+    { id: 'phoneNumber', label: 'Phone Number', type: 'TEXT', enabled: true, required: false },
+    { id: 'department', label: 'Department', type: 'SELECT', enabled: true, required: true },
+    { id: 'district', label: 'District', type: 'SELECT', enabled: true, required: true },
+    { id: 'branch', label: 'Branch', type: 'SELECT', enabled: true, required: true },
 ]
 
 

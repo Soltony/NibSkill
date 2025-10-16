@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -285,10 +285,25 @@ async function main() {
 
 
   // Seed Registration Fields
-  await prisma.registrationField.createMany({
-    data: initialRegistrationFields,
-    skipDuplicates: true,
-  });
+  for (const field of initialRegistrationFields) {
+    await prisma.registrationField.upsert({
+      where: { id: field.id },
+      update: {
+        label: field.label,
+        type: field.type,
+        enabled: field.enabled,
+        required: field.required,
+      },
+      create: {
+        id: field.id,
+        label: field.label,
+        type: field.type,
+        enabled: field.enabled,
+        required: field.required,
+        options: field.options,
+      }
+    });
+  }
 
 
   console.log(`Seeding finished.`)

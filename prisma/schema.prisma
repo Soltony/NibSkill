@@ -6,36 +6,37 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id                    String                  @id @default(cuid())
-  name                  String
-  email                 String                  @unique
-  password              String
-  avatarUrl             String?
-  phoneNumber           String?
-  departmentId          String?
-  districtId            String?
-  branchId              String?
-  roleId                String
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  role                  Role                    @relation(fields: [roleId], references: [id])
-  department            Department?             @relation(fields: [departmentId], references: [id])
-  district              District?               @relation(fields: [districtId], references: [id])
-  branch                Branch?                 @relation(fields: [branchId], references: [id])
-  completedCourses      UserCompletedCourse[]
-  attendedSessions      UserAttendedLiveSession[]
-  badges                UserBadge[]
-  loginHistory          LoginHistory[]
+  id               String                  @id @default(cuid())
+  name             String
+  email            String                  @unique
+  password         String
+  avatarUrl        String?
+  phoneNumber      String?
+  departmentId     String?
+  districtId       String?
+  branchId         String?
+  roleId           String
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  role             Role                    @relation(fields: [roleId], references: [id])
+  department       Department?             @relation(fields: [departmentId], references: [id])
+  district         District?               @relation(fields: [districtId], references: [id])
+  branch           Branch?                 @relation(fields: [branchId], references: [id])
+  completedCourses UserCompletedCourse[]
+  attendedSessions UserAttendedLiveSession[]
+  badges           UserBadge[]
+  loginHistory     LoginHistory[]
 }
 
 model Role {
-  id          String @id @default(cuid())
-  name        String @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
   permissions Json
   users       User[]
   createdAt   DateTime @default(now())
@@ -114,7 +115,6 @@ model Quiz {
   id           String     @id @default(cuid())
   courseId     String     @unique
   passingScore Int
-  timeLimit    Int?
   course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   questions    Question[]
   createdAt    DateTime   @default(now())
@@ -164,18 +164,18 @@ model LearningPathCourse {
 }
 
 model LiveSession {
-  id            String                    @id @default(cuid())
-  title         String
-  description   String
-  speaker       String
-  keyTakeaways  String
-  dateTime      DateTime
-  platform      LiveSessionPlatform
-  joinUrl       String
-  recordingUrl  String?
-  attendees     UserAttendedLiveSession[]
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
+  id           String                    @id @default(cuid())
+  title        String
+  description  String
+  speaker      String
+  keyTakeaways String
+  dateTime     DateTime
+  platform     LiveSessionPlatform
+  joinUrl      String
+  recordingUrl String?
+  attendees    UserAttendedLiveSession[]
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
 }
 
 model UserCompletedCourse {
@@ -192,13 +192,13 @@ model UserCompletedCourse {
 }
 
 model UserAttendedLiveSession {
-  userId      String
-  sessionId   String
-  attendedAt  DateTime    @default(now())
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  session     LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  userId     String
+  sessionId  String
+  attendedAt DateTime    @default(now())
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session    LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   @@id([userId, sessionId])
 }
@@ -226,7 +226,7 @@ model UserBadge {
 }
 
 model CertificateTemplate {
-  id             String    @id @default("singleton")
+  id             String   @id @default("singleton")
   title          String
   organization   String
   body           String
@@ -234,28 +234,30 @@ model CertificateTemplate {
   signatoryTitle String
   signatureUrl   String?
   stampUrl       String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
-model RegistrationField {
-  id        String   @id
-  label     String
-  enabled   Boolean  @default(false)
-  required  Boolean  @default(false)
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginTime DateTime @default(now())
+  ipAddress String?
+  userAgent String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model LoginHistory {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  loginTime  DateTime  @default(now())
-  logoutTime DateTime?
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime  @default(now())
+model RegistrationField {
+  id        String     @id
+  label     String
+  type      FieldType
+  enabled   Boolean    @default(false)
+  required  Boolean    @default(false)
+  options   String[]   @default([])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 enum ModuleType {
@@ -274,4 +276,9 @@ enum QuestionType {
 enum LiveSessionPlatform {
   Zoom
   Google_Meet
+}
+
+enum FieldType {
+  TEXT
+  SELECT
 }

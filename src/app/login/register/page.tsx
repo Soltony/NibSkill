@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,13 +61,18 @@ export default function RegisterPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   
-  const [dynamicSchema, setDynamicSchema] = useState(() => {
-    let schema = baseSchema as z.ZodObject<any>;
-    initialRegistrationFields.forEach((field: TRegistrationField) => {
-        schema = schema.extend({ [field.id]: z.string().optional() });
-    });
-    return schema;
+  const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
+
+  const form = useForm<z.infer<typeof dynamicSchema>>({
+    resolver: zodResolver(dynamicSchema),
+    defaultValues: allDefaultValues
   });
+  
+  const watchedDistrict = form.watch('district');
+  const availableBranches = useMemo(() => {
+    if (!watchedDistrict) return [];
+    return branches.filter(b => b.districtId === watchedDistrict);
+  }, [watchedDistrict, branches]);
 
   useEffect(() => {
     async function fetchFormData() {
@@ -103,12 +109,7 @@ export default function RegisterPage() {
     }
     fetchFormData();
   }, [toast]);
-
-  const form = useForm<z.infer<typeof dynamicSchema>>({
-    resolver: zodResolver(dynamicSchema),
-    defaultValues: allDefaultValues
-  });
-
+  
   const onRegisterUser = async (values: z.infer<typeof dynamicSchema>) => {
     const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -132,11 +133,58 @@ export default function RegisterPage() {
       });
     }
   };
-
-  const getField = (id: string) => registrationFields.find(f => f.id === id);
-
-  const selectedDistrict = form.watch('district');
-  const availableBranches = branches.filter(b => b.districtId === selectedDistrict);
+  
+  const renderField = (field: TRegistrationField) => {
+    switch (field.type) {
+      case 'TEXT':
+        return (
+          <FormField
+            key={field.id}
+            control={form.control}
+            name={field.id}
+            render={({ field: formField }) => (
+              <FormItem>
+                <FormLabel>{field.label}</FormLabel>
+                <FormControl><Input {...formField} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+      case 'SELECT':
+        let options: {id: string, name: string}[] = [];
+        if (field.id === 'department') options = departments;
+        if (field.id === 'district') options = districts;
+        if (field.id === 'branch') options = availableBranches;
+        // For other custom SELECT fields, you would fetch options or use field.options
+        
+        return (
+          <FormField
+            key={field.id}
+            control={form.control}
+            name={field.id}
+            render={({ field: formField }) => (
+              <FormItem>
+                <FormLabel>{field.label}</FormLabel>
+                <Select onValueChange={formField.onChange} defaultValue={formField.value} disabled={field.id === 'branch' && !watchedDistrict}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder={field.id === 'branch' && !watchedDistrict ? "Select district first" : `Select a ${field.label.toLowerCase()}`} />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {options.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   if (!isLoaded) {
     return (
@@ -213,81 +261,7 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-              {getField('phoneNumber')?.enabled && (
-                <FormField
-                    control={form.control}
-                    name="phoneNumber"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                        <Input placeholder="(123) 456-7890" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              )}
-               {getField('department')?.enabled && (
-                <FormField
-                    control={form.control}
-                    name="department"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Department</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger><SelectValue placeholder="Select a department" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              )}
-               {getField('district')?.enabled && (
-                <FormField
-                    control={form.control}
-                    name="district"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>District</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger><SelectValue placeholder="Select a district" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {districts.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              )}
-               {getField('branch')?.enabled && (
-                <FormField
-                    control={form.control}
-                    name="branch"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Branch</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDistrict}>
-                            <FormControl>
-                                <SelectTrigger><SelectValue placeholder={selectedDistrict ? "Select a branch" : "Select a district first"} /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {availableBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              )}
+              {registrationFields.map(field => renderField(field))}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
