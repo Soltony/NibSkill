@@ -68,7 +68,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4">
             <Logo />
           </div>
-          <CardTitle className="font-headline text-3xl">Welcome to SkillUp</CardTitle>
+          <CardTitle className="font-headline text-3xl">Welcome to NibSkillUP</CardTitle>
           <CardDescription>Select your role and sign in to continue.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -86,7 +86,7 @@ export default function LoginPage() {
                     name="staff-email"
                     type="email"
                     placeholder="name@company.com"
-                    defaultValue="staff@skillup.com"
+                    defaultValue="staff@nibskillup.com"
                     required
                   />
                 </div>
@@ -133,7 +133,7 @@ export default function LoginPage() {
                     name="admin-email"
                     type="email"
                     placeholder="admin@company.com"
-                    defaultValue="admin@skillup.com"
+                    defaultValue="admin@nibskillup.com"
                     required
                   />
                 </div>

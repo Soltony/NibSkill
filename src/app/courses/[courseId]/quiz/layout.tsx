@@ -2,7 +2,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Quiz - SkillUp',
+  title: 'Quiz - NibSkillUP',
   description: 'Take your knowledge check.',
 };
 

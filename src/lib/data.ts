@@ -177,7 +177,7 @@ export const users: User[] = [
   {
     id: 'user-1',
     name: 'Alex Johnson',
-    email: 'staff@skillup.com',
+    email: 'staff@nibskillup.com',
     role: 'staff',
     department: 'Engineering',
     district: 'North Region',
@@ -188,7 +188,7 @@ export const users: User[] = [
   {
     id: 'user-2',
     name: 'Maria Garcia',
-    email: 'admin@skillup.com',
+    email: 'admin@nibskillup.com',
     role: 'admin',
     department: 'HR',
     district: 'South Region',

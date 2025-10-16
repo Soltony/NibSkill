@@ -43,7 +43,7 @@ export default function StaffLoginPage() {
                 id="email" 
                 type="email" 
                 placeholder="name@company.com"
-                defaultValue="staff@skillup.com"
+                defaultValue="staff@nibskillup.com"
                 required 
               />
             </div>
