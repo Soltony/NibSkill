@@ -2,7 +2,11 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import type { FieldType } from '@prisma/client';
+
+export enum FieldType {
+    TEXT = "TEXT",
+    SELECT = "SELECT",
+}
 
 export type District = {
   id: string;
@@ -142,10 +146,10 @@ export type Notification = {
 // To add more fields to the registration form, add them to this array.
 // The `id` must be a unique string, and it will be used as the key in the form data.
 export const initialRegistrationFields: RegistrationField[] = [
-    { id: 'phoneNumber', label: 'Phone Number', type: 'TEXT', enabled: true, required: false },
-    { id: 'department', label: 'Department', type: 'SELECT', enabled: true, required: true },
-    { id: 'district', label: 'District', type: 'SELECT', enabled: true, required: true },
-    { id: 'branch', label: 'Branch', type: 'SELECT', enabled: true, required: true },
+    { id: 'phoneNumber', label: 'Phone Number', type: FieldType.TEXT, enabled: true, required: false },
+    { id: 'department', label: 'Department', type: FieldType.SELECT, enabled: true, required: true },
+    { id: 'district', label: 'District', type: FieldType.SELECT, enabled: true, required: true },
+    { id: 'branch', label: 'Branch', type: FieldType.SELECT, enabled: true, required: true },
 ]
 
 

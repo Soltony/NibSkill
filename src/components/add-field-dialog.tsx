@@ -29,8 +29,8 @@ import { PlusCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { addRegistrationField } from "@/app/actions/settings-actions"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
-import { FieldType } from "@prisma/client"
 import { Textarea } from "./ui/textarea"
+import { FieldType } from "@/lib/data"
 
 const formSchema = z.object({
   label: z.string().min(2, "Label must be at least 2 characters."),
