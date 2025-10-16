@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState } from 'react';
@@ -75,7 +74,7 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder="email@example.com"
                 required
               />
             </div>
@@ -86,6 +85,7 @@ export default function LoginPage() {
                   id="password"
                   name="password" 
                   type={showPassword ? 'text' : 'password'} 
+                  placeholder="********"
                   required 
                   className="pr-10"
                 />
