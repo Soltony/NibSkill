@@ -59,6 +59,7 @@ import { Switch } from "@/components/ui/switch"
 import { AddFieldDialog } from "@/components/add-field-dialog"
 import { AddRoleDialog } from "@/components/add-role-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
+import { Badge } from "@/components/ui/badge"
 
 type UserWithRole = User & { role: RoleType };
 
@@ -73,6 +74,7 @@ const registrationFieldsSchema = z.object({
     fields: z.array(z.object({
         id: z.string(),
         label: z.string(),
+        type: z.enum(["TEXT", "SELECT"]),
         enabled: z.boolean(),
         required: z.boolean(),
     }))
@@ -122,7 +124,7 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
   });
 
   const onRegistrationFieldsSubmit = async (values: z.infer<typeof registrationFieldsSchema>) => {
-    const result = await updateRegistrationFields(values);
+    const result = await updateRegistrationFields(values as any); // Cast because server action expects slightly different type
     if (result.success) {
         toast({
             title: "Settings Saved",
@@ -505,6 +507,7 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                                   <TableRow>
                                       <TableHead>Field Label</TableHead>
                                       <TableHead>Field ID</TableHead>
+                                      <TableHead>Field Type</TableHead>
                                       <TableHead className="text-right">Action</TableHead>
                                   </TableRow>
                               </TableHeader>
@@ -513,8 +516,11 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                                       <TableRow key={field.id}>
                                           <TableCell>{field.label}</TableCell>
                                           <TableCell><code className="text-xs bg-muted p-1 rounded">{field.id}</code></TableCell>
+                                          <TableCell>
+                                            <Badge variant="outline">{field.type}</Badge>
+                                          </TableCell>
                                           <TableCell className="text-right">
-                                              <Button variant="ghost" size="icon" onClick={() => setFieldToDelete(field)}>
+                                              <Button variant="ghost" size="icon" onClick={() => setFieldToDelete(field as RegistrationField)}>
                                                   <Trash2 className="h-4 w-4 text-destructive" />
                                               </Button>
                                           </TableCell>
