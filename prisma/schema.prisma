@@ -239,12 +239,14 @@ model CertificateTemplate {
 }
 
 model RegistrationField {
-  id        String   @id
+  id        String    @id
   label     String
-  enabled   Boolean  @default(false)
-  required  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  type      FieldType
+  options   String[]
+  enabled   Boolean   @default(false)
+  required  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model LoginHistory {
@@ -275,3 +277,12 @@ enum LiveSessionPlatform {
   Zoom
   Google_Meet
 }
+
+enum FieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+}
+
+    

@@ -1,5 +1,4 @@
 
-
 import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
@@ -318,3 +317,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    

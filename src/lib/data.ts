@@ -1,10 +1,11 @@
 
-
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
 
 export enum FieldType {
     TEXT = "TEXT",
+    NUMBER = "NUMBER",
+    DATE = "DATE",
     SELECT = "SELECT",
 }
 
@@ -537,3 +538,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    

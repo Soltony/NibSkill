@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -135,13 +134,17 @@ export default function RegisterPage() {
   };
   
   const renderField = (field: TRegistrationField) => {
+    const commonProps = {
+      key: field.id,
+      control: form.control,
+      name: field.id
+    };
+
     switch (field.type) {
       case 'TEXT':
         return (
           <FormField
-            key={field.id}
-            control={form.control}
-            name={field.id}
+            {...commonProps}
             render={({ field: formField }) => (
               <FormItem>
                 <FormLabel>{field.label}</FormLabel>
@@ -151,6 +154,32 @@ export default function RegisterPage() {
             )}
           />
         );
+      case 'NUMBER':
+          return (
+            <FormField
+              {...commonProps}
+              render={({ field: formField }) => (
+                <FormItem>
+                  <FormLabel>{field.label}</FormLabel>
+                  <FormControl><Input type="number" {...formField} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          );
+      case 'DATE':
+          return (
+            <FormField
+              {...commonProps}
+              render={({ field: formField }) => (
+                <FormItem>
+                  <FormLabel>{field.label}</FormLabel>
+                  <FormControl><Input type="date" {...formField} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          );
       case 'SELECT':
         let options: {id: string, name: string}[] = [];
         if (field.id === 'department') options = departments;
@@ -160,9 +189,7 @@ export default function RegisterPage() {
         
         return (
           <FormField
-            key={field.id}
-            control={form.control}
-            name={field.id}
+            {...commonProps}
             render={({ field: formField }) => (
               <FormItem>
                 <FormLabel>{field.label}</FormLabel>
@@ -281,3 +308,5 @@ export default function RegisterPage() {
     </main>
   );
 }
+
+    
