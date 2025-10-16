@@ -129,6 +129,8 @@ const registrationFieldsSchema = z.object({
     fields: z.array(z.object({
         id: z.string(),
         label: z.string(),
+        type: z.nativeEnum(FieldType),
+        options: z.array(z.string()).optional(),
         enabled: z.boolean(),
         required: z.boolean(),
     }))
@@ -146,6 +148,9 @@ export async function updateRegistrationFields(values: z.infer<typeof registrati
                 prisma.registrationField.update({
                     where: { id: field.id },
                     data: {
+                        label: field.label,
+                        type: field.type,
+                        options: field.options,
                         enabled: field.enabled,
                         required: field.required
                     }

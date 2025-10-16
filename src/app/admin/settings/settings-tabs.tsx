@@ -5,7 +5,7 @@ import { useState } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { User, Role as RoleType, Permission as PermissionType, RegistrationField } from "@prisma/client"
+import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType } from "@prisma/client"
 import {
   Table,
   TableBody,
@@ -60,6 +60,7 @@ import { AddFieldDialog } from "@/components/add-field-dialog"
 import { AddRoleDialog } from "@/components/add-role-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
 import { Badge } from "@/components/ui/badge"
+import { FieldType } from "@/lib/data"
 
 type UserWithRole = User & { role: RoleType };
 
@@ -74,7 +75,8 @@ const registrationFieldsSchema = z.object({
     fields: z.array(z.object({
         id: z.string(),
         label: z.string(),
-        type: z.enum(["TEXT", "SELECT"]),
+        type: z.nativeEnum(FieldType),
+        options: z.array(z.string()).optional().nullable(),
         enabled: z.boolean(),
         required: z.boolean(),
     }))
@@ -114,7 +116,7 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
   const registrationFieldsForm = useForm<z.infer<typeof registrationFieldsSchema>>({
     resolver: zodResolver(registrationFieldsSchema),
     defaultValues: {
-      fields: initialRegistrationFields
+      fields: initialRegistrationFields.map(f => ({...f, type: f.type as TFieldType}))
     }
   });
 
