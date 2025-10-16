@@ -1,10 +1,12 @@
 
+
 'use server'
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { FieldType } from '@prisma/client'
 
 const updateUserRoleSchema = z.object({
   userId: z.string(),
@@ -163,6 +165,8 @@ export async function updateRegistrationFields(values: z.infer<typeof registrati
 const addFieldSchema = z.object({
   label: z.string().min(2, "Label must be at least 2 characters."),
   id: z.string().min(2, "ID must be at least 2 characters.").regex(/^[a-zA-Z0-9_]+$/, "ID can only contain letters, numbers, and underscores."),
+  type: z.nativeEnum(FieldType),
+  options: z.string().optional(),
 })
 
 export async function addRegistrationField(values: z.infer<typeof addFieldSchema>) {
@@ -176,6 +180,8 @@ export async function addRegistrationField(values: z.infer<typeof addFieldSchema
             data: {
                 id: validatedFields.data.id,
                 label: validatedFields.data.label,
+                type: validatedFields.data.type,
+                options: validatedFields.data.options?.split(',').map(o => o.trim()).filter(o => o),
                 enabled: false,
                 required: false
             }
@@ -186,7 +192,10 @@ export async function addRegistrationField(values: z.infer<typeof addFieldSchema
 
     } catch (error) {
         console.error("Error adding registration field:", error);
-        return { success: false, message: 'Failed to add field. The ID might already exist.' };
+        if ((error as any).code === 'P2002') {
+             return { success: false, message: 'Failed to add field. The ID might already exist.' };
+        }
+        return { success: false, message: 'Failed to add field.' };
     }
 }
 
