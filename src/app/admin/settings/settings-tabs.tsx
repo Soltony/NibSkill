@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react"
@@ -61,8 +62,7 @@ import { AddRoleDialog } from "@/components/add-role-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
 import { Badge } from "@/components/ui/badge"
 import { FieldType } from "@/lib/data"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 
 type UserWithRole = User & { role: RoleType };
 
@@ -133,7 +133,7 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
   });
 
   const onRegistrationFieldsSubmit = async (values: z.infer<typeof registrationFieldsSchema>) => {
-    const result = await updateRegistrationFields(values as any); // Cast because server action expects slightly different type
+    const result = await updateRegistrationFields(values as any); 
     if (result.success) {
         toast({
             title: "Settings Saved",
@@ -212,8 +212,6 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                 title: "Field Deleted",
                 description: `The field "${fieldToDelete.label}" has been removed.`,
             });
-            // This is a client-side removal for immediate feedback.
-            // The list will be accurate on next page load from the server.
             replaceRegFields(regFields.filter(f => f.id !== fieldToDelete.id));
         } else {
             toast({ title: "Error", description: result.message, variant: "destructive" });
@@ -438,21 +436,11 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                       <CardHeader>
                           <CardTitle>Registration Form Settings</CardTitle>
                           <CardDescription>
-                            Configure the fields for the staff self-registration form and select one to be the login identifier.
+                            Configure the fields for the staff self-registration form and select which can be used for login.
                           </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-6">
-                        <RadioGroup
-                            value={regFields.find(f => f.isLoginIdentifier)?.id}
-                            onValueChange={(newId) => {
-                                const newFields = regFields.map(f => ({
-                                    ...f,
-                                    isLoginIdentifier: f.id === newId
-                                }));
-                                replaceRegFields(newFields);
-                            }}
-                        >
-                          <Table>
+                        <Table>
                           <TableHeader>
                               <TableRow>
                               <TableHead>Field</TableHead>
@@ -465,18 +453,19 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                               {regFields.map((field, index) => (
                                   <TableRow key={field.id}>
                                       <TableCell className="font-medium">
-                                        <Label htmlFor={`login-identifier-${field.id}`}>{field.label}</Label>
+                                        <label htmlFor={`enabled-checkbox-${field.id}`}>{field.label}</label>
                                       </TableCell>
                                       <TableCell className="text-center">
                                           <FormField
                                               control={registrationFieldsForm.control}
                                               name={`fields.${index}.enabled`}
-                                              render={({ field }) => (
+                                              render={({ field: switchField }) => (
                                                   <FormItem>
                                                       <FormControl>
                                                           <Switch
-                                                              checked={field.value}
-                                                              onCheckedChange={field.onChange}
+                                                              id={`enabled-checkbox-${field.id}`}
+                                                              checked={switchField.value}
+                                                              onCheckedChange={switchField.onChange}
                                                           />
                                                       </FormControl>
                                                   </FormItem>
@@ -487,12 +476,12 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                                           <FormField
                                               control={registrationFieldsForm.control}
                                               name={`fields.${index}.required`}
-                                              render={({ field }) => (
+                                              render={({ field: switchField }) => (
                                                   <FormItem>
                                                       <FormControl>
                                                           <Switch
-                                                              checked={field.value}
-                                                              onCheckedChange={field.onChange}
+                                                              checked={switchField.value}
+                                                              onCheckedChange={switchField.onChange}
                                                               disabled={!registrationFieldsForm.watch(`fields.${index}.enabled`)}
                                                           />
                                                       </FormControl>
@@ -501,15 +490,25 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                                           />
                                       </TableCell>
                                       <TableCell className="text-center">
-                                        <FormControl>
-                                            <RadioGroupItem value={field.id} id={`login-identifier-${field.id}`} />
-                                        </FormControl>
+                                        <FormField
+                                            control={registrationFieldsForm.control}
+                                            name={`fields.${index}.isLoginIdentifier`}
+                                            render={({ field: checkField }) => (
+                                                <FormItem>
+                                                    <FormControl>
+                                                        <Checkbox
+                                                            checked={checkField.value}
+                                                            onCheckedChange={checkField.onChange}
+                                                        />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
                                       </TableCell>
                                   </TableRow>
                               ))}
                           </TableBody>
-                          </Table>
-                          </RadioGroup>
+                        </Table>
                       </CardContent>
                       <CardFooter>
                           <Button type="submit" disabled={registrationFieldsForm.formState.isSubmitting}>

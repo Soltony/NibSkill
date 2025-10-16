@@ -145,13 +145,11 @@ export async function updateRegistrationFields(values: z.infer<typeof registrati
         }
         
         await prisma.$transaction(async (tx) => {
-            // Ensure only one field is the login identifier
-            const loginIdentifierCount = values.fields.filter(f => f.isLoginIdentifier).length;
-            if (loginIdentifierCount !== 1) {
-                throw new Error("Exactly one field must be selected as the login identifier.");
+             const loginIdentifierCount = values.fields.filter(f => f.isLoginIdentifier).length;
+            if (loginIdentifierCount === 0) {
+                throw new Error("At least one field must be selected as a login identifier.");
             }
 
-            // Update all fields
             for (const field of validatedFields.data.fields) {
                 await tx.registrationField.update({
                     where: { id: field.id },
@@ -225,18 +223,18 @@ export async function deleteRegistrationField(id: string) {
 }
 
 
-export async function getLoginIdentifier() {
-    const loginField = await prisma.registrationField.findFirst({
+export async function getLoginIdentifiers() {
+    const loginFields = await prisma.registrationField.findMany({
         where: { isLoginIdentifier: true },
         select: { id: true, label: true }
     });
     
     // Fallback to email if nothing is configured
-    if (!loginField) {
-        return { id: 'email', label: 'Email' };
+    if (!loginFields || loginFields.length === 0) {
+        return [{ id: 'email', label: 'Email' }];
     }
 
-    return loginField;
+    return loginFields;
 }
 
     
