@@ -1,4 +1,5 @@
 
+
 import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
@@ -284,6 +285,20 @@ async function main() {
 
 
   // Seed Registration Fields
+  // Create a default `email` field since it's fundamental for login
+  await prisma.registrationField.upsert({
+    where: { id: 'email' },
+    update: {},
+    create: {
+      id: 'email',
+      label: 'Email Address',
+      type: FieldType.TEXT,
+      enabled: true,
+      required: true,
+      isLoginIdentifier: true,
+    }
+  });
+
   for (const field of initialRegistrationFields) {
     await prisma.registrationField.upsert({
       where: { id: field.id },
@@ -300,6 +315,7 @@ async function main() {
         enabled: field.enabled,
         required: field.required,
         options: field.options,
+        isLoginIdentifier: field.isLoginIdentifier,
       }
     });
   }
