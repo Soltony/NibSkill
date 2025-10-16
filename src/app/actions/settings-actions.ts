@@ -129,11 +129,8 @@ const registrationFieldsSchema = z.object({
     fields: z.array(z.object({
         id: z.string(),
         label: z.string(),
-        type: z.nativeEnum(FieldType),
-        options: z.array(z.string()).optional().nullable(),
         enabled: z.boolean(),
         required: z.boolean(),
-        isLoginIdentifier: z.boolean(),
     }))
 })
 
@@ -144,33 +141,24 @@ export async function updateRegistrationFields(values: z.infer<typeof registrati
             return { success: false, message: "Invalid data provided." }
         }
         
-        await prisma.$transaction(async (tx) => {
-             const loginIdentifierCount = values.fields.filter(f => f.isLoginIdentifier).length;
-            if (loginIdentifierCount === 0) {
-                throw new Error("At least one field must be selected as a login identifier.");
-            }
-
-            for (const field of validatedFields.data.fields) {
-                await tx.registrationField.update({
+        await prisma.$transaction(
+            validatedFields.data.fields.map(field => 
+                prisma.registrationField.update({
                     where: { id: field.id },
                     data: {
-                        label: field.label,
-                        type: field.type,
-                        options: field.options,
                         enabled: field.enabled,
-                        required: field.required,
-                        isLoginIdentifier: field.isLoginIdentifier
+                        required: field.required
                     }
-                });
-            }
-        });
+                })
+            )
+        )
         
         revalidatePath('/admin/settings');
         return { success: true, message: 'Registration form settings have been updated.' };
 
-    } catch (error: any) {
+    } catch (error) {
         console.error("Error updating registration fields:", error);
-        return { success: false, message: error.message || 'Failed to update settings.' };
+        return { success: false, message: 'Failed to update settings.' };
     }
 }
 
@@ -221,20 +209,3 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
-
-
-export async function getLoginIdentifiers() {
-    const loginFields = await prisma.registrationField.findMany({
-        where: { isLoginIdentifier: true },
-        select: { id: true, label: true }
-    });
-    
-    // Fallback to email if nothing is configured
-    if (!loginFields || loginFields.length === 0) {
-        return [{ id: 'email', label: 'Email' }];
-    }
-
-    return loginFields;
-}
-
-    

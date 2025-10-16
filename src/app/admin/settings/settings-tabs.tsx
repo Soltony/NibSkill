@@ -3,7 +3,7 @@
 "use client"
 
 import { useState } from "react"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType } from "@prisma/client"
@@ -61,8 +61,6 @@ import { AddFieldDialog } from "@/components/add-field-dialog"
 import { AddRoleDialog } from "@/components/add-role-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
 import { Badge } from "@/components/ui/badge"
-import { FieldType } from "@/lib/data"
-import { Checkbox } from "@/components/ui/checkbox"
 
 type UserWithRole = User & { role: RoleType };
 
@@ -77,11 +75,8 @@ const registrationFieldsSchema = z.object({
     fields: z.array(z.object({
         id: z.string(),
         label: z.string(),
-        type: z.nativeEnum(FieldType),
-        options: z.array(z.string()).optional().nullable(),
         enabled: z.boolean(),
         required: z.boolean(),
-        isLoginIdentifier: z.boolean(),
     }))
 })
 
@@ -110,7 +105,7 @@ type SettingsTabsProps = {
     registrationFields: RegistrationField[];
 }
 
-export function SettingsTabs({ users, roles, registrationFields: initialRegistrationFields }: SettingsTabsProps) {
+export function SettingsTabs({ users, roles, registrationFields }: SettingsTabsProps) {
   const [roleToDelete, setRoleToDelete] = useState<RoleType | null>(null);
   const { toast } = useToast()
 
@@ -119,21 +114,12 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
   const registrationFieldsForm = useForm<z.infer<typeof registrationFieldsSchema>>({
     resolver: zodResolver(registrationFieldsSchema),
     defaultValues: {
-      fields: initialRegistrationFields.map(f => ({
-        ...f, 
-        type: f.type as TFieldType,
-        isLoginIdentifier: f.isLoginIdentifier ?? false
-      }))
+      fields: registrationFields
     }
   });
 
-  const { fields: regFields, replace: replaceRegFields } = useFieldArray({
-    control: registrationFieldsForm.control,
-    name: "fields"
-  });
-
   const onRegistrationFieldsSubmit = async (values: z.infer<typeof registrationFieldsSchema>) => {
-    const result = await updateRegistrationFields(values as any); 
+    const result = await updateRegistrationFields(values);
     if (result.success) {
         toast({
             title: "Settings Saved",
@@ -212,7 +198,7 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                 title: "Field Deleted",
                 description: `The field "${fieldToDelete.label}" has been removed.`,
             });
-            replaceRegFields(regFields.filter(f => f.id !== fieldToDelete.id));
+            registrationFieldsForm.setValue('fields', registrationFieldsForm.getValues('fields').filter(f => f.id !== fieldToDelete.id));
         } else {
             toast({ title: "Error", description: result.message, variant: "destructive" });
         }
@@ -436,7 +422,7 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                       <CardHeader>
                           <CardTitle>Registration Form Settings</CardTitle>
                           <CardDescription>
-                            Configure the fields for the staff self-registration form and select which can be used for login.
+                            Choose which fields to include in the staff self-registration form.
                           </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-6">
@@ -446,11 +432,10 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                               <TableHead>Field</TableHead>
                               <TableHead className="text-center">Show on Form</TableHead>
                               <TableHead className="text-center">Make Required</TableHead>
-                              <TableHead className="text-center">Use for Login</TableHead>
                               </TableRow>
                           </TableHeader>
                           <TableBody>
-                              {regFields.map((field, index) => (
+                              {registrationFieldsForm.getValues('fields').map((field, index) => (
                                   <TableRow key={field.id}>
                                       <TableCell className="font-medium">
                                         <label htmlFor={`enabled-checkbox-${field.id}`}>{field.label}</label>
@@ -489,22 +474,6 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                                               )}
                                           />
                                       </TableCell>
-                                      <TableCell className="text-center">
-                                        <FormField
-                                            control={registrationFieldsForm.control}
-                                            name={`fields.${index}.isLoginIdentifier`}
-                                            render={({ field: checkField }) => (
-                                                <FormItem>
-                                                    <FormControl>
-                                                        <Checkbox
-                                                            checked={checkField.value}
-                                                            onCheckedChange={checkField.onChange}
-                                                        />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )}
-                                        />
-                                      </TableCell>
                                   </TableRow>
                               ))}
                           </TableBody>
@@ -539,12 +508,12 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                                   </TableRow>
                               </TableHeader>
                               <TableBody>
-                                  {regFields.map(field => (
+                                  {registrationFields.map(field => (
                                       <TableRow key={field.id}>
                                           <TableCell>{field.label}</TableCell>
                                           <TableCell><code className="text-xs bg-muted p-1 rounded">{field.id}</code></TableCell>
                                           <TableCell>
-                                            <Badge variant="outline">{field.type}</Badge>
+                                            <Badge variant="outline">{(field as any).type}</Badge>
                                           </TableCell>
                                           <TableCell className="text-right">
                                               <Button variant="ghost" size="icon" onClick={() => setFieldToDelete(field as RegistrationField)}>

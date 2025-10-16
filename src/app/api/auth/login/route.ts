@@ -7,9 +7,8 @@ import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 
 const loginSchema = z.object({
-  identifier: z.string(),
+  email: z.string().email(),
   password: z.string(),
-  identifierField: z.string(),
 });
 
 const getJwtSecret = () => {
@@ -29,10 +28,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ isSuccess: false, errors: ['Invalid login data format.'] }, { status: 400 });
     }
 
-    const { identifier, password, identifierField } = validation.data;
+    const { email, password } = validation.data;
 
     const user = await prisma.user.findUnique({
-      where: { [identifierField]: identifier },
+      where: { email },
       include: { role: true },
     });
 
@@ -89,9 +88,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Login error:', error);
-    if (error instanceof Error && error.message.includes('unique constraint')) {
-        return NextResponse.json({ isSuccess: false, errors: [`The selected login field '${(error as any).meta?.target?.[0]}' is not unique across all users. Please choose a unique field.`] }, { status: 400 });
-    }
     return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });
   }
 }
