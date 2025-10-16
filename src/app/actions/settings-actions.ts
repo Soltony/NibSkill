@@ -1,5 +1,4 @@
 
-
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -130,9 +129,10 @@ const registrationFieldsSchema = z.object({
         id: z.string(),
         label: z.string(),
         type: z.nativeEnum(FieldType),
-        options: z.array(z.string()).optional(),
+        options: z.array(z.string()).optional().nullable(),
         enabled: z.boolean(),
         required: z.boolean(),
+        isLoginIdentifier: z.boolean(),
     }))
 })
 
@@ -143,27 +143,35 @@ export async function updateRegistrationFields(values: z.infer<typeof registrati
             return { success: false, message: "Invalid data provided." }
         }
         
-        await prisma.$transaction(
-            validatedFields.data.fields.map(field => 
-                prisma.registrationField.update({
+        await prisma.$transaction(async (tx) => {
+            // Ensure only one field is the login identifier
+            const loginIdentifierCount = values.fields.filter(f => f.isLoginIdentifier).length;
+            if (loginIdentifierCount !== 1) {
+                throw new Error("Exactly one field must be selected as the login identifier.");
+            }
+
+            // Update all fields
+            for (const field of validatedFields.data.fields) {
+                await tx.registrationField.update({
                     where: { id: field.id },
                     data: {
                         label: field.label,
                         type: field.type,
                         options: field.options,
                         enabled: field.enabled,
-                        required: field.required
+                        required: field.required,
+                        isLoginIdentifier: field.isLoginIdentifier
                     }
-                })
-            )
-        )
+                });
+            }
+        });
         
         revalidatePath('/admin/settings');
         return { success: true, message: 'Registration form settings have been updated.' };
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error updating registration fields:", error);
-        return { success: false, message: 'Failed to update settings.' };
+        return { success: false, message: error.message || 'Failed to update settings.' };
     }
 }
 
@@ -213,4 +221,19 @@ export async function deleteRegistrationField(id: string) {
         console.error("Error deleting registration field:", error);
         return { success: false, message: 'Failed to delete field.' };
     }
+}
+
+
+export async function getLoginIdentifier() {
+    const loginField = await prisma.registrationField.findFirst({
+        where: { isLoginIdentifier: true },
+        select: { id: true, label: true }
+    });
+    
+    // Fallback to email if nothing is configured
+    if (!loginField) {
+        return { id: 'email', label: 'Email' };
+    }
+
+    return loginField;
 }

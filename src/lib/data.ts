@@ -134,6 +134,7 @@ export type RegistrationField = {
   enabled: boolean;
   required: boolean;
   options?: string[];
+  isLoginIdentifier?: boolean;
 }
 
 export type Notification = {
@@ -538,5 +539,3 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
-
-    

@@ -14,7 +14,7 @@ async function getSettingsData() {
     });
 
     const registrationFields = await prisma.registrationField.findMany({
-        orderBy: { label: "asc" }
+        orderBy: { createdAt: "asc" }
     });
 
     return { users, roles, registrationFields };

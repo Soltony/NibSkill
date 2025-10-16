@@ -61,6 +61,8 @@ import { AddRoleDialog } from "@/components/add-role-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
 import { Badge } from "@/components/ui/badge"
 import { FieldType } from "@/lib/data"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
 
 type UserWithRole = User & { role: RoleType };
 
@@ -79,6 +81,7 @@ const registrationFieldsSchema = z.object({
         options: z.array(z.string()).optional().nullable(),
         enabled: z.boolean(),
         required: z.boolean(),
+        isLoginIdentifier: z.boolean(),
     }))
 })
 
@@ -116,7 +119,11 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
   const registrationFieldsForm = useForm<z.infer<typeof registrationFieldsSchema>>({
     resolver: zodResolver(registrationFieldsSchema),
     defaultValues: {
-      fields: initialRegistrationFields.map(f => ({...f, type: f.type as TFieldType}))
+      fields: initialRegistrationFields.map(f => ({
+        ...f, 
+        type: f.type as TFieldType,
+        isLoginIdentifier: f.isLoginIdentifier ?? false
+      }))
     }
   });
 
@@ -421,7 +428,7 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
         <TabsContent value="registration-settings">
            <Tabs defaultValue="fields">
               <TabsList>
-                  <TabsTrigger value="fields">Form Fields</TabsTrigger>
+                  <TabsTrigger value="fields">Form Settings</TabsTrigger>
                   <TabsTrigger value="manage-fields">Manage Fields</TabsTrigger>
               </TabsList>
               <TabsContent value="fields">
@@ -431,22 +438,35 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                       <CardHeader>
                           <CardTitle>Registration Form Settings</CardTitle>
                           <CardDescription>
-                          Choose which fields to include in the staff self-registration form.
+                            Configure the fields for the staff self-registration form and select one to be the login identifier.
                           </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-6">
+                        <RadioGroup
+                            value={regFields.find(f => f.isLoginIdentifier)?.id}
+                            onValueChange={(newId) => {
+                                const newFields = regFields.map(f => ({
+                                    ...f,
+                                    isLoginIdentifier: f.id === newId
+                                }));
+                                replaceRegFields(newFields);
+                            }}
+                        >
                           <Table>
                           <TableHeader>
                               <TableRow>
                               <TableHead>Field</TableHead>
                               <TableHead className="text-center">Show on Form</TableHead>
                               <TableHead className="text-center">Make Required</TableHead>
+                              <TableHead className="text-center">Use for Login</TableHead>
                               </TableRow>
                           </TableHeader>
                           <TableBody>
                               {regFields.map((field, index) => (
                                   <TableRow key={field.id}>
-                                      <TableCell className="font-medium">{field.label}</TableCell>
+                                      <TableCell className="font-medium">
+                                        <Label htmlFor={`login-identifier-${field.id}`}>{field.label}</Label>
+                                      </TableCell>
                                       <TableCell className="text-center">
                                           <FormField
                                               control={registrationFieldsForm.control}
@@ -480,10 +500,16 @@ export function SettingsTabs({ users, roles, registrationFields: initialRegistra
                                               )}
                                           />
                                       </TableCell>
+                                      <TableCell className="text-center">
+                                        <FormControl>
+                                            <RadioGroupItem value={field.id} id={`login-identifier-${field.id}`} />
+                                        </FormControl>
+                                      </TableCell>
                                   </TableRow>
                               ))}
                           </TableBody>
                           </Table>
+                          </RadioGroup>
                       </CardContent>
                       <CardFooter>
                           <Button type="submit" disabled={registrationFieldsForm.formState.isSubmitting}>

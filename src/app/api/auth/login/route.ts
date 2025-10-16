@@ -7,8 +7,9 @@ import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  identifier: z.string(),
   password: z.string(),
+  identifierField: z.string(),
 });
 
 const getJwtSecret = () => {
@@ -25,13 +26,13 @@ export async function POST(request: NextRequest) {
     const validation = loginSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ isSuccess: false, errors: ['Invalid email or password format.'] }, { status: 400 });
+      return NextResponse.json({ isSuccess: false, errors: ['Invalid login data format.'] }, { status: 400 });
     }
 
-    const { email, password } = validation.data;
+    const { identifier, password, identifierField } = validation.data;
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { [identifierField]: identifier },
       include: { role: true },
     });
 
@@ -58,7 +59,13 @@ export async function POST(request: NextRequest) {
     
     // Create JWT
     const expirationTime = '24h';
-    const token = await new SignJWT({ userId: user.id, role: user.role.name })
+    const token = await new SignJWT({ 
+        userId: user.id, 
+        role: user.role.name,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime(expirationTime)
@@ -82,6 +89,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Login error:', error);
+    if (error instanceof Error && error.message.includes('unique constraint')) {
+        return NextResponse.json({ isSuccess: false, errors: [`The selected login field '${(error as any).meta?.target?.[0]}' is not unique across all users. Please choose a unique field.`] }, { status: 400 });
+    }
     return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });
   }
 }
