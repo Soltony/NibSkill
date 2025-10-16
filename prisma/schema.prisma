@@ -239,14 +239,14 @@ model CertificateTemplate {
 }
 
 model RegistrationField {
-  id        String    @id
+  id        String     @id
   label     String
   type      FieldType
   options   String[]
-  enabled   Boolean   @default(false)
-  required  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  enabled   Boolean    @default(false)
+  required  Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model LoginHistory {
@@ -284,5 +284,3 @@ enum FieldType {
   DATE
   SELECT
 }
-
-    
