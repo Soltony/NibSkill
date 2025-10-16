@@ -31,7 +31,7 @@ import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { initialRegistrationFields } from "@/lib/data";
+import { initialRegistrationFields, FieldType } from "@/lib/data";
 
 
 const baseSchema = z.object({
@@ -135,7 +135,6 @@ export default function RegisterPage() {
   
   const renderField = (field: TRegistrationField) => {
     const commonProps = {
-      key: field.id,
       control: form.control,
       name: field.id
     };
@@ -185,7 +184,6 @@ export default function RegisterPage() {
         if (field.id === 'department') options = departments;
         if (field.id === 'district') options = districts;
         if (field.id === 'branch') options = availableBranches;
-        // For other custom SELECT fields, you would fetch options or use field.options
         
         return (
           <FormField
@@ -288,7 +286,9 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-              {registrationFields.map(field => renderField(field))}
+              {registrationFields.map(field => (
+                <div key={field.id}>{renderField(field)}</div>
+              ))}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
@@ -308,5 +308,3 @@ export default function RegisterPage() {
     </main>
   );
 }
-
-    
