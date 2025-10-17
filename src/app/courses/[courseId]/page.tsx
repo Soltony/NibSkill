@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -19,8 +19,9 @@ import { Video, FileText, Presentation, Music, Bookmark } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User } from '@prisma/client';
 import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
+import { toggleModuleCompletion } from '@/app/actions/user-actions';
 
 const iconMap = {
   video: <Video className="h-5 w-5 text-accent" />,
@@ -37,43 +38,56 @@ type CourseWithRelations = Course & {
     quiz: QuizType | null;
 };
 
+type CourseData = {
+    course: CourseWithRelations;
+    completedModules: { moduleId: string }[];
+    user: User;
+}
+
 export default function CourseDetailPage() {
   const params = useParams();
   const courseId = typeof params.courseId === 'string' ? params.courseId : '';
   const { toast } = useToast();
   
-  const [course, setCourse] = useState<CourseWithRelations | null>(null);
+  const [courseData, setCourseData] = useState<CourseData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchCourse() {
+  const [localCompletedModules, setLocalCompletedModules] = useState<Set<string>>(new Set());
+
+  const fetchCourse = useCallback(async () => {
       if (courseId) {
         try {
-          const res = await fetch(`/api/courses/${courseId}?quiz=true`);
+          setIsLoading(true);
+          const res = await fetch(`/api/courses/${courseId}?quiz=true&progress=true`);
           if (res.ok) {
             const data = await res.json();
-            setCourse(data);
+            setCourseData(data);
+            setLocalCompletedModules(new Set(data.completedModules.map((cm: any) => cm.moduleId)));
           } else {
             toast({ title: "Error", description: "Failed to fetch course details.", variant: "destructive" });
           }
         } catch (error) {
           toast({ title: "Error", description: "Could not connect to the server.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
         }
       }
-    }
+    }, [courseId, toast]);
+
+  useEffect(() => {
     fetchCourse();
-  }, [courseId, toast]);
+  }, [fetchCourse]);
 
   const progress = useMemo(() => {
-    if (!course || course.modules.length === 0) return 0;
-    // In a real app, completion would be per-user.
-    // We'll mock it based on index for demonstration.
-    const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
-    return Math.round((completedModules / course.modules.length) * 100);
-  }, [course]);
+    if (!courseData || courseData.course.modules.length === 0) return 0;
+    return Math.round((localCompletedModules.size / courseData.course.modules.length) * 100);
+  }, [courseData, localCompletedModules]);
   
   const allModulesCompleted = progress === 100;
+  
+  const course = courseData?.course;
 
-  if (!course) {
+  if (isLoading || !course) {
     return (
         <div className="mx-auto max-w-4xl space-y-8">
             <Skeleton className="h-64 w-full rounded-lg" />
@@ -85,11 +99,28 @@ export default function CourseDetailPage() {
     );
   }
 
-  const handleModuleCompletion = (moduleId: string, completed: boolean) => {
-    toast({
-      title: "Action Not Implemented",
-      description: "User-specific progress tracking is not implemented in this prototype."
-    });
+  const handleModuleCompletion = async (moduleId: string, completed: boolean) => {
+    
+    // Optimistic UI update
+    const newCompletions = new Set(localCompletedModules);
+    if (completed) {
+        newCompletions.add(moduleId);
+    } else {
+        newCompletions.delete(moduleId);
+    }
+    setLocalCompletedModules(newCompletions);
+
+    const result = await toggleModuleCompletion(course.id, { moduleId, completed });
+    
+    if (!result.success) {
+      toast({
+        title: "Error updating progress",
+        description: result.message,
+        variant: "destructive"
+      });
+      // Revert optimistic update
+      setLocalCompletedModules(new Set(courseData?.completedModules.map(cm => cm.moduleId)))
+    }
   };
 
   const quiz = course.quiz as QuizType | undefined;
@@ -146,6 +177,7 @@ export default function CourseDetailPage() {
                                 <div className="flex items-center space-x-2">
                                     <Checkbox
                                         id={`complete-${module.id}`}
+                                        checked={localCompletedModules.has(module.id)}
                                         onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
                                     />
                                     <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
@@ -173,13 +205,13 @@ export default function CourseDetailPage() {
 
             <div className="mt-8 text-center">
                 {quiz ? (
-                    <Button size="lg" asChild>
+                    <Button size="lg" asChild disabled={!allModulesCompleted}>
                       <Link href={`/courses/${course.id}/quiz`}>Take Quiz</Link>
                     </Button>
                 ) : (
                     <p className="text-muted-foreground">Quiz not available for this course.</p>
                 )}
-                {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz (feature disabled for demo).</p>}
+                {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
             </div>
         </>
     </div>

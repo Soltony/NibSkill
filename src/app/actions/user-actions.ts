@@ -54,7 +54,6 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
 export async function logout() {
   cookies().set('session', '', { expires: new Date(0) })
-  redirect('/login')
 }
 
 const profileFormSchema = z.object({
@@ -95,10 +94,60 @@ export async function updateUserProfile(values: z.infer<typeof profileFormSchema
 
         revalidatePath('/profile');
         
-        return { success: true, message: 'Profile updated successfully. Please log in again.' };
+        return { success: true, message: 'Profile updated successfully.' };
 
     } catch (error) {
         console.error("Error updating profile:", error);
         return { success: false, message: "Failed to update profile." };
     }
 }
+
+const toggleModuleSchema = z.object({
+  moduleId: z.string(),
+  completed: z.boolean(),
+});
+
+export async function toggleModuleCompletion(courseId: string, values: z.infer<typeof toggleModuleSchema>) {
+    const session = await getSession();
+    if (!session) {
+        return { success: false, message: "Not authenticated." };
+    }
+    
+    const validatedFields = toggleModuleSchema.safeParse(values);
+    if (!validatedFields.success) {
+        return { success: false, message: "Invalid data." };
+    }
+    
+    const { moduleId, completed } = validatedFields.data;
+    const userId = session.id;
+
+    try {
+        if (completed) {
+            await prisma.userCompletedModule.create({
+                data: {
+                    userId,
+                    moduleId
+                }
+            });
+        } else {
+            await prisma.userCompletedModule.delete({
+                where: {
+                    userId_moduleId: {
+                        userId,
+                        moduleId
+                    }
+                }
+            });
+        }
+        revalidatePath(`/courses/${courseId}`);
+        return { success: true };
+    } catch (error) {
+        // Ignore errors if record already exists/doesn't exist, which can happen with rapid toggling
+        if ((error as any).code === 'P2002' || (error as any).code === 'P2025') {
+            return { success: true };
+        }
+        console.error("Error toggling module completion:", error);
+        return { success: false, message: "Failed to update progress." };
+    }
+}
+
