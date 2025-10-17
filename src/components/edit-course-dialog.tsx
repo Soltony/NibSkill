@@ -57,7 +57,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: course.title,
-      productId: course.productId,
+      productId: course.productId ?? "",
       description: course.description,
     },
   })
@@ -66,7 +66,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
     if (open) {
       form.reset({
         title: course.title,
-        productId: course.productId,
+        productId: course.productId ?? "",
         description: course.description,
       })
     }

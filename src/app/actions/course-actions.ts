@@ -18,11 +18,22 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
             return { success: false, message: "Invalid data provided." }
         }
 
+        const product = await prisma.product.findUnique({
+            where: { id: validatedFields.data.productId }
+        });
+
+        if (!product) {
+            return { success: false, message: "Associated product not found." }
+        }
+
         await prisma.course.create({
             data: {
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 productId: validatedFields.data.productId,
+                imageUrl: product.imageUrl,
+                imageHint: product.imageHint,
+                imageDescription: product.description, // Use product description as a fallback for image description
             }
         });
 
@@ -40,6 +51,14 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
         }
+        
+        const product = await prisma.product.findUnique({
+            where: { id: validatedFields.data.productId }
+        });
+
+        if (!product) {
+            return { success: false, message: "Associated product not found." }
+        }
 
         await prisma.course.update({
             where: { id },
@@ -47,10 +66,15 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 productId: validatedFields.data.productId,
+                imageUrl: product.imageUrl,
+                imageHint: product.imageHint,
+                imageDescription: product.description,
             }
         });
 
         revalidatePath('/admin/courses');
+        revalidatePath(`/admin/courses/${id}`);
+        revalidatePath(`/courses/${id}`);
         return { success: true, message: 'Course updated successfully.' }
     } catch (error) {
         console.error("Error updating course:", error);
