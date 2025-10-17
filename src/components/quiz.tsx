@@ -32,8 +32,10 @@ import { useToast } from '@/hooks/use-toast';
 
 type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
 
+type Answer = string | string[];
+
 type Answers = {
-  [questionId: string]: string;
+  [questionId: string]: Answer;
 };
 
 export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: string, onComplete: () => void }) {
@@ -47,15 +49,30 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
+  const getBlankCount = (text: string) => {
+    return (text.match(/____/g) || []).length;
+  }
+
   const handleSubmit = useCallback(() => {
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
        if (q.type === 'fill_in_the_blank') {
-        const correctAns = q.correctAnswerId;
-        const userAns = answers[q.id] || "";
-        if (correctAns.trim().toLowerCase() === userAns.trim().toLowerCase()) {
+        const correctAnswersArray = (q.correctAnswerId || "").split('|||');
+        const userAnswersArray = (answers[q.id] as string[]) || [];
+        
+        let allBlanksCorrect = true;
+        for (let i = 0; i < correctAnswersArray.length; i++) {
+          const correct = correctAnswersArray[i]?.trim().toLowerCase();
+          const user = userAnswersArray[i]?.trim().toLowerCase();
+          if (correct !== user) {
+            allBlanksCorrect = false;
+            break;
+          }
+        }
+        if (allBlanksCorrect && correctAnswersArray.length > 0) {
             correctAnswers++;
         }
+
       } else {
         const correctOption = q.options.find(opt => opt.id === q.correctAnswerId);
         if (correctOption && answers[q.id] === correctOption.id) {
@@ -107,10 +124,27 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
       [questionId]: value,
     }));
   };
+
+  const handleMultiBlankAnswerChange = (questionId: string, blankIndex: number, value: string) => {
+    setAnswers(prev => {
+      const currentAnswers = (prev[questionId] as string[]) || [];
+      const newAnswers = [...currentAnswers];
+      newAnswers[blankIndex] = value;
+      return {
+        ...prev,
+        [questionId]: newAnswers,
+      };
+    });
+  };
   
   const isAnswered = (q: Question) => {
     const answer = answers[q.id];
-    return answer && answer.trim() !== '';
+    if (q.type === 'fill_in_the_blank') {
+      const blankCount = getBlankCount(q.text);
+      if (!Array.isArray(answer) || answer.length < blankCount) return false;
+      return answer.every(a => a && a.trim() !== '');
+    }
+    return answer && (answer as string).trim() !== '';
   };
 
   const allQuestionsAnswered = quiz.questions.every(q => isAnswered(q));
@@ -196,20 +230,20 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                   </>
                 )}
                  {currentQuestion.type === 'fill_in_the_blank' && (
-                    <div className="mb-4 font-semibold text-lg leading-relaxed">
-                        {currentQuestion.text.split('____').map((part, i, arr) => (
-                            <Fragment key={i}>
-                                {part}
-                                {i < arr.length - 1 && (
-                                <Input
-                                    className="inline-block w-40 h-8 mx-2 px-2 text-base"
-                                    value={answers[currentQuestion.id] || ''}
-                                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                                />
-                                )}
-                            </Fragment>
-                        ))}
-                    </div>
+                  <div className="mb-4 font-semibold text-lg leading-relaxed">
+                      {currentQuestion.text.split('____').map((part, i) => (
+                        <Fragment key={i}>
+                          {part}
+                          {i < getBlankCount(currentQuestion.text) && (
+                            <Input
+                              className="inline-block w-40 h-8 mx-2 px-2 text-base"
+                              value={(answers[currentQuestion.id] as string[])?.[i] || ''}
+                              onChange={(e) => handleMultiBlankAnswerChange(currentQuestion.id, i, e.target.value)}
+                            />
+                          )}
+                        </Fragment>
+                      ))}
+                  </div>
                 )}
               </div>
             )}
