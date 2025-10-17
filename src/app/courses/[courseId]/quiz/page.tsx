@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Quiz } from '@/components/quiz';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +28,11 @@ export default function QuizPage() {
     const [course, setCourse] = useState<CourseWithQuiz | null>(null);
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    const shuffledQuestions = useMemo(() => {
+        if (!course?.quiz?.questions) return [];
+        return [...course.quiz.questions].sort(() => Math.random() - 0.5);
+    }, [course?.quiz?.questions]);
 
     useEffect(() => {
         async function fetchCourseAndQuiz() {
@@ -93,10 +97,15 @@ export default function QuizPage() {
         );
     }
     
+    const quizWithShuffled = {
+        ...course.quiz,
+        questions: shuffledQuestions,
+    }
+
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4">
             <Quiz 
-                quiz={course.quiz} 
+                quiz={quizWithShuffled} 
                 userId={user.id}
                 onComplete={handleQuizComplete} 
             />

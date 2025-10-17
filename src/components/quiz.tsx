@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Card,
@@ -25,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from './ui/input';
 import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Quiz as TQuiz, Question, Option as TOption, User } from '@prisma/client';
+import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
 import { Progress } from './ui/progress';
 import { completeCourse } from '@/app/actions/user-actions';
 import { useToast } from '@/hooks/use-toast';
@@ -44,15 +43,11 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const { toast } = useToast();
 
-  const shuffledQuestions = useMemo(() => {
-    return [...quiz.questions].sort(() => Math.random() - 0.5);
-  }, [quiz.questions]);
-
-  const currentQuestion = shuffledQuestions[currentQuestionIndex];
+  const currentQuestion = quiz.questions[currentQuestionIndex];
 
   const handleSubmit = useCallback(async () => {
     let correctAnswers = 0;
-    shuffledQuestions.forEach((q) => {
+    quiz.questions.forEach((q) => {
        if (q.type === 'fill_in_the_blank') {
         if (answers[q.id]?.trim().toLowerCase() === q.correctAnswerId.trim().toLowerCase()) {
           correctAnswers++;
@@ -64,7 +59,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
         }
       }
     });
-    const finalScore = shuffledQuestions.length > 0 ? Math.round((correctAnswers / shuffledQuestions.length) * 100) : 0;
+    const finalScore = quiz.questions.length > 0 ? Math.round((correctAnswers / quiz.questions.length) * 100) : 0;
     setScore(finalScore);
     setShowResult(true);
 
@@ -83,7 +78,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
         })
       }
     }
-  }, [answers, shuffledQuestions, quiz.passingScore, quiz.courseId, userId, toast]);
+  }, [answers, quiz.questions, quiz.passingScore, quiz.courseId, userId, toast]);
   
   useEffect(() => {
     if (timeLeft === null || showResult) return;
@@ -111,7 +106,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     return !!answers[q.id];
   };
 
-  const allQuestionsAnswered = shuffledQuestions.every(q => isAnswered(q));
+  const allQuestionsAnswered = quiz.questions.every(q => isAnswered(q));
 
   const passed = score >= quiz.passingScore;
 
@@ -122,7 +117,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   }
   
   const goToNext = () => {
-    if (currentQuestionIndex < shuffledQuestions.length - 1) {
+    if (currentQuestionIndex < quiz.questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     }
   };
@@ -167,9 +162,9 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             
              <div className="mb-6">
                 <div className="flex justify-between text-sm font-medium mb-1">
-                    <span>Question {currentQuestionIndex + 1} of {shuffledQuestions.length}</span>
+                    <span>Question {currentQuestionIndex + 1} of {quiz.questions.length}</span>
                 </div>
-                <Progress value={((currentQuestionIndex + 1) / shuffledQuestions.length) * 100} />
+                <Progress value={((currentQuestionIndex + 1) / quiz.questions.length) * 100} />
             </div>
 
             {currentQuestion && (
@@ -208,7 +203,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
               <ChevronLeft className="mr-2 h-4 w-4" /> Previous
             </Button>
             
-            {currentQuestionIndex === shuffledQuestions.length - 1 ? (
+            {currentQuestionIndex === quiz.questions.length - 1 ? (
               <Button onClick={handleSubmit} disabled={!allQuestionsAnswered}>
                 Submit Quiz
               </Button>
