@@ -211,9 +211,15 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
             <div className="mt-8 text-center">
                 {quiz ? (
-                    <Button size="lg" asChild disabled={!allModulesCompleted}>
-                      <Link href={`/courses/${course.id}/quiz`}>Take Quiz</Link>
-                    </Button>
+                    allModulesCompleted ? (
+                        <Button size="lg" asChild>
+                            <Link href={`/courses/${course.id}/quiz`}>Take Quiz</Link>
+                        </Button>
+                    ) : (
+                        <Button size="lg" disabled>
+                            Take Quiz
+                        </Button>
+                    )
                 ) : (
                     <p className="text-muted-foreground">Quiz not available for this course.</p>
                 )}
