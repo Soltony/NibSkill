@@ -85,6 +85,8 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                 title: "Profile Updated",
                 description: result.message,
             })
+            // Force a reload to ensure the user is redirected to the login page cleanly
+            window.location.reload();
         } else {
             toast({
                 title: "Error",
