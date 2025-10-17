@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useEffect, useCallback, useTransition, Fragment } from 'react';
 import Link from 'next/link';
 import {
   Card,
@@ -145,10 +145,6 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     )
   }
   
-  const getBlankCount = (text: string) => {
-    return (text.match(/____/g) || []).length;
-  }
-
   return (
     <>
       <Card className="w-full max-w-3xl mx-auto shadow-lg">
@@ -200,20 +196,20 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                   </>
                 )}
                  {currentQuestion.type === 'fill_in_the_blank' && (
-                  <div className="mb-4 font-semibold text-lg leading-relaxed">
-                    {currentQuestion.text.split('____').map((part, i) => (
-                      <>
-                        {part}
-                        {i < getBlankCount(currentQuestion.text) && (
-                          <Input
-                            className="inline-block w-40 h-8 mx-2 px-2 text-base"
-                            value={answers[currentQuestion.id] || ''}
-                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                          />
-                        )}
-                      </>
-                    ))}
-                  </div>
+                    <div className="mb-4 font-semibold text-lg leading-relaxed">
+                        {currentQuestion.text.split('____').map((part, i, arr) => (
+                            <Fragment key={i}>
+                                {part}
+                                {i < arr.length - 1 && (
+                                <Input
+                                    className="inline-block w-40 h-8 mx-2 px-2 text-base"
+                                    value={answers[currentQuestion.id] || ''}
+                                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                                />
+                                )}
+                            </Fragment>
+                        ))}
+                    </div>
                 )}
               </div>
             )}
