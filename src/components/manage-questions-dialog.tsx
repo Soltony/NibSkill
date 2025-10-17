@@ -31,6 +31,7 @@ import { Label } from "./ui/label"
 import { ScrollArea } from "./ui/scroll-area"
 import { updateQuiz } from "@/app/actions/quiz-actions"
 import type { Quiz, Question, Option as OptionType } from "@prisma/client"
+import { Textarea } from "./ui/textarea"
 
 type QuizWithRelations = Quiz & {
   questions: (Question & { options: OptionType[] })[]
@@ -79,6 +80,9 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
         let correctAnswerValue = '';
         if (q.type === 'multiple_choice' || q.type === 'true_false') {
           correctAnswerValue = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
+        } else if (q.type === 'fill_in_the_blank') {
+          // For multi-answer, join with newlines for the textarea
+          correctAnswerValue = q.correctAnswerId.split('|||').join('\n');
         } else {
           correctAnswerValue = q.correctAnswerId || '';
         }
@@ -98,7 +102,18 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
   }, [open, quiz, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = await updateQuiz(quiz.id, values);
+    // Before submitting, format fill-in-the-blank answers
+    const processedValues = {
+        ...values,
+        questions: values.questions.map(q => {
+            if (q.type === 'fill_in_the_blank') {
+                return { ...q, correctAnswerId: q.correctAnswerId.split('\n').join('|||') };
+            }
+            return q;
+        })
+    };
+    
+    const result = await updateQuiz(quiz.id, processedValues);
     if (result.success) {
       toast({
         title: "Quiz Updated",
@@ -299,9 +314,9 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                           name={`questions.${qIndex}.correctAnswerId`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Correct Answer</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter the correct answer" {...field} />
+                              <FormLabel>Correct Answer(s)</FormLabel>
+                               <FormControl>
+                                <Textarea placeholder="For multiple answers, enter each on a new line." {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -353,3 +368,5 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     </Dialog>
   )
 }
+
+    

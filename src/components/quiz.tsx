@@ -33,7 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
 
 type Answers = {
-  [questionId: string]: string;
+  [questionId: string]: string | string[]; // Allow string array for multi-blank
 };
 
 export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: string, onComplete: () => void }) {
@@ -51,7 +51,11 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
        if (q.type === 'fill_in_the_blank') {
-        if (answers[q.id]?.trim().toLowerCase() === q.correctAnswerId.trim().toLowerCase()) {
+        const correctAns = q.correctAnswerId.split('|||');
+        const userAns = (answers[q.id] as string[]) || [];
+        
+        if (correctAns.length === userAns.length && 
+            correctAns.every((ans, i) => ans.trim().toLowerCase() === userAns[i]?.trim().toLowerCase())) {
           correctAnswers++;
         }
       } else {
@@ -99,13 +103,27 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     return () => clearInterval(timer);
   }, [timeLeft, handleSubmit, showResult]);
 
-  const handleAnswerChange = (questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  const handleAnswerChange = (questionId: string, value: string, index?: number) => {
+    setAnswers((prev) => {
+      const newAnswers = { ...prev };
+      if (index !== undefined) {
+        const currentAnswers = (newAnswers[questionId] as string[]) || [];
+        currentAnswers[index] = value;
+        newAnswers[questionId] = currentAnswers;
+      } else {
+        newAnswers[questionId] = value;
+      }
+      return newAnswers;
+    });
   };
+  
+  const getBlankCount = (questionText: string) => (questionText.match(/____/g) || []).length;
 
   const isAnswered = (q: Question) => {
     if (q.type === 'fill_in_the_blank') {
-      return answers[q.id] && answers[q.id].trim() !== '';
+      const blankCount = getBlankCount(q.text);
+      const userAnswers = (answers[q.id] as string[]) || [];
+      return userAnswers.length === blankCount && userAnswers.every(ans => ans && ans.trim() !== '');
     }
     return !!answers[q.id];
   };
@@ -174,11 +192,16 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             {currentQuestion && (
               <div>
                 <p className="mb-4 font-semibold text-lg">
-                  {currentQuestion.text}
+                  {currentQuestion.text.split('____').map((part, i, arr) => (
+                      <span key={i}>
+                          {part}
+                          {i < arr.length - 1 && <span className="font-bold text-primary"> (blank {i + 1}) </span>}
+                      </span>
+                  ))}
                 </p>
                 {(currentQuestion.type === 'multiple_choice' || currentQuestion.type === 'true_false') && (
                    <RadioGroup
-                    value={answers[currentQuestion.id] || ''}
+                    value={(answers[currentQuestion.id] as string) || ''}
                     onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
                     className="space-y-2"
                   >
@@ -193,11 +216,19 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                   </RadioGroup>
                 )}
                  {currentQuestion.type === 'fill_in_the_blank' && (
-                  <Input
-                    placeholder="Type your answer here..."
-                    value={answers[currentQuestion.id] || ''}
-                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                  />
+                  <div className="space-y-3">
+                    {Array.from({ length: getBlankCount(currentQuestion.text) }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Label htmlFor={`blank-${i}`} className="w-20">Blank {i + 1}:</Label>
+                        <Input
+                          id={`blank-${i}`}
+                          placeholder={`Answer for blank ${i + 1}`}
+                          value={((answers[currentQuestion.id] as string[]) || [])[i] || ''}
+                          onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, i)}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -269,3 +300,5 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     </>
   );
 }
+
+    
