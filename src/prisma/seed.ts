@@ -51,6 +51,7 @@ async function main() {
         permissions: role.permissions as any,
       },
       create: {
+        id: role.id,
         name: role.name,
         permissions: role.permissions as any,
       },
@@ -60,7 +61,7 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { department, district, branch, role, password, ...userData } = user as any;
+    const { id, department, district, branch, role, password, ...userData } = user as any;
 
     // Find related records
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
@@ -77,7 +78,10 @@ async function main() {
         password: hashedPassword,
       },
       create: {
-        ...userData,
+        id: user.id, // Explicitly use the ID from data for stable relations
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
         password: hashedPassword,
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
