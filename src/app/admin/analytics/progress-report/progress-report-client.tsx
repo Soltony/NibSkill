@@ -91,8 +91,14 @@ export function ProgressReportClient({
     const district = districts.find(d => d.name === districtFilter);
     return allBranches.filter(b => b.districtId === district?.id);
   }, [districtFilter, districts, allBranches]);
+
+  useEffect(() => {
+    // If the selected branch is no longer in the available branches list, reset it.
+    if (!availableBranches.some(b => b.name === branchFilter) && branchFilter !== 'all') {
+      setBranchFilter('all');
+    }
+  }, [availableBranches, branchFilter]);
   
-  const isBranchFilterDisabled = districtFilter === 'all' || availableBranches.length === 0;
 
   const handleDownloadCsv = () => {
     setIsGeneratingCsv(true);
@@ -206,7 +212,7 @@ export function ProgressReportClient({
                 {departments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={districtFilter} onValueChange={(value) => { setDistrictFilter(value); setBranchFilter('all'); }}>
+            <Select value={districtFilter} onValueChange={(value) => { setDistrictFilter(value); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by District" />
               </SelectTrigger>
@@ -215,7 +221,7 @@ export function ProgressReportClient({
                 {districts.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={branchFilter} onValueChange={setBranchFilter} disabled={isBranchFilterDisabled}>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by Branch" />
               </SelectTrigger>
