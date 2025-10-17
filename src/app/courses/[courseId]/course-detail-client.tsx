@@ -120,17 +120,21 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   };
 
   const quiz = course.quiz as QuizType | undefined;
+  
+  const displayImageUrl = course.imageUrl ?? course.product?.imageUrl;
+  const displayImageHint = course.imageHint ?? course.product?.imageHint;
+  const displayImageDescription = course.imageDescription ?? course.product?.description;
 
   return (
     <div className="mx-auto max-w-4xl">
       <div className="relative mb-8 h-64 w-full overflow-hidden rounded-lg shadow-lg">
-        {course.imageUrl ? (
+        {displayImageUrl ? (
             <Image
-              src={course.imageUrl}
-              alt={course.imageDescription ?? ''}
+              src={displayImageUrl}
+              alt={displayImageDescription ?? ''}
               fill
               className="object-cover"
-              data-ai-hint={course.imageHint ?? ''}
+              data-ai-hint={displayImageHint ?? ''}
             />
         ) : (
             <Skeleton className="h-full w-full" />
