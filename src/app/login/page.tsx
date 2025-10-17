@@ -63,7 +63,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4">
             <Logo />
           </div>
-          <CardTitle className="font-headline text-3xl">Welcome to NibSkillUP</CardTitle>
+          <CardTitle className="font-headline text-3xl">Welcome to NIB Training</CardTitle>
           <CardDescription>Sign in to continue to your dashboard.</CardDescription>
         </CardHeader>
         <CardContent>

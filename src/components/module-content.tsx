@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React from 'react';
@@ -88,7 +87,7 @@ export const ModuleContent = ({ module }: { module: Module }) => {
                  if (isUploadedContent) {
                     return (
                         <Button asChild>
-                           <a href={module.content} download={`nibskillup_${module.type}_${module.id}`}>
+                           <a href={module.content} download={`nibtraining_${module.type}_${module.id}`}>
                                <Download className="mr-2 h-4 w-4" />
                                Download Material
                            </a>

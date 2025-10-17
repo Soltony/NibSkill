@@ -43,7 +43,7 @@ export default function AdminLoginPage() {
                 id="email" 
                 type="email" 
                 placeholder="admin@company.com" 
-                defaultValue="admin@nibskillup.com"
+                defaultValue="admin@nibtraining.com"
                 required 
               />
             </div>
