@@ -1,7 +1,7 @@
 
 import prisma from "@/lib/db";
 import { SettingsTabs } from "./settings-tabs";
-import type { User, Role, RegistrationField } from "@prisma/client";
+import type { User, Role, RegistrationField, LoginHistory } from "@prisma/client";
 
 async function getSettingsData() {
     const users = await prisma.user.findMany({
@@ -17,12 +17,18 @@ async function getSettingsData() {
         orderBy: { createdAt: "asc" }
     });
 
-    return { users, roles, registrationFields };
+    const loginHistory = await prisma.loginHistory.findMany({
+        include: { user: true },
+        orderBy: { loginTime: "desc" },
+        take: 100, // Limit to the last 100 logins for performance
+    });
+
+    return { users, roles, registrationFields, loginHistory };
 }
 
 
 export default async function SettingsPage() {
-  const { users, roles, registrationFields } = await getSettingsData();
+  const { users, roles, registrationFields, loginHistory } = await getSettingsData();
   
   return (
     <div className="space-y-8">
@@ -36,6 +42,7 @@ export default async function SettingsPage() {
         users={users as (User & { role: Role })[]} 
         roles={roles}
         registrationFields={registrationFields}
+        loginHistory={loginHistory as (LoginHistory & { user: User })[]}
       />
     </div>
   )

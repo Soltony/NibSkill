@@ -6,7 +6,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType } from "@prisma/client"
+import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType, LoginHistory } from "@prisma/client"
 import {
   Table,
   TableBody,
@@ -63,6 +63,7 @@ import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, del
 import { Badge } from "@/components/ui/badge"
 
 type UserWithRole = User & { role: RoleType };
+type LoginHistoryWithUser = LoginHistory & { user: User };
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -77,6 +78,9 @@ const registrationFieldsSchema = z.object({
         label: z.string(),
         enabled: z.boolean(),
         required: z.boolean(),
+        type: z.string(),
+        options: z.array(z.string()).optional(),
+        isLoginIdentifier: z.boolean().optional(),
     }))
 })
 
@@ -103,9 +107,10 @@ type SettingsTabsProps = {
     users: UserWithRole[];
     roles: RoleType[];
     registrationFields: RegistrationField[];
+    loginHistory: LoginHistoryWithUser[];
 }
 
-export function SettingsTabs({ users, roles, registrationFields }: SettingsTabsProps) {
+export function SettingsTabs({ users, roles, registrationFields, loginHistory }: SettingsTabsProps) {
   const [roleToDelete, setRoleToDelete] = useState<RoleType | null>(null);
   const { toast } = useToast()
 
@@ -114,7 +119,7 @@ export function SettingsTabs({ users, roles, registrationFields }: SettingsTabsP
   const registrationFieldsForm = useForm<z.infer<typeof registrationFieldsSchema>>({
     resolver: zodResolver(registrationFieldsSchema),
     defaultValues: {
-      fields: registrationFields
+      fields: registrationFields.map(f => ({ ...f, type: f.type as string, options: f.options || [] }))
     }
   });
 
@@ -213,11 +218,12 @@ export function SettingsTabs({ users, roles, registrationFields }: SettingsTabsP
   return (
     <>
       <Tabs defaultValue="user-management">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="user-management">User Management</TabsTrigger>
           <TabsTrigger value="role-management">Role Management</TabsTrigger>
           <TabsTrigger value="user-registration">User Registration</TabsTrigger>
           <TabsTrigger value="registration-settings">Registration</TabsTrigger>
+          <TabsTrigger value="login-history">Login History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="user-management">
@@ -528,6 +534,41 @@ export function SettingsTabs({ users, roles, registrationFields }: SettingsTabsP
                   </Card>
               </TabsContent>
            </Tabs>
+        </TabsContent>
+
+        <TabsContent value="login-history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Login History</CardTitle>
+              <CardDescription>
+                An audit trail of recent user login activity.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>IP Address</TableHead>
+                    <TableHead>Login Time</TableHead>
+                    <TableHead>User Agent</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loginHistory.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium">{entry.user.name}</TableCell>
+                      <TableCell>{entry.ipAddress || 'N/A'}</TableCell>
+                      <TableCell>{new Date(entry.loginTime).toLocaleString()}</TableCell>
+                      <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
+                        {entry.userAgent || 'N/A'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
