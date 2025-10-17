@@ -61,6 +61,10 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
         const userAnswersArray = (answers[q.id] as string[]) || [];
         
         let allBlanksCorrect = true;
+        if (correctAnswersArray.length === 0) {
+            allBlanksCorrect = false;
+        }
+
         for (let i = 0; i < correctAnswersArray.length; i++) {
           const correct = correctAnswersArray[i]?.trim().toLowerCase();
           const user = userAnswersArray[i]?.trim().toLowerCase();
@@ -69,7 +73,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             break;
           }
         }
-        if (allBlanksCorrect && correctAnswersArray.length > 0) {
+        if (allBlanksCorrect) {
             correctAnswers++;
         }
 
@@ -315,3 +319,5 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     </>
   );
 }
+
+  
