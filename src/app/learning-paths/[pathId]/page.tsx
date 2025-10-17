@@ -18,14 +18,16 @@ import {
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 
-export default async function LearningPathDetailPage({ params }: { params: { pathId: string } }) {
+export default async function LearningPathDetailPage({ params }: { params: Promise<{ pathId: string }> }) {
   const user = await getSession();
   if (!user) {
     redirect('/login');
   }
+
+  const { pathId } = await params;
   
   const learningPath = await prisma.learningPath.findUnique({
-    where: { id: params.pathId },
+    where: { id: pathId },
     include: { 
       courses: { 
         orderBy: { order: 'asc' },

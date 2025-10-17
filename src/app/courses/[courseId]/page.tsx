@@ -1,3 +1,4 @@
+
 import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
@@ -44,13 +45,14 @@ async function getCourseData(courseId: string, userId: string) {
   return { course, completedModules, user };
 }
 
-export default async function CourseDetailPage({ params }: { params: { courseId: string }}) {
+export default async function CourseDetailPage({ params }: { params: Promise<{ courseId: string }> }) {
   const session = await getSession();
   if (!session) {
     redirect('/login');
   }
 
-  const { course, completedModules, user } = await getCourseData(params.courseId, session.id);
+  const { courseId } = await params;
+  const { course, completedModules, user } = await getCourseData(courseId, session.id);
 
   if (!course || !user) {
     notFound();

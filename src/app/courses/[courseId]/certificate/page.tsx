@@ -22,20 +22,20 @@ async function getCertificateData(courseId: string, user: { id: string, name: st
     });
 
     if (!completionRecord) {
-        return { template: null, course: null };
+        return { template: null, course: null, completionDate: null };
     }
 
     return { template, course, completionDate: completionRecord.completionDate };
 }
 
 
-export default async function UserCertificatePage({ params }: { params: { courseId: string }}) {
+export default async function UserCertificatePage({ params }: { params: Promise<{ courseId: string }> }) {
     const user = await getSession();
     if (!user) {
         notFound();
     }
-
-    const { template, course, completionDate } = await getCertificateData(params.courseId, user);
+    const { courseId } = await params;
+    const { template, course, completionDate } = await getCertificateData(courseId, user);
 
     if (!template || !course || !completionDate) {
         notFound();

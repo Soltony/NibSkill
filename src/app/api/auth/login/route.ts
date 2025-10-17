@@ -83,7 +83,8 @@ export async function POST(request: NextRequest) {
       .sign(getJwtSecret());
       
     // Set cookie
-    cookies().set('session', token, {
+    const cookieStore = await cookies();
+    cookieStore.set('session', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',

@@ -53,7 +53,8 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
 
 export async function logout() {
-  cookies().set('session', '', { expires: new Date(0) })
+  const cookieStore = await cookies();
+  cookieStore.set('session', '', { expires: new Date(0) })
 }
 
 const profileFormSchema = z.object({
@@ -150,4 +151,3 @@ export async function toggleModuleCompletion(courseId: string, values: z.infer<t
         return { success: false, message: "Failed to update progress." };
     }
 }
-
