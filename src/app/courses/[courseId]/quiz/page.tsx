@@ -42,8 +42,10 @@ export default async function QuizPage({ params }: { params: { courseId: string 
     if (!session) {
         redirect('/login');
     }
+    
+    const courseId = params.courseId;
 
-    const { course, user } = await getQuizData(params.courseId, session.id);
+    const { course, user } = await getQuizData(courseId, session.id);
     
     if (!course || !user || !course.quiz) {
         notFound();
@@ -58,7 +60,7 @@ export default async function QuizPage({ params }: { params: { courseId: string 
 
     const handleQuizComplete = async () => {
         'use server';
-        redirect(`/courses/${params.courseId}`);
+        redirect(`/courses/${courseId}`);
     };
 
     return (
