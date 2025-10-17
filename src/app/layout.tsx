@@ -111,7 +111,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
     { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
     { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
-    { href: '/profile', icon: User, label: 'My Profile', adminOnly: false },
   ];
 
   const adminNavItems = [
@@ -219,16 +218,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 ) : (
                   <div className="flex items-center gap-3 p-2">
-                    <Avatar>
-                      <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
-                      <AvatarFallback>
-                        {currentUser.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 overflow-hidden">
-                        <p className="truncate font-semibold text-sm text-sidebar-foreground">{currentUser.name}</p>
-                        <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
-                    </div>
+                    <Link href="/profile" className="flex-1 flex items-center gap-3 overflow-hidden group">
+                      <Avatar>
+                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                        <AvatarFallback>
+                          {currentUser.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 overflow-hidden">
+                          <p className="truncate font-semibold text-sm text-sidebar-foreground group-hover:text-sidebar-primary">{currentUser.name}</p>
+                          <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
+                      </div>
+                    </Link>
                     <form action={handleLogout}>
                       <SidebarMenuButton type="submit" size="sm" variant="outline" className="h-8 w-8 bg-transparent hover:bg-sidebar-accent/50 text-sidebar-foreground/70 hover:text-sidebar-foreground border-sidebar-border">
                           <LogOut />
