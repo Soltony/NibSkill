@@ -53,9 +53,9 @@ export async function GET(
             }
         });
         
+        // The user object from the session is sufficient for the client
         return NextResponse.json({ course, completedModules, user: session });
     }
-
 
     return NextResponse.json(course);
   } catch (error) {
