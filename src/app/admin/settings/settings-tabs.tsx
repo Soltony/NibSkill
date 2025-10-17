@@ -55,10 +55,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog"
 import { Switch } from "@/components/ui/switch"
 import { AddFieldDialog } from "@/components/add-field-dialog"
 import { AddRoleDialog } from "@/components/add-role-dialog"
+import { EditRoleDialog } from "@/components/edit-role-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
 import { Badge } from "@/components/ui/badge"
 
@@ -311,13 +311,11 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory }:
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <FeatureNotImplementedDialog
-                              title="Edit Role"
-                              description="Editing roles is not supported in this prototype, as permissions are hard-coded into the application logic. Changes here would not reflect in actual user capabilities."
-                              isMenuItem={true}
-                            >
-                              Edit
-                            </FeatureNotImplementedDialog>
+                            <EditRoleDialog role={role}>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    Edit
+                                </DropdownMenuItem>
+                            </EditRoleDialog>
                             <DropdownMenuItem 
                               className="text-destructive"
                               onSelect={() => setRoleToDelete(role)}

@@ -74,7 +74,7 @@ const permissionSchema = z.object({
   d: z.boolean(),
 });
 
-const addRoleSchema = z.object({
+const roleSchema = z.object({
   name: z.string().min(2, "Role name must be at least 2 characters."),
   permissions: z.object({
     courses: permissionSchema,
@@ -87,9 +87,9 @@ const addRoleSchema = z.object({
   })
 })
 
-export async function addRole(values: z.infer<typeof addRoleSchema>) {
+export async function addRole(values: z.infer<typeof roleSchema>) {
     try {
-        const validatedFields = addRoleSchema.safeParse(values);
+        const validatedFields = roleSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: 'Invalid data provided.' };
         }
@@ -107,6 +107,30 @@ export async function addRole(values: z.infer<typeof addRoleSchema>) {
     } catch (error) {
         console.error("Error creating role:", error);
         return { success: false, message: 'Failed to create role.' };
+    }
+}
+
+export async function updateRole(id: string, values: z.infer<typeof roleSchema>) {
+    try {
+        const validatedFields = roleSchema.safeParse(values);
+        if (!validatedFields.success) {
+            return { success: false, message: 'Invalid data provided.' };
+        }
+        
+        await prisma.role.update({
+            where: { id },
+            data: {
+                name: validatedFields.data.name,
+                permissions: validatedFields.data.permissions,
+            }
+        });
+
+        revalidatePath('/admin/settings');
+        return { success: true, message: 'Role updated successfully.' };
+
+    } catch (error) {
+        console.error("Error updating role:", error);
+        return { success: false, message: 'Failed to update role.' };
     }
 }
 
