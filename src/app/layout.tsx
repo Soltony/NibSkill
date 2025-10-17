@@ -34,6 +34,7 @@ import {
   BookMarked,
   User,
   FilePieChart,
+  UserCheck,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
@@ -122,6 +123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
+    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report', adminOnly: true },
     { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
     { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
   ];

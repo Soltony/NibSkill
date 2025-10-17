@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { analyticsData } from "@/lib/data"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, HelpCircle, ArrowRight, Loader2 } from "lucide-react"
+import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, HelpCircle, ArrowRight, Loader2, UserCheck } from "lucide-react"
 import { AnalyticsCharts } from "@/components/analytics-charts"
 import {
   Table,
@@ -82,7 +82,7 @@ export default function AnalyticsPage() {
             ) : (
                 <Download className="mr-2 h-4 w-4" />
             )}
-            {isGenerating ? "Generating..." : "Download Report"}
+            {isGenerating ? "Generating..." : "Download Course Progress"}
         </Button>
       </div>
       
@@ -201,19 +201,34 @@ export default function AnalyticsPage() {
         </div>
       </div>
       
-       <Link href="/admin/analytics/progress-report">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Detailed Progress Report</CardTitle>
-                    <CardDescription>
-                        Drill down into course progress for every staff member with advanced filters and search.
-                    </CardDescription>
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-          </Card>
-        </Link>
+       <div className="grid gap-4 md:grid-cols-2">
+         <Link href="/admin/analytics/progress-report">
+            <Card className="hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                      <CardTitle>Detailed Progress Report</CardTitle>
+                      <CardDescription>
+                          Drill down into course progress for every staff member.
+                      </CardDescription>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+            </Card>
+          </Link>
+          <Link href="/admin/analytics/attendance-report">
+            <Card className="hover:bg-muted/50 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                      <CardTitle>Live Session Attendance</CardTitle>
+                      <CardDescription>
+                          View and export attendance records for all live sessions.
+                      </CardDescription>
+                  </div>
+                   <UserCheck className="h-8 w-8 text-muted-foreground" />
+              </CardHeader>
+            </Card>
+          </Link>
+       </div>
       
         <AnalyticsCharts 
             completionByDept={completionByDept} 
@@ -266,5 +281,3 @@ export default function AnalyticsPage() {
     </div>
   )
 }
-
-    
