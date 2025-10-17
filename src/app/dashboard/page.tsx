@@ -35,18 +35,31 @@ async function getDashboardData(userId: string) {
         where: { userId: userId },
         select: { courseId: true, score: true }
     });
+
+    const userModuleCompletions = await prisma.userCompletedModule.findMany({
+      where: { userId: userId },
+      select: { moduleId: true }
+    });
+
+    const completedModulesByCourse = userModuleCompletions.reduce((acc, completion) => {
+      const module = courses.flatMap(c => c.modules).find(m => m.id === completion.moduleId);
+      if (module) {
+        if (!acc[module.courseId]) {
+          acc[module.courseId] = new Set();
+        }
+        acc[module.courseId].add(module.id);
+      }
+      return acc;
+    }, {} as Record<string, Set<string>>);
     
     const completionsMap = new Map(userCompletions.map(c => [c.courseId, c.score]));
 
-    // We'll calculate progress on the server for simplicity. 
-    // In a real app, this would be a more complex query based on user progress records.
     const coursesWithProgress = courses.map(course => {
         if (completionsMap.has(course.id)) {
             return { ...course, progress: 100 };
         }
-        // Mock progress for in-progress courses
-        const completedModules = course.modules.filter((m, i) => i < (userId.length + course.title.length) % course.modules.length).length;
-        const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
+        const completedModuleCount = completedModulesByCourse[course.id]?.size || 0;
+        const progress = course.modules.length > 0 ? Math.round((completedModuleCount / course.modules.length) * 100) : 0;
         return { ...course, progress };
     });
 

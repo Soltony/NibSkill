@@ -1,13 +1,19 @@
 
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import prisma from "@/lib/db"
 import { Progress } from "@/components/ui/progress"
 import { CourseCard } from "@/components/course-card"
 import { MoveLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { getSession } from "@/lib/auth"
 
 export default async function LearningPathDetailPage({ params }: { params: { pathId: string } }) {
+  const user = await getSession();
+  if (!user) {
+    redirect('/login');
+  }
+  
   const learningPath = await prisma.learningPath.findUnique({
     where: { id: params.pathId },
     include: { 
@@ -21,11 +27,33 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
   if (!learningPath) {
     notFound();
   }
+  
+  const courseIds = learningPath.courses.map(c => c.course.id);
+  const userModuleCompletions = await prisma.userCompletedModule.findMany({
+    where: { 
+      userId: user.id,
+      moduleId: {
+        in: learningPath.courses.flatMap(c => c.course.modules.map(m => m.id))
+      }
+    },
+    select: { moduleId: true }
+  });
+
+  const completedModulesByCourse = userModuleCompletions.reduce((acc, completion) => {
+    const module = learningPath.courses.flatMap(c => c.course.modules).find(m => m.id === completion.moduleId);
+    if (module) {
+      if (!acc[module.courseId]) {
+        acc[module.courseId] = new Set();
+      }
+      acc[module.courseId].add(module.id);
+    }
+    return acc;
+  }, {} as Record<string, Set<string>>);
+
 
   const coursesWithProgress = learningPath.courses.map(({ course }) => {
-      // This is a placeholder for actual user progress tracking
-      const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
-      const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
+      const completedModuleCount = completedModulesByCourse[course.id]?.size || 0;
+      const progress = course.modules.length > 0 ? Math.round((completedModuleCount / course.modules.length) * 100) : 0;
       return { ...course, progress };
   });
 
