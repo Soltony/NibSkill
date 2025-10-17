@@ -51,7 +51,6 @@ async function main() {
         permissions: role.permissions as any,
       },
       create: {
-        id: role.id,
         name: role.name,
         permissions: role.permissions as any,
       },
@@ -318,3 +317,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    

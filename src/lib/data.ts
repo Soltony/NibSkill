@@ -539,3 +539,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    
