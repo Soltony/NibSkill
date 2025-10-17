@@ -191,44 +191,41 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
 
             {currentQuestion && (
               <div>
-                <p className="mb-4 font-semibold text-lg">
-                  {currentQuestion.text.split('____').map((part, i, arr) => (
-                      <span key={i}>
-                          {part}
-                          {i < arr.length - 1 && <span className="font-bold text-primary"> (blank {i + 1}) </span>}
-                      </span>
-                  ))}
-                </p>
                 {(currentQuestion.type === 'multiple_choice' || currentQuestion.type === 'true_false') && (
-                   <RadioGroup
-                    value={(answers[currentQuestion.id] as string) || ''}
-                    onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
-                    className="space-y-2"
-                  >
-                    {currentQuestion.options.map((opt) => (
-                      <div key={opt.id} className="flex items-center space-x-3 rounded-md border p-3 hover:bg-muted/50 has-[[data-state=checked]]:bg-muted">
-                        <RadioGroupItem value={opt.id} id={`${currentQuestion.id}-${opt.id}`} />
-                        <Label htmlFor={`${currentQuestion.id}-${opt.id}`} className="font-normal cursor-pointer flex-1">
-                          {opt.text}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
+                  <>
+                    <p className="mb-4 font-semibold text-lg">{currentQuestion.text}</p>
+                    <RadioGroup
+                        value={(answers[currentQuestion.id] as string) || ''}
+                        onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
+                        className="space-y-2"
+                    >
+                        {currentQuestion.options.map((opt) => (
+                        <div key={opt.id} className="flex items-center space-x-3 rounded-md border p-3 hover:bg-muted/50 has-[[data-state=checked]]:bg-muted">
+                            <RadioGroupItem value={opt.id} id={`${currentQuestion.id}-${opt.id}`} />
+                            <Label htmlFor={`${currentQuestion.id}-${opt.id}`} className="font-normal cursor-pointer flex-1">
+                            {opt.text}
+                            </Label>
+                        </div>
+                        ))}
+                    </RadioGroup>
+                  </>
                 )}
                  {currentQuestion.type === 'fill_in_the_blank' && (
-                  <div className="space-y-3">
-                    {Array.from({ length: getBlankCount(currentQuestion.text) }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <Label htmlFor={`blank-${i}`} className="w-20">Blank {i + 1}:</Label>
-                        <Input
-                          id={`blank-${i}`}
-                          placeholder={`Answer for blank ${i + 1}`}
-                          value={((answers[currentQuestion.id] as string[]) || [])[i] || ''}
-                          onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, i)}
-                        />
-                      </div>
+                  <p className="mb-4 font-semibold text-lg leading-relaxed">
+                    {currentQuestion.text.split('____').map((part, i) => (
+                      <React.Fragment key={i}>
+                        {part}
+                        {i < getBlankCount(currentQuestion.text) && (
+                          <Input
+                            className="inline-block w-40 h-8 mx-2 px-2 text-base"
+                            placeholder={`blank ${i + 1}`}
+                            value={((answers[currentQuestion.id] as string[]) || [])[i] || ''}
+                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, i)}
+                          />
+                        )}
+                      </React.Fragment>
                     ))}
-                  </div>
+                  </p>
                 )}
               </div>
             )}
@@ -300,5 +297,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     </>
   );
 }
+
+    
 
     
