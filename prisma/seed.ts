@@ -51,7 +51,6 @@ async function main() {
         permissions: role.permissions as any,
       },
       create: {
-        id: role.id,
         name: role.name,
         permissions: role.permissions as any,
       },
@@ -61,7 +60,7 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { department, district, branch, role, password, ...userData } = user as any;
+    const { id, department, district, branch, role, password, ...userData } = user as any;
 
     // Find related records
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
@@ -101,7 +100,7 @@ async function main() {
   console.log('Seeded badges');
 
   // Assign badges to user-1
-  const user1 = await prisma.user.findUnique({ where: { email: 'staff@nibskillup.com' } });
+  const user1 = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
   const firstStepsBadge = await prisma.badge.findUnique({ where: { title: 'First Steps' }});
   const perfectScoreBadge = await prisma.badge.findUnique({ where: { title: 'Perfect Score' }});
 
@@ -250,7 +249,7 @@ async function main() {
   console.log('Seeded quizzes and questions');
   
   // Seed UserCompletedCourse
-  const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibskillup.com' } });
+  const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
   if (user1ForCompletion) {
     const course4 = await prisma.course.findUnique({ where: { id: 'course-4' } });
     if (course4) {
@@ -275,7 +274,7 @@ async function main() {
     create: {
         id: 'singleton',
         title: "Certificate of Completion",
-        organization: "NibSkillUP Inc.",
+        organization: "NIB Training Inc.",
         body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
         signatoryName: "Jane Doe",
         signatoryTitle: "Head of Training & Development",
@@ -318,3 +317,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
