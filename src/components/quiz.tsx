@@ -144,6 +144,10 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
       </Card>
     )
   }
+  
+  const getBlankCount = (text: string) => {
+    return (text.match(/____/g) || []).length;
+  }
 
   return (
     <>
@@ -196,20 +200,20 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                   </>
                 )}
                  {currentQuestion.type === 'fill_in_the_blank' && (
-                  <p className="mb-4 font-semibold text-lg leading-relaxed">
+                  <div className="mb-4 font-semibold text-lg leading-relaxed">
                     {currentQuestion.text.split('____').map((part, i) => (
-                      <span key={i}>
+                      <>
                         {part}
-                        {i < currentQuestion.text.split('____').length - 1 && (
+                        {i < getBlankCount(currentQuestion.text) && (
                           <Input
                             className="inline-block w-40 h-8 mx-2 px-2 text-base"
                             value={answers[currentQuestion.id] || ''}
                             onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                           />
                         )}
-                      </span>
+                      </>
                     ))}
-                  </p>
+                  </div>
                 )}
               </div>
             )}
