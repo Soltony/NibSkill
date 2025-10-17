@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import Link from 'next/link';
 import {
   Card,
@@ -23,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from './ui/input';
-import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
 import { Progress } from './ui/progress';
 import { completeCourse } from '@/app/actions/user-actions';
@@ -41,11 +42,12 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(quiz.timeLimit ? quiz.timeLimit * 60 : null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(() => {
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
        if (q.type === 'fill_in_the_blank') {
@@ -64,21 +66,23 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     setShowResult(true);
 
     if (finalScore >= quiz.passingScore) {
-      const result = await completeCourse({
-        userId,
-        courseId: quiz.courseId,
-        score: finalScore,
-      });
+        startTransition(async () => {
+            const result = await completeCourse({
+                userId,
+                courseId: quiz.courseId,
+                score: finalScore,
+            });
 
-      if (!result.success) {
-        toast({
-          title: "Error Saving Completion",
-          description: result.message,
-          variant: "destructive"
-        })
-      }
+            if (!result.success) {
+                toast({
+                title: "Error Saving Completion",
+                description: result.message,
+                variant: "destructive"
+                })
+            }
+        });
     }
-  }, [answers, quiz.questions, quiz.passingScore, quiz.courseId, userId, toast]);
+  }, [answers, quiz, userId, toast]);
   
   useEffect(() => {
     if (timeLeft === null || showResult) return;
@@ -255,8 +259,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                     </Link>
                 </Button>
             )}
-             <Button variant="outline" onClick={onComplete}>
-                <BookCopy className="mr-2 h-4 w-4" />
+             <Button variant="outline" onClick={() => onComplete()} disabled={isPending}>
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCopy className="mr-2 h-4 w-4" />}
                 {passed ? 'Back to Course' : 'Review and Retry'}
             </Button>
           </AlertDialogFooter>
