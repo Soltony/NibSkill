@@ -1,8 +1,8 @@
 
 import 'server-only';
 import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-import type { User, Role } from '@prisma/client';
+import { jwtVerify, type JWTPayload } from 'jose';
+import prisma from './db';
 
 const getJwtSecret = () => {
     const secret = process.env.JWT_SECRET;
@@ -12,6 +12,15 @@ const getJwtSecret = () => {
     return new TextEncoder().encode(secret);
 }
 
+interface CustomJwtPayload extends JWTPayload {
+    userId: string;
+    role: string;
+    name: string;
+    email: string;
+    avatarUrl: string;
+    sessionId: string; // The unique ID for this specific session
+}
+
 export async function getSession() {
     const sessionCookie = cookies().get('session')?.value;
     if (!sessionCookie) {
@@ -19,18 +28,30 @@ export async function getSession() {
     }
 
     try {
-        const { payload } = await jwtVerify(sessionCookie, getJwtSecret(), {
+        const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret(), {
             algorithms: ['HS256']
         });
         
-        // This is a simplified user object from the token payload
-        // You can add more fields to the token if needed
+        // Fetch the user's current active session ID from the database
+        const user = await prisma.user.findUnique({
+            where: { id: payload.userId },
+            select: { activeSessionId: true }
+        });
+
+        // If the user doesn't exist or the session ID in the token doesn't match the one in DB, the session is invalid.
+        if (!user || user.activeSessionId !== payload.sessionId) {
+            // Invalidate the cookie by clearing it
+            cookies().set('session', '', { expires: new Date(0), path: '/' });
+            return null;
+        }
+
+        // Session is valid, return the payload
         return {
-            id: payload.userId as string,
-            role: payload.role as string,
-            name: (payload as any).name || '', // Add other fields if they exist in token
-            email: (payload as any).email || '',
-            avatarUrl: (payload as any).avatarUrl || ''
+            id: payload.userId,
+            role: payload.role,
+            name: payload.name,
+            email: payload.email,
+            avatarUrl: payload.avatarUrl
         };
     } catch (error) {
         console.error("Session validation error:", error);

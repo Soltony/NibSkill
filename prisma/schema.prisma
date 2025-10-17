@@ -1,4 +1,3 @@
-
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -16,6 +15,7 @@ model User {
   name                  String
   email                 String                  @unique
   password              String
+  activeSessionId       String?
   avatarUrl             String?
   phoneNumber           String?
   departmentId          String?
@@ -240,15 +240,15 @@ model CertificateTemplate {
 }
 
 model RegistrationField {
-  id                  String     @id
-  label               String
-  type                FieldType
-  options             String[]
-  enabled             Boolean    @default(false)
-  required            Boolean    @default(false)
-  isLoginIdentifier   Boolean    @default(false)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  id                String     @id
+  label             String
+  type              FieldType
+  options           String[]
+  enabled           Boolean    @default(false)
+  required          Boolean    @default(false)
+  isLoginIdentifier Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 }
 
 model LoginHistory {

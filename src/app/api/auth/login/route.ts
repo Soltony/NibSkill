@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
+import { randomUUID } from 'crypto';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -48,15 +49,25 @@ export async function POST(request: NextRequest) {
     const ipAddress = request.ip || request.headers.get('x-forwarded-for');
     const userAgent = request.headers.get('user-agent');
 
-    await prisma.loginHistory.create({
-      data: {
-        userId: user.id,
-        ipAddress: typeof ipAddress === 'string' ? ipAddress : null,
-        userAgent,
-      }
-    });
+    // Generate a new unique session ID
+    const newSessionId = randomUUID();
     
-    // Create JWT
+    // Update the user record with the new session ID and log the login event
+    await prisma.$transaction([
+        prisma.user.update({
+            where: { id: user.id },
+            data: { activeSessionId: newSessionId }
+        }),
+        prisma.loginHistory.create({
+            data: {
+                userId: user.id,
+                ipAddress: typeof ipAddress === 'string' ? ipAddress : null,
+                userAgent,
+            }
+        })
+    ]);
+    
+    // Create JWT with the new session ID
     const expirationTime = '24h';
     const token = await new SignJWT({ 
         userId: user.id, 
@@ -64,6 +75,7 @@ export async function POST(request: NextRequest) {
         name: user.name,
         email: user.email,
         avatarUrl: user.avatarUrl,
+        sessionId: newSessionId, // Embed the session ID in the token
      })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
