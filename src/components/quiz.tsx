@@ -297,7 +297,3 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     </>
   );
 }
-
-    
-
-    
