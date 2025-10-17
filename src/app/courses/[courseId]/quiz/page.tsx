@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
@@ -70,4 +71,3 @@ export default async function QuizPage({ params }: { params: { courseId: string 
         </main>
     );
 }
-
