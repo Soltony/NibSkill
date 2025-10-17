@@ -33,7 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
 
 type Answers = {
-  [questionId: string]: string | string[]; // Allow string array for multi-blank
+  [questionId: string]: string;
 };
 
 export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: string, onComplete: () => void }) {
@@ -51,12 +51,10 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
        if (q.type === 'fill_in_the_blank') {
-        const correctAns = q.correctAnswerId.split('|||');
-        const userAns = (answers[q.id] as string[]) || [];
-        
-        if (correctAns.length === userAns.length && 
-            correctAns.every((ans, i) => ans.trim().toLowerCase() === userAns[i]?.trim().toLowerCase())) {
-          correctAnswers++;
+        const correctAns = q.correctAnswerId;
+        const userAns = answers[q.id] || "";
+        if (correctAns.trim().toLowerCase() === userAns.trim().toLowerCase()) {
+            correctAnswers++;
         }
       } else {
         const correctOption = q.options.find(opt => opt.id === q.correctAnswerId);
@@ -103,29 +101,16 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     return () => clearInterval(timer);
   }, [timeLeft, handleSubmit, showResult]);
 
-  const handleAnswerChange = (questionId: string, value: string, index?: number) => {
-    setAnswers((prev) => {
-      const newAnswers = { ...prev };
-      if (index !== undefined) {
-        const currentAnswers = (newAnswers[questionId] as string[]) || [];
-        currentAnswers[index] = value;
-        newAnswers[questionId] = currentAnswers;
-      } else {
-        newAnswers[questionId] = value;
-      }
-      return newAnswers;
-    });
+  const handleAnswerChange = (questionId: string, value: string) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
   };
   
-  const getBlankCount = (questionText: string) => (questionText.match(/____/g) || []).length;
-
   const isAnswered = (q: Question) => {
-    if (q.type === 'fill_in_the_blank') {
-      const blankCount = getBlankCount(q.text);
-      const userAnswers = (answers[q.id] as string[]) || [];
-      return userAnswers.length === blankCount && userAnswers.every(ans => ans && ans.trim() !== '');
-    }
-    return !!answers[q.id];
+    const answer = answers[q.id];
+    return answer && answer.trim() !== '';
   };
 
   const allQuestionsAnswered = quiz.questions.every(q => isAnswered(q));
@@ -213,17 +198,16 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                  {currentQuestion.type === 'fill_in_the_blank' && (
                   <p className="mb-4 font-semibold text-lg leading-relaxed">
                     {currentQuestion.text.split('____').map((part, i) => (
-                      <React.Fragment key={i}>
+                      <span key={i}>
                         {part}
-                        {i < getBlankCount(currentQuestion.text) && (
+                        {i < currentQuestion.text.split('____').length - 1 && (
                           <Input
                             className="inline-block w-40 h-8 mx-2 px-2 text-base"
-                            placeholder={`blank ${i + 1}`}
-                            value={((answers[currentQuestion.id] as string[]) || [])[i] || ''}
-                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value, i)}
+                            value={answers[currentQuestion.id] || ''}
+                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                           />
                         )}
-                      </React.Fragment>
+                      </span>
                     ))}
                   </p>
                 )}

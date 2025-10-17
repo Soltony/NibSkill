@@ -37,13 +37,13 @@ async function getQuizData(courseId: string, userId: string) {
 }
 
 
-export default async function QuizPage({ params }: { params: Promise<{ courseId: string }> }) {
+export default async function QuizPage({ params }: { params: { courseId: string } }) {
     const session = await getSession();
     if (!session) {
         redirect('/login');
     }
     
-    const { courseId } = await params;
+    const { courseId } = params;
 
     const { course, user } = await getQuizData(courseId, session.id);
     
