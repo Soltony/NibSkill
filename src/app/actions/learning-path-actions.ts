@@ -25,7 +25,8 @@ export async function addLearningPath(values: z.infer<typeof formSchema>) {
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 courses: {
-                    create: validatedFields.data.courseIds.map(courseId => ({
+                    create: validatedFields.data.courseIds.map((courseId, index) => ({
+                        order: index + 1,
                         course: {
                             connect: { id: courseId }
                         }
@@ -56,7 +57,8 @@ export async function updateLearningPath(id: string, values: z.infer<typeof form
                 description: validatedFields.data.description,
                 courses: {
                     deleteMany: {},
-                    create: validatedFields.data.courseIds.map(courseId => ({
+                    create: validatedFields.data.courseIds.map((courseId, index) => ({
+                        order: index + 1,
                         course: {
                             connect: { id: courseId }
                         }
