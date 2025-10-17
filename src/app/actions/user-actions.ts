@@ -95,9 +95,6 @@ export async function updateUserProfile(values: z.infer<typeof profileFormSchema
 
         revalidatePath('/profile');
         
-        // We need to re-issue the cookie if the name/email changed
-        await logout(); // This will clear the cookie and force a redirect to login
-        
         return { success: true, message: 'Profile updated successfully. Please log in again.' };
 
     } catch (error) {

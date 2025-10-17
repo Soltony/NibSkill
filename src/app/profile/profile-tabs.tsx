@@ -13,7 +13,7 @@ import { z } from "zod"
 import { useToast } from "@/hooks/use-toast"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { updateUserProfile } from "@/app/actions/user-actions"
+import { updateUserProfile, logout } from "@/app/actions/user-actions"
 
 import type { User, Badge, UserBadge, UserCompletedCourse, Course, Department } from "@prisma/client"
 
@@ -85,8 +85,8 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                 title: "Profile Updated",
                 description: result.message,
             })
-            // Force a reload to ensure the user is redirected to the login page cleanly
-            window.location.reload();
+            // After successful update, call the logout server action
+            await logout();
         } else {
             toast({
                 title: "Error",
