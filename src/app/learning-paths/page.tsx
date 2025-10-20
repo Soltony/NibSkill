@@ -11,17 +11,42 @@ import {
 } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { BookMarked } from "lucide-react"
+import { getSession } from "@/lib/auth"
+import { redirect } from "next/navigation"
 
-async function LearningPathCard({ path }: { path: any }) {
+async function LearningPathCard({ path, userId }: { path: any, userId: string }) {
 
-    const totalProgress = path.courses.reduce((sum: number, courseRelation: any) => {
-        const course = courseRelation.course;
-        // Mock progress
-        const completedModules = (course.modules.length % 5); 
-        return sum + (course.modules.length > 0 ? (completedModules / course.modules.length) * 100 : 0);
-    }, 0);
+    const courseIds = path.courses.map((c: any) => c.course.id);
+    const userModuleCompletions = await prisma.userCompletedModule.findMany({
+      where: { 
+        userId: userId,
+        moduleId: {
+          in: path.courses.flatMap((c: any) => c.course.modules.map((m: any) => m.id))
+        }
+      },
+      select: { moduleId: true }
+    });
 
-    const overallProgress = path.courses.length > 0 ? Math.round(totalProgress / path.courses.length) : 0;
+    const completedModulesByCourse = userModuleCompletions.reduce((acc, completion) => {
+      const module = path.courses.flatMap((c: any) => c.course.modules).find((m: any) => m.id === completion.moduleId);
+      if (module) {
+        if (!acc[module.courseId]) {
+          acc[module.courseId] = new Set();
+        }
+        acc[module.courseId].add(module.id);
+      }
+      return acc;
+    }, {} as Record<string, Set<string>>);
+
+    const coursesWithProgress = path.courses.map(({ course }: any) => {
+        const completedModuleCount = completedModulesByCourse[course.id]?.size || 0;
+        const progress = course.modules.length > 0 ? Math.round((completedModuleCount / course.modules.length) * 100) : 0;
+        return { ...course, progress };
+    });
+    
+    const overallProgress = coursesWithProgress.length > 0
+        ? Math.round(coursesWithProgress.reduce((sum: number, course: any) => sum + course.progress, 0) / coursesWithProgress.length)
+        : 0;
 
 
     return (
@@ -48,8 +73,21 @@ async function LearningPathCard({ path }: { path: any }) {
 }
 
 export default async function LearningPathsPage() {
+  const user = await getSession();
+  if (!user) {
+    redirect('/login');
+  }
+
   const learningPaths = await prisma.learningPath.findMany({
-    include: { courses: { include: { course: { include: { modules: true } } } } },
+    include: { 
+        courses: { 
+            include: { 
+                course: { 
+                    include: { modules: true } 
+                } 
+            } 
+        } 
+    },
     orderBy: { title: 'asc' }
   });
 
@@ -64,7 +102,7 @@ export default async function LearningPathsPage() {
 
        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {learningPaths.map((path) => (
-            <LearningPathCard key={path.id} path={path} />
+            <LearningPathCard key={path.id} path={path} userId={user.id} />
           ))}
         </div>
         {learningPaths.length === 0 && (

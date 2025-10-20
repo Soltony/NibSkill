@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Search } from "lucide-react"
+import { Search, FileDown, FileText, Loader2 } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -12,11 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Course, Department, District, Branch } from '@prisma/client';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -28,7 +29,7 @@ type ReportDataItem = {
     branch: string;
     courseId: string;
     courseTitle: string;
-    progress: number;
+    score: number | undefined | null;
 }
 
 type ProgressReportClientProps = {
@@ -53,6 +54,8 @@ export function ProgressReportClient({
   const [courseFilter, setCourseFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isGeneratingCsv, setIsGeneratingCsv] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const filteredReport = useMemo(() => {
     return reportData.filter(item => {
@@ -71,7 +74,6 @@ export function ProgressReportClient({
   const paginatedReport = filteredReport.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   useEffect(() => {
-    // Reset to first page whenever filters change
     setCurrentPage(1);
   }, [departmentFilter, districtFilter, branchFilter, courseFilter, searchTerm]);
 
@@ -89,17 +91,97 @@ export function ProgressReportClient({
     const district = districts.find(d => d.name === districtFilter);
     return allBranches.filter(b => b.districtId === district?.id);
   }, [districtFilter, districts, allBranches]);
+
+  useEffect(() => {
+    // If the selected branch is no longer in the available branches list, reset it.
+    if (!availableBranches.some(b => b.name === branchFilter) && branchFilter !== 'all') {
+      setBranchFilter('all');
+    }
+  }, [availableBranches, branchFilter]);
   
-  const isBranchFilterDisabled = districtFilter === 'all' || availableBranches.length === 0;
+
+  const handleDownloadCsv = () => {
+    setIsGeneratingCsv(true);
+    const headers = ['Staff Member', 'Course', 'Department', 'District', 'Branch', 'Score (%)'];
+    const csvRows = [
+        headers.join(','),
+        ...filteredReport.map(item => [
+            `"${item.userName}"`,
+            `"${item.courseTitle}"`,
+            `"${item.department}"`,
+            `"${item.district}"`,
+            `"${item.branch}"`,
+            item.score !== null && item.score !== undefined ? item.score : 'N/A'
+        ].join(','))
+    ];
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'progress_report.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setIsGeneratingCsv(false);
+  }
+
+  const handleDownloadPdf = () => {
+    setIsGeneratingPdf(true);
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Detailed Progress Report", 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+
+    const tableColumn = ["Staff", "Course", "Dept", "District", "Branch", "Score"];
+    const tableRows: (string|number)[][] = [];
+
+    filteredReport.forEach(item => {
+        const scoreDisplay = item.score !== null && item.score !== undefined ? `${item.score}%` : 'N/A';
+        const row = [
+            item.userName,
+            item.courseTitle,
+            item.department,
+            item.district,
+            item.branch,
+            scoreDisplay
+        ];
+        tableRows.push(row);
+    });
+
+    (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 30,
+    });
+
+    doc.save('progress_report.pdf');
+    setIsGeneratingPdf(false);
+  }
 
   return (
     <div className="space-y-8">
        <Card>
         <CardHeader>
-          <CardTitle>Detailed Progress Report</CardTitle>
-          <CardDescription>
-            Filterable report of course progress for every staff member.
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle>Detailed Progress Report</CardTitle>
+              <CardDescription>
+                Filterable report of course scores for every staff member.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+                <Button onClick={handleDownloadCsv} disabled={isGeneratingCsv}>
+                    {isGeneratingCsv ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                    {isGeneratingCsv ? "Generating..." : "Download CSV"}
+                </Button>
+                <Button onClick={handleDownloadPdf} disabled={isGeneratingPdf} variant="outline">
+                    {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                    {isGeneratingPdf ? "Generating..." : "Download PDF"}
+                </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -130,7 +212,7 @@ export function ProgressReportClient({
                 {departments.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={districtFilter} onValueChange={(value) => { setDistrictFilter(value); setBranchFilter('all'); }}>
+            <Select value={districtFilter} onValueChange={(value) => { setDistrictFilter(value); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by District" />
               </SelectTrigger>
@@ -139,7 +221,7 @@ export function ProgressReportClient({
                 {districts.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={branchFilter} onValueChange={setBranchFilter} disabled={isBranchFilterDisabled}>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by Branch" />
               </SelectTrigger>
@@ -158,7 +240,7 @@ export function ProgressReportClient({
                 <TableHead>Department</TableHead>
                 <TableHead>District</TableHead>
                 <TableHead>Branch</TableHead>
-                <TableHead className="w-[150px]">Progress</TableHead>
+                <TableHead className="text-right">Score</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -169,11 +251,12 @@ export function ProgressReportClient({
                   <TableCell>{item.department}</TableCell>
                   <TableCell>{item.district}</TableCell>
                   <TableCell>{item.branch}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={item.progress} className="h-2" />
-                      <span className="text-muted-foreground font-mono text-sm">{item.progress}%</span>
-                    </div>
+                  <TableCell className="text-right font-medium">
+                    {item.score !== null && item.score !== undefined ? (
+                      <span>{item.score}%</span>
+                    ) : (
+                      <span className="text-muted-foreground">Not Taken</span>
+                    )}
                   </TableCell>
                 </TableRow>
               )) : (

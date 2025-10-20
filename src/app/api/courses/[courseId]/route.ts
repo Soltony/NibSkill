@@ -1,29 +1,7 @@
-
+// This file is obsolete and will be removed in a future commit.
+// Data fetching has been moved to server components.
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { courseId: string } }
-) {
-  try {
-    const course = await prisma.course.findUnique({
-      where: {
-        id: params.courseId,
-      },
-      include: {
-        modules: true,
-        product: true,
-      },
-    });
-
-    if (!course) {
-      return new NextResponse('Course not found', { status: 404 });
-    }
-
-    return NextResponse.json(course);
-  } catch (error) {
-    console.error('[COURSE_GET]', error);
-    return new NextResponse('Internal Error', { status: 500 });
-  }
+export async function GET() {
+    return NextResponse.json({ error: "This API route is deprecated." }, { status: 410 });
 }

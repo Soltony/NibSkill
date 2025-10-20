@@ -4,11 +4,12 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const productSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
+  imageUrl: z.string().url("A valid image data URI is required."),
+  imageHint: z.string().optional(),
 })
 
 export async function addProduct(values: z.infer<typeof productSchema>) {
@@ -18,18 +19,13 @@ export async function addProduct(values: z.infer<typeof productSchema>) {
     if (!validatedFields.success) {
       return { success: false, message: 'Invalid data provided.' }
     }
-    
-    // In a real app, you'd probably upload an image.
-    // Here we'll just cycle through the placeholders.
-    const imageIndex = Math.floor(Math.random() * PlaceHolderImages.length);
-    const randomImage = PlaceHolderImages[imageIndex];
 
     await prisma.product.create({
       data: {
         name: validatedFields.data.name,
         description: validatedFields.data.description,
-        imageUrl: randomImage.imageUrl,
-        imageHint: randomImage.imageHint,
+        imageUrl: validatedFields.data.imageUrl,
+        imageHint: validatedFields.data.imageHint || 'custom image',
       },
     })
 
@@ -54,10 +50,13 @@ export async function updateProduct(id: string, values: z.infer<typeof productSc
       data: {
         name: validatedFields.data.name,
         description: validatedFields.data.description,
+        imageUrl: validatedFields.data.imageUrl,
+        imageHint: validatedFields.data.imageHint || 'custom image',
       },
     })
 
     revalidatePath('/admin/products')
+    revalidatePath(`/admin/courses`); // To update product name if course is associated
     return { success: true, message: 'Product updated successfully.' }
   } catch (error) {
     console.error('Error updating product:', error)

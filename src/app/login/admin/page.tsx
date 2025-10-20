@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from 'next/navigation';
@@ -42,13 +43,13 @@ export default function AdminLoginPage() {
                 id="email" 
                 type="email" 
                 placeholder="admin@company.com" 
-                defaultValue="admin@skillup.com"
+                defaultValue="admin@nibtraining.com"
                 required 
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" defaultValue="password" required />
+              <Input id="password" type="password" defaultValue="skillup123" required />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">

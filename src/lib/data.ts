@@ -2,6 +2,13 @@
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
 
+export enum FieldType {
+    TEXT = "TEXT",
+    NUMBER = "NUMBER",
+    DATE = "DATE",
+    SELECT = "SELECT",
+}
+
 export type District = {
   id: string;
   name: string;
@@ -49,7 +56,7 @@ export type Module = {
   id: string;
   title: string;
   description: string;
-  type: 'video' | 'pdf' | 'slides';
+  type: 'video' | 'pdf' | 'slides' | 'audio';
   duration: number; // in minutes
   content: string; // URL to the content
 };
@@ -86,7 +93,7 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
-  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank';
+  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank';
   options: { id: string; text: string }[];
   correctAnswerId: string; // Also used for true/false (value will be 'true' or 'false') and fill-in-the-blank (value is the answer)
 };
@@ -121,10 +128,13 @@ export type Role = {
 }
 
 export type RegistrationField = {
-  id: string; // Changed to string to allow more flexibility
+  id: string;
   label: string;
+  type: FieldType;
   enabled: boolean;
   required: boolean;
+  options?: string[];
+  isLoginIdentifier?: boolean;
 }
 
 export type Notification = {
@@ -138,10 +148,10 @@ export type Notification = {
 // To add more fields to the registration form, add them to this array.
 // The `id` must be a unique string, and it will be used as the key in the form data.
 export const initialRegistrationFields: RegistrationField[] = [
-    { id: 'phoneNumber', label: 'Phone Number', enabled: true, required: false },
-    { id: 'department', label: 'Department', enabled: true, required: true },
-    { id: 'district', label: 'District', enabled: true, required: true },
-    { id: 'branch', label: 'Branch', enabled: true, required: true },
+    { id: 'phoneNumber', label: 'Phone Number', type: FieldType.TEXT, enabled: true, required: false },
+    { id: 'department', label: 'Department', type: FieldType.SELECT, enabled: true, required: true },
+    { id: 'district', label: 'District', type: FieldType.SELECT, enabled: true, required: true },
+    { id: 'branch', label: 'Branch', type: FieldType.SELECT, enabled: true, required: true },
 ]
 
 
@@ -177,29 +187,29 @@ export const users: User[] = [
   {
     id: 'user-1',
     name: 'Alex Johnson',
-    email: 'staff@skillup.com',
+    email: 'staff@nibtraining.com',
     role: 'staff',
     department: 'Engineering',
     district: 'North Region',
     branch: 'Main Office',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-    password: 'password'
+    password: 'skillup123'
   },
   {
     id: 'user-2',
     name: 'Maria Garcia',
-    email: 'admin@skillup.com',
+    email: 'admin@nibtraining.com',
     role: 'admin',
     department: 'HR',
     district: 'South Region',
     branch: 'Downtown Branch',
     avatarUrl: 'https://picsum.photos/seed/user2/100/100',
-    password: 'password'
+    password: 'skillup123'
   },
-  { id: 'user-3', name: 'Samira Khan', email: 'samira.khan@example.com', avatarUrl: 'https://picsum.photos/seed/user3/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'password' },
-  { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', department: 'Sales', district: 'South Region', branch: 'Downtown Branch', password: 'password' },
-  { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'password' },
-  { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', password: 'password' },
+  { id: 'user-3', name: 'Samira Khan', email: 'samira.khan@example.com', avatarUrl: 'https://picsum.photos/seed/user3/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'skillup123' },
+  { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', department: 'Sales', district: 'South Region', branch: 'Downtown Branch', password: 'skillup123' },
+  { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'skillup123' },
+  { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', password: 'skillup123' },
 ];
 
 export const products: Product[] = [
@@ -357,7 +367,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q1-1',
         text: 'What is the primary new capability of FusionX?',
-        type: 'multiple_choice',
+        type: 'multiple-choice',
         options: [
           { id: 'o1-1-1', text: 'AI-powered analytics' },
           { id: 'o1-1-2', text: 'Decentralized storage' },
@@ -369,7 +379,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q1-2',
         text: 'FusionX is primarily targeting enterprise clients.',
-        type: 'true_false',
+        type: 'true-false',
         options: [
             { id: 'true', text: 'True' },
             { id: 'false', text: 'False' },
@@ -379,7 +389,7 @@ export const quizzes: Quiz[] = [
        {
         id: 'q1-3',
         text: 'What technology powers the new analytics features? ______ Learning.',
-        type: 'fill_in_the_blank',
+        type: 'fill-in-the-blank',
         options: [],
         correctAnswerId: 'Machine',
       },
@@ -393,7 +403,7 @@ export const quizzes: Quiz[] = [
       {
         id: 'q4-1',
         text: 'What is a key part of the Nova Suite sales strategy?',
-        type: 'multiple_choice',
+        type: 'multiple-choice',
         options: [
           { id: 'o4-1-1', text: 'Focusing only on technical specs' },
           { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
@@ -529,3 +539,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    

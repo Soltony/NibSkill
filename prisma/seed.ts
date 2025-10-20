@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -51,7 +51,6 @@ async function main() {
         permissions: role.permissions as any,
       },
       create: {
-        id: role.id,
         name: role.name,
         permissions: role.permissions as any,
       },
@@ -61,7 +60,7 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { department, district, branch, role, ...userData } = user as any;
+    const { id, department, district, branch, role, password, ...userData } = user as any;
 
     // Find related records
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
@@ -70,11 +69,13 @@ async function main() {
     const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
     
     // Hash password before saving
-    const hashedPassword = await bcrypt.hash((user as any).password || 'password', 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     await prisma.user.upsert({
       where: { email: user.email },
-      update: {},
+      update: {
+        password: hashedPassword,
+      },
       create: {
         ...userData,
         password: hashedPassword,
@@ -99,7 +100,7 @@ async function main() {
   console.log('Seeded badges');
 
   // Assign badges to user-1
-  const user1 = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
+  const user1 = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
   const firstStepsBadge = await prisma.badge.findUnique({ where: { title: 'First Steps' }});
   const perfectScoreBadge = await prisma.badge.findUnique({ where: { title: 'Perfect Score' }});
 
@@ -157,8 +158,8 @@ async function main() {
     for (const module of modules) {
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...module, courseId: createdCourse.id },
-        create: { ...module, courseId: createdCourse.id },
+        update: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
+        create: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
       });
     }
   }
@@ -248,7 +249,7 @@ async function main() {
   console.log('Seeded quizzes and questions');
   
   // Seed UserCompletedCourse
-  const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@skillup.com' } });
+  const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
   if (user1ForCompletion) {
     const course4 = await prisma.course.findUnique({ where: { id: 'course-4' } });
     if (course4) {
@@ -273,13 +274,35 @@ async function main() {
     create: {
         id: 'singleton',
         title: "Certificate of Completion",
-        organization: "SkillUp Inc.",
+        organization: "NIB Training Inc.",
         body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
         signatoryName: "Jane Doe",
         signatoryTitle: "Head of Training & Development",
     }
   });
   console.log('Seeded certificate template');
+
+
+  // Seed Registration Fields
+  for (const field of initialRegistrationFields) {
+    await prisma.registrationField.upsert({
+      where: { id: field.id },
+      update: {
+        label: field.label,
+        type: field.type,
+        enabled: field.enabled,
+        required: field.required,
+      },
+      create: {
+        id: field.id,
+        label: field.label,
+        type: field.type,
+        enabled: field.enabled,
+        required: field.required,
+        options: field.options,
+      }
+    });
+  }
 
 
   console.log(`Seeding finished.`)
@@ -294,3 +317,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    

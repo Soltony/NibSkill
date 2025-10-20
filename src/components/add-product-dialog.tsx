@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, ChangeEvent } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -25,26 +25,50 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { PlusCircle } from "lucide-react"
+import { PlusCircle, Image as ImageIcon, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { addProduct } from "@/app/actions/product-actions"
+import Image from "next/image"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
+  imageUrl: z.string().url("An image is required."),
+  imageHint: z.string().optional(),
 })
 
 export function AddProductDialog() {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       description: "",
+      imageUrl: "",
     },
   })
+
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setImageUrl(dataUrl);
+        form.setValue("imageUrl", dataUrl, { shouldValidate: true });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageUrl(null);
+    form.setValue("imageUrl", "", { shouldValidate: true });
+  }
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const result = await addProduct(values);
@@ -55,6 +79,7 @@ export function AddProductDialog() {
       })
       setOpen(false)
       form.reset()
+      setImageUrl(null);
     } else {
       toast({
         title: "Error",
@@ -65,7 +90,13 @@ export function AddProductDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!isOpen) {
+            form.reset();
+            setImageUrl(null);
+        }
+    }}>
       <DialogTrigger asChild>
         <Button>
           <PlusCircle className="mr-2 h-4 w-4" /> Add Product
@@ -105,6 +136,28 @@ export function AddProductDialog() {
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="imageUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Product Image</FormLabel>
+                   {imageUrl ? (
+                     <div className="relative aspect-video w-full">
+                       <Image src={imageUrl} alt="Product image preview" fill className="rounded-md object-cover" />
+                       <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-7 w-7 rounded-full" onClick={removeImage}>
+                         <X className="h-4 w-4" />
+                       </Button>
+                     </div>
+                   ) : (
+                    <FormControl>
+                      <Input type="file" accept="image/png, image/jpeg, image/gif" onChange={handleImageUpload} />
+                    </FormControl>
+                   )}
                   <FormMessage />
                 </FormItem>
               )}

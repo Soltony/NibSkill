@@ -8,32 +8,30 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { SessionCard } from "./session-card-client";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-async function getLiveSessionsData() {
-  const staffUser = await prisma.user.findFirst({ 
-    where: { role: { name: 'Staff' } },
-    select: { id: true }
-  });
-
-  if (!staffUser) {
-    throw new Error("Could not find a staff user. Please seed the database.");
-  }
-  
+async function getLiveSessionsData(userId: string) {
   const sessions = await prisma.liveSession.findMany({
     include: {
       attendees: {
         where: {
-          userId: staffUser.id,
+          userId: userId,
         },
       },
     },
   });
 
-  return { sessions, userId: staffUser.id };
+  return { sessions, userId };
 }
 
 export default async function LiveSessionsPage() {
-    const { sessions, userId } = await getLiveSessionsData();
+    const user = await getSession();
+    if (!user) {
+        redirect('/login');
+    }
+
+    const { sessions, userId } = await getLiveSessionsData(user.id);
 
     const now = new Date();
     const upcomingSessions = sessions.filter((s) => {

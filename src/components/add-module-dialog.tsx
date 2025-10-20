@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, ChangeEvent } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { PlusCircle } from "lucide-react"
+import { PlusCircle, FileUp, X } from "lucide-react"
 import type { Module } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { Textarea } from "./ui/textarea"
@@ -40,10 +40,12 @@ import { addModule } from "@/app/actions/module-actions"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
-  type: z.enum(["video", "pdf", "slides"], { required_error: "Please select a module type." }),
+  type: z.enum(["video", "pdf", "slides", "audio"], { required_error: "Please select a module type." }),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   description: z.string().min(10, "Description is required."),
-  content: z.string().url("Please enter a valid URL."),
+  content: z.string().min(1, "Content is required.").refine(val => val.startsWith('https://') || val.startsWith('data:'), {
+    message: "Content must be a valid URL or a file upload.",
+  }),
 })
 
 type AddModuleDialogProps = {
@@ -54,6 +56,7 @@ type AddModuleDialogProps = {
 export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
+  const [fileName, setFileName] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,8 +65,32 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
       duration: 10,
       description: "",
       content: "",
+      type: "video"
     },
   })
+
+  const watchedType = form.watch('type');
+
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        form.setValue("content", dataUrl, { shouldValidate: true });
+        setFileName(file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeFile = () => {
+    setFileName(null);
+    form.setValue("content", "", { shouldValidate: true });
+    // Also clear the file input
+    const fileInput = document.getElementById('module-file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  }
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const result = await addModule(courseId, values);
@@ -75,6 +102,7 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
         })
         setOpen(false)
         form.reset()
+        setFileName(null);
     } else {
         toast({
             title: "Error adding module",
@@ -84,8 +112,26 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
     }
   }
 
+  const onOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+        form.reset();
+        setFileName(null);
+    }
+    setOpen(isOpen);
+  }
+
+  const getAcceptType = () => {
+    switch(watchedType) {
+        case 'video': return 'video/*';
+        case 'audio': return 'audio/*';
+        case 'pdf': return '.pdf';
+        case 'slides': return '.ppt, .pptx, .key';
+        default: return '';
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline">
           <PlusCircle className="mr-2 h-4 w-4" /> Add Module
@@ -133,7 +179,7 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Module Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={(value) => { field.onChange(value); form.setValue('content', ''); setFileName(null); }} defaultValue={field.value}>
                           <FormControl>
                               <SelectTrigger>
                                   <SelectValue placeholder="Select a type" />
@@ -141,6 +187,7 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
                           </FormControl>
                           <SelectContent>
                               <SelectItem value="video">Video</SelectItem>
+                              <SelectItem value="audio">Audio</SelectItem>
                               <SelectItem value="pdf">PDF</SelectItem>
                               <SelectItem value="slides">Slides</SelectItem>
                           </SelectContent>
@@ -168,11 +215,37 @@ export function AddModuleDialog({ courseId, onModuleAdded }: AddModuleDialogProp
                 name="content"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Content URL</FormLabel>
-                    <FormControl>
-                        <Input placeholder="https://..." {...field} />
-                    </FormControl>
-                    <FormMessage />
+                        <FormLabel>Content</FormLabel>
+                        <FormControl>
+                           <Input placeholder="Or paste a URL (e.g., for YouTube)" {...field} disabled={!!fileName} />
+                        </FormControl>
+                        
+                        {fileName ? (
+                            <div className="flex items-center justify-between rounded-md border border-input bg-muted p-2">
+                                <span className="truncate text-sm pl-2">{fileName}</span>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={removeFile}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ) : (
+                             <div className="flex items-center gap-2">
+                                <div className="w-full border-t border-dashed"></div>
+                                <span className="text-xs text-muted-foreground">OR</span>
+                                <div className="w-full border-t border-dashed"></div>
+                             </div>
+                        )}
+                        
+                        {!fileName && (
+                          <Button asChild variant="outline" className="w-full">
+                              <label>
+                                  <FileUp className="mr-2 h-4 w-4" />
+                                  Upload File
+                                  <Input id="module-file-input" type="file" accept={getAcceptType()} className="sr-only" onChange={handleFileUpload} />
+                              </label>
+                          </Button>
+                        )}
+
+                        <FormMessage />
                     </FormItem>
                 )}
             />

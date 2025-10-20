@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,7 +30,8 @@ import type { RegistrationField as TRegistrationField, District, Branch, Departm
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import prisma from "@/lib/db";
+import { Skeleton } from "@/components/ui/skeleton";
+import { initialRegistrationFields, FieldType } from "@/lib/data";
 
 
 const baseSchema = z.object({
@@ -38,6 +39,17 @@ const baseSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
+
+// Create initial default values from both static and dynamic fields
+const allDefaultValues = {
+  name: "",
+  email: "",
+  password: "",
+  ...initialRegistrationFields.reduce((acc, field) => {
+    acc[field.id] = "";
+    return acc;
+  }, {} as Record<string, string>)
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -50,43 +62,53 @@ export default function RegisterPage() {
   
   const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
 
-  useEffect(() => {
-    async function fetchFormData() {
-      // In a real app, you would fetch this data from an API route
-      // For this prototype, we'll use Prisma directly in a client component, which is not recommended for production.
-      const fields = await prisma.registrationField.findMany({ where: { enabled: true } });
-      const districtsData = await prisma.district.findMany();
-      const branchesData = await prisma.branch.findMany();
-      const departmentsData = await prisma.department.findMany();
-
-      setRegistrationFields(fields);
-      setDistricts(districtsData);
-      setBranches(branchesData);
-      setDepartments(departmentsData);
-
-      let schema = baseSchema as z.ZodObject<any>;
-      fields.forEach((field) => {
-        if (field.required) {
-          schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
-        } else {
-          schema = schema.extend({ [field.id]: z.string().optional() });
-        }
-      });
-      setDynamicSchema(schema as any);
-      setIsLoaded(true);
-    }
-    fetchFormData();
-  }, []);
-
   const form = useForm<z.infer<typeof dynamicSchema>>({
     resolver: zodResolver(dynamicSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-    },
+    defaultValues: allDefaultValues
   });
+  
+  const watchedDistrict = form.watch('district');
+  const availableBranches = useMemo(() => {
+    if (!watchedDistrict) return [];
+    return branches.filter(b => b.districtId === watchedDistrict);
+  }, [watchedDistrict, branches]);
 
+  useEffect(() => {
+    async function fetchFormData() {
+      try {
+        const response = await fetch('/api/registration-data');
+        if (!response.ok) {
+          throw new Error('Failed to fetch registration data');
+        }
+        const { fields, districtsData, branchesData, departmentsData } = await response.json();
+
+        setRegistrationFields(fields);
+        setDistricts(districtsData);
+        setBranches(branchesData);
+        setDepartments(departmentsData);
+
+        let schema = baseSchema as z.ZodObject<any>;
+        fields.forEach((field: TRegistrationField) => {
+          if (field.required) {
+            schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
+          } else {
+            schema = schema.extend({ [field.id]: z.string().optional() });
+          }
+        });
+        setDynamicSchema(schema as any);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Could not load registration form. Please try again later.",
+          variant: "destructive"
+        })
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+    fetchFormData();
+  }, [toast]);
+  
   const onRegisterUser = async (values: z.infer<typeof dynamicSchema>) => {
     const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -110,14 +132,106 @@ export default function RegisterPage() {
       });
     }
   };
+  
+  const renderField = (field: TRegistrationField) => {
+    const commonProps = {
+      control: form.control,
+      name: field.id
+    };
 
-  const getField = (id: string) => registrationFields.find(f => f.id === id);
-
-  const selectedDistrict = form.watch('district');
-  const availableBranches = branches.filter(b => b.districtId === selectedDistrict);
+    switch (field.type) {
+      case 'TEXT':
+        return (
+          <FormField
+            {...commonProps}
+            render={({ field: formField }) => (
+              <FormItem>
+                <FormLabel>{field.label}</FormLabel>
+                <FormControl><Input {...formField} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+      case 'NUMBER':
+          return (
+            <FormField
+              {...commonProps}
+              render={({ field: formField }) => (
+                <FormItem>
+                  <FormLabel>{field.label}</FormLabel>
+                  <FormControl><Input type="number" {...formField} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          );
+      case 'DATE':
+          return (
+            <FormField
+              {...commonProps}
+              render={({ field: formField }) => (
+                <FormItem>
+                  <FormLabel>{field.label}</FormLabel>
+                  <FormControl><Input type="date" {...formField} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          );
+      case 'SELECT':
+        let options: {id: string, name: string}[] = [];
+        if (field.id === 'department') options = departments;
+        if (field.id === 'district') options = districts;
+        if (field.id === 'branch') options = availableBranches;
+        
+        return (
+          <FormField
+            {...commonProps}
+            render={({ field: formField }) => (
+              <FormItem>
+                <FormLabel>{field.label}</FormLabel>
+                <Select onValueChange={formField.onChange} defaultValue={formField.value} disabled={field.id === 'branch' && !watchedDistrict}>
+                    <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder={field.id === 'branch' && !watchedDistrict ? "Select district first" : `Select a ${field.label.toLowerCase()}`} />
+                        </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {options.map(o => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   if (!isLoaded) {
-    return <div>Loading form...</div>
+    return (
+        <main className="flex min-h-screen items-center justify-center bg-secondary p-4">
+            <Card className="w-full max-w-md shadow-2xl">
+                <CardHeader className="text-center">
+                  <div className="mx-auto mb-4"><Logo /></div>
+                  <CardTitle className="font-headline text-3xl">Create an Account</CardTitle>
+                  <CardDescription>Enter your details to register as a staff member.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                </CardContent>
+                <CardFooter className="flex flex-col gap-4">
+                    <Skeleton className="h-10 w-full" />
+                </CardFooter>
+            </Card>
+        </main>
+    )
   }
 
   return (
@@ -172,81 +286,9 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
-              {getField('phoneNumber')?.enabled && (
-                <FormField
-                    control={form.control}
-                    name="phoneNumber"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                        <Input placeholder="(123) 456-7890" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              )}
-               {getField('department')?.enabled && (
-                <FormField
-                    control={form.control}
-                    name="department"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Department</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger><SelectValue placeholder="Select a department" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              )}
-               {getField('district')?.enabled && (
-                <FormField
-                    control={form.control}
-                    name="district"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>District</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger><SelectValue placeholder="Select a district" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {districts.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              )}
-               {getField('branch')?.enabled && (
-                <FormField
-                    control={form.control}
-                    name="branch"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Branch</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedDistrict}>
-                            <FormControl>
-                                <SelectTrigger><SelectValue placeholder={selectedDistrict ? "Select a branch" : "Select a district first"} /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {availableBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-              )}
+              {registrationFields.map(field => (
+                <div key={field.id}>{renderField(field)}</div>
+              ))}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>

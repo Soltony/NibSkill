@@ -30,27 +30,28 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
 import { Label } from "./ui/label"
 import { ScrollArea } from "./ui/scroll-area"
 import { updateQuiz } from "@/app/actions/quiz-actions"
-import type { Quiz, Question, Option as OptionType, QuestionType } from "@prisma/client"
+import type { Quiz, Question, Option as OptionType } from "@prisma/client"
 
 type QuizWithRelations = Quiz & {
   questions: (Question & { options: OptionType[] })[]
 }
 
 const optionSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   text: z.string().min(1, "Option text cannot be empty."),
 })
 
 const questionSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   text: z.string().min(1, "Question text cannot be empty."),
   type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
   options: z.array(optionSchema),
-  correctAnswerId: z.string({ required_error: "A correct answer is required." }).min(1, "A correct answer is required."),
+  correctAnswerId: z.string().min(1, "A correct answer is required."),
 })
 
 const formSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
+  timeLimit: z.coerce.number().min(0),
   questions: z.array(questionSchema),
 })
 
@@ -67,19 +68,34 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     resolver: zodResolver(formSchema),
   })
 
-  useEffect(() => {
-    if (open) {
-      form.reset({
-        passingScore: quiz.passingScore,
-        questions: quiz.questions.map(q => ({...q, type: q.type.replace('_', '-') as any})),
-      })
-    }
-  }, [open, quiz, form])
-
   const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "questions",
   })
+  
+  useEffect(() => {
+    if (open) {
+      const questionsWithCorrectAnswerHandling = quiz.questions.map(q => {
+        let correctAnswerValue = '';
+        if (q.type === 'multiple_choice' || q.type === 'true_false') {
+          correctAnswerValue = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
+        } else {
+          correctAnswerValue = q.correctAnswerId || '';
+        }
+        return {
+          ...q,
+          options: q.options || [],
+          correctAnswerId: correctAnswerValue,
+        };
+      });
+
+      form.reset({
+        passingScore: quiz.passingScore,
+        timeLimit: quiz.timeLimit || 0,
+        questions: questionsWithCorrectAnswerHandling,
+      })
+    }
+  }, [open, quiz, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const result = await updateQuiz(quiz.id, values);
@@ -98,40 +114,39 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     }
   }
 
-  const addQuestion = (type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank') => {
+  const addQuestion = (type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank') => {
     let newQuestion: z.infer<typeof questionSchema>;
-    const questionId = `new-q-${Date.now()}`;
 
     switch (type) {
-      case 'multiple-choice':
+      case 'multiple_choice':
         newQuestion = {
-          id: questionId,
+          id: undefined,
           text: "",
-          type: 'multiple-choice',
+          type: 'multiple_choice',
           options: [
-            { id: `new-o-${Date.now()}-1`, text: "" },
-            { id: `new-o-${Date.now()}-2`, text: "" },
+            { id: undefined, text: "" },
+            { id: undefined, text: "" },
           ],
           correctAnswerId: "",
         };
         break;
-      case 'true-false':
+      case 'true_false':
         newQuestion = {
-          id: questionId,
+          id: undefined,
           text: "",
-          type: 'true-false',
+          type: 'true_false',
           options: [
-            { id: 'true', text: 'True' },
-            { id: 'false', text: 'False' },
+            { id: undefined, text: 'True' },
+            { id: undefined, text: 'False' },
           ],
-          correctAnswerId: "",
+          correctAnswerId: "True",
         };
         break;
-      case 'fill-in-the-blank':
+      case 'fill_in_the_blank':
         newQuestion = {
-          id: questionId,
+          id: undefined,
           text: "",
-          type: 'fill-in-the-blank',
+          type: 'fill_in_the_blank',
           options: [],
           correctAnswerId: "",
         };
@@ -142,15 +157,15 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
 
   const addOption = (questionIndex: number) => {
     const question = form.getValues(`questions.${questionIndex}`);
-    if (question.type === 'multiple-choice') {
-      const newOptions = [...question.options, { id: `new-o-${Date.now()}`, text: "" }];
+    if (question.type === 'multiple_choice') {
+      const newOptions = [...question.options, { id: undefined, text: "" }];
       update(questionIndex, { ...question, options: newOptions });
     }
   }
 
   const removeOption = (questionIndex: number, optionIndex: number) => {
     const question = form.getValues(`questions.${questionIndex}`);
-    if (question.type === 'multiple-choice') {
+    if (question.type === 'multiple_choice') {
       const newOptions = question.options.filter((_, i) => i !== optionIndex);
       update(questionIndex, { ...question, options: newOptions });
     }
@@ -172,30 +187,45 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             
-            <FormField
-              control={form.control}
-              name="passingScore"
-              render={({ field }) => (
-                <FormItem className="mb-4">
-                  <FormLabel>Passing Score (%)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="0" max="100" className="w-48" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <FormField
+                control={form.control}
+                name="passingScore"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Passing Score (%)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" max="100" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="timeLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Time Limit (minutes)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" placeholder="0 for none" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <ScrollArea className="h-[55vh] p-4 border rounded-md">
               <div className="space-y-8">
                 {fields.map((question, qIndex) => (
-                  <div key={question.id} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
+                  <div key={question.id || qIndex} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
                      <FormField
                       control={form.control}
                       name={`questions.${qIndex}.text`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Question {qIndex + 1} ({question.type?.replace('-', ' ') || 'New Question'})</FormLabel>
+                          <FormLabel>Question {qIndex + 1} ({question.type?.replace(/_/g, ' ')})</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter question text" {...field} />
                           </FormControl>
@@ -204,7 +234,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                       )}
                     />
 
-                    {question.type === 'multiple-choice' && (
+                    {question.type === 'multiple_choice' && (
                       <Controller
                           control={form.control}
                           name={`questions.${qIndex}.correctAnswerId`}
@@ -214,10 +244,11 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                                   value={controllerField.value}
                                   className="space-y-2"
                               >
-                                  {(form.watch(`questions.${qIndex}.options`)).map((option, oIndex) => (
-                                      <div key={option.id} className="flex items-center gap-2 group/option">
-                                          <RadioGroupItem value={option.id} id={`${question.id}-${option.id}`} />
-                                          <Label htmlFor={`${question.id}-${option.id}`} className="font-normal flex-1 cursor-pointer">
+                                  <FormLabel>Options (select the correct one)</FormLabel>
+                                  {(form.watch(`questions.${qIndex}.options`) || []).map((option, oIndex) => (
+                                      <div key={option.id || oIndex} className="flex items-center gap-2 group/option">
+                                          <RadioGroupItem value={option.text} id={`${qIndex}-${oIndex}`} />
+                                          <Label htmlFor={`${qIndex}-${oIndex}`} className="font-normal flex-1 cursor-pointer">
                                               <FormField
                                                   control={form.control}
                                                   name={`questions.${qIndex}.options.${oIndex}.text`}
@@ -244,33 +275,32 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                       />
                     )}
 
-                    {question.type === 'true-false' && (
+                    {question.type === 'true_false' && (
                        <Controller
                           control={form.control}
                           name={`questions.${qIndex}.correctAnswerId`}
                           render={({ field }) => (
                             <RadioGroup onValueChange={field.onChange} value={field.value} className="flex items-center gap-4">
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="true" id={`${question.id}-true`}/>
-                                  <Label htmlFor={`${question.id}-true`} className="font-normal">True</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="false" id={`${question.id}-false`}/>
-                                  <Label htmlFor={`${question.id}-false`} className="font-normal">False</Label>
-                                </div>
+                                <FormLabel>Correct Answer:</FormLabel>
+                                {(form.watch(`questions.${qIndex}.options`) || []).map(option => (
+                                  <div key={option.text} className="flex items-center space-x-2">
+                                    <RadioGroupItem value={option.text} id={`${qIndex}-${option.text}`}/>
+                                    <Label htmlFor={`${qIndex}-${option.text}`} className="font-normal">{option.text}</Label>
+                                  </div>
+                                ))}
                             </RadioGroup>
                           )}
                         />
                     )}
 
-                    {question.type === 'fill-in-the-blank' && (
+                    {question.type === 'fill_in_the_blank' && (
                        <FormField
                           control={form.control}
                           name={`questions.${qIndex}.correctAnswerId`}
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Correct Answer</FormLabel>
-                              <FormControl>
+                               <FormControl>
                                 <Input placeholder="Enter the correct answer" {...field} />
                               </FormControl>
                               <FormMessage />
@@ -299,13 +329,13 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                 )}
 
                 <div className="flex justify-center gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => addQuestion('multiple-choice')}>
+                  <Button type="button" variant="outline" onClick={() => addQuestion('multiple_choice')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Multiple Choice
                   </Button>
-                   <Button type="button" variant="outline" onClick={() => addQuestion('true-false')}>
+                   <Button type="button" variant="outline" onClick={() => addQuestion('true_false')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> True/False
                   </Button>
-                   <Button type="button" variant="outline" onClick={() => addQuestion('fill-in-the-blank')}>
+                   <Button type="button" variant="outline" onClick={() => addQuestion('fill_in_the_blank')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Fill in the Blank
                   </Button>
                 </div>

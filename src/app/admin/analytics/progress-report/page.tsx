@@ -1,4 +1,3 @@
-
 import prisma from "@/lib/db"
 import { ProgressReportClient } from "./progress-report-client"
 
@@ -19,6 +18,9 @@ async function getProgressReportData() {
     orderBy: { title: "asc" },
   })
 
+  const completions = await prisma.userCompletedCourse.findMany();
+  const completionMap = new Map(completions.map(c => [`${c.userId}-${c.courseId}`, c.score]));
+
   const departments = await prisma.department.findMany({
     orderBy: { name: "asc" },
   })
@@ -32,10 +34,7 @@ async function getProgressReportData() {
   const reportData = users
     .map((user) => {
       return courses.map((course) => {
-        // In a real app, progress would be calculated based on user's completion records.
-        // For this prototype, we'll continue to use a deterministic mock value.
-        const progress = (user.name.length + course.title.length) % 81
-
+        const score = completionMap.get(`${user.id}-${course.id}`);
         return {
           userId: user.id,
           userName: user.name,
@@ -44,7 +43,7 @@ async function getProgressReportData() {
           branch: user.branch?.name || "N/A",
           courseId: course.id,
           courseTitle: course.title,
-          progress,
+          score: score, // This will be the score number or undefined
         }
       })
     })

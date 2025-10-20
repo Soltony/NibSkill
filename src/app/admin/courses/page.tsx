@@ -1,5 +1,6 @@
 
 
+import Image from "next/image"
 import {
   Table,
   TableBody,
@@ -54,6 +55,9 @@ export default async function CourseManagementPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="hidden w-[100px] sm:table-cell">
+                    <span className="sr-only">Image</span>
+                  </TableHead>
                   <TableHead>Course Title</TableHead>
                   <TableHead>Associated Product</TableHead>
                   <TableHead className="text-center">Modules</TableHead>
@@ -66,6 +70,22 @@ export default async function CourseManagementPage() {
               <TableBody>
                 {courses.map((course) => (
                   <TableRow key={course.id}>
+                     <TableCell className="hidden sm:table-cell">
+                      {course.product?.imageUrl ? (
+                        <Image
+                          alt={course.product.name}
+                          className="aspect-square rounded-md object-cover"
+                          height="64"
+                          src={course.product.imageUrl}
+                          width="64"
+                          data-ai-hint={course.product.imageHint}
+                        />
+                      ) : (
+                        <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
+                          No Image
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
                         <CourseLink course={course} />
                     </TableCell>

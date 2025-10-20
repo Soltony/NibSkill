@@ -1,3 +1,4 @@
+
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -15,6 +16,7 @@ model User {
   name                  String
   email                 String                  @unique
   password              String
+  activeSessionId       String?
   avatarUrl             String?
   phoneNumber           String?
   departmentId          String?
@@ -30,6 +32,8 @@ model User {
   completedCourses      UserCompletedCourse[]
   attendedSessions      UserAttendedLiveSession[]
   badges                UserBadge[]
+  loginHistory          LoginHistory[]
+  completedModules      UserCompletedModule[]
 }
 
 model Role {
@@ -80,39 +84,41 @@ model Product {
 }
 
 model Course {
-  id              String                @id @default(cuid())
-  title           String
-  description     String
-  imageUrl        String?
+  id               String                @id @default(cuid())
+  title            String
+  description      String
+  imageUrl         String?
   imageDescription String?
-  imageHint       String?
-  productId       String
-  product         Product               @relation(fields: [productId], references: [id])
-  modules         Module[]
-  quiz            Quiz?
-  learningPaths   LearningPathCourse[]
-  completedBy     UserCompletedCourse[]
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  imageHint        String?
+  productId        String
+  product          Product               @relation(fields: [productId], references: [id])
+  modules          Module[]
+  quiz             Quiz?
+  learningPaths    LearningPathCourse[]
+  completedBy      UserCompletedCourse[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 }
 
 model Module {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   title       String
   description String
-  type        String // video, pdf, slides
+  type        ModuleType
   duration    Int
   content     String
   courseId    String
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  completedBy UserCompletedModule[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Quiz {
   id           String     @id @default(cuid())
   courseId     String     @unique
   passingScore Int
+  timeLimit    Int?
   course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   questions    Question[]
   createdAt    DateTime   @default(now())
@@ -120,15 +126,15 @@ model Quiz {
 }
 
 model Question {
-  id              String      @id @default(cuid())
+  id              String       @id @default(cuid())
   text            String
   type            QuestionType
   correctAnswerId String
   quizId          String
-  quiz            Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quiz            Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
   options         Option[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model Option {
@@ -189,6 +195,18 @@ model UserCompletedCourse {
   @@id([userId, courseId])
 }
 
+model UserCompletedModule {
+  userId      String
+  moduleId    String
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@id([userId, moduleId])
+}
+
 model UserAttendedLiveSession {
   userId      String
   sessionId   String
@@ -237,14 +255,34 @@ model CertificateTemplate {
 }
 
 model RegistrationField {
-  id       String   @id
-  label    String
-  enabled  Boolean  @default(false)
-  required Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String     @id
+  label             String
+  type              FieldType
+  options           String[]
+  enabled           Boolean    @default(false)
+  required          Boolean    @default(false)
+  isLoginIdentifier Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 }
 
+model LoginHistory {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginTime  DateTime  @default(now())
+  logoutTime DateTime?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+}
+
+enum ModuleType {
+  video
+  pdf
+  slides
+  audio
+}
 
 enum QuestionType {
   multiple_choice
@@ -255,4 +293,11 @@ enum QuestionType {
 enum LiveSessionPlatform {
   Zoom
   Google_Meet
+}
+
+enum FieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
 }

@@ -12,17 +12,12 @@ import { Radio } from 'lucide-react';
 import Link from 'next/link';
 import prisma from '@/lib/db';
 import type { Course, LiveSession } from '@prisma/client';
+import { getSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-// In a real app, this would come from an authentication system
-async function getCurrentUser() {
-    return await prisma.user.findFirst({
-        where: { role: { name: 'Staff' } },
-    });
-}
-
-async function getDashboardData() {
+async function getDashboardData(userId: string) {
     const courses = await prisma.course.findMany({
-        include: { modules: true }
+        include: { modules: true, product: true }
     });
 
     const liveSessions = await prisma.liveSession.findMany({
@@ -35,12 +30,36 @@ async function getDashboardData() {
             dateTime: 'asc'
         }
     });
+    
+    const userCompletions = await prisma.userCompletedCourse.findMany({
+        where: { userId: userId },
+        select: { courseId: true, score: true }
+    });
 
-    // We'll calculate progress on the server for simplicity. 
-    // In a real app, this would be a more complex query based on user progress records.
+    const userModuleCompletions = await prisma.userCompletedModule.findMany({
+      where: { userId: userId },
+      select: { moduleId: true }
+    });
+
+    const completedModulesByCourse = userModuleCompletions.reduce((acc, completion) => {
+      const module = courses.flatMap(c => c.modules).find(m => m.id === completion.moduleId);
+      if (module) {
+        if (!acc[module.courseId]) {
+          acc[module.courseId] = new Set();
+        }
+        acc[module.courseId].add(module.id);
+      }
+      return acc;
+    }, {} as Record<string, Set<string>>);
+    
+    const completionsMap = new Map(userCompletions.map(c => [c.courseId, c.score]));
+
     const coursesWithProgress = courses.map(course => {
-        const completedModules = course.modules.filter((m, i) => i < course.title.length % course.modules.length).length;
-        const progress = course.modules.length > 0 ? Math.round((completedModules / course.modules.length) * 100) : 0;
+        if (completionsMap.has(course.id)) {
+            return { ...course, progress: 100 };
+        }
+        const completedModuleCount = completedModulesByCourse[course.id]?.size || 0;
+        const progress = course.modules.length > 0 ? Math.round((completedModuleCount / course.modules.length) * 100) : 0;
         return { ...course, progress };
     });
 
@@ -52,12 +71,13 @@ async function getDashboardData() {
 
 
 export default async function DashboardPage() {
-  const currentUser = await getCurrentUser();
-  const { courses, liveSessions } = await getDashboardData();
+  const currentUser = await getSession();
   
   if (!currentUser) {
-    return <div>Could not find staff user. Please seed the database.</div>
+    redirect('/login');
   }
+
+  const { courses, liveSessions } = await getDashboardData(currentUser.id);
 
   return (
     <div className="space-y-8">
@@ -116,6 +136,11 @@ export default async function DashboardPage() {
                   </div>
                 </li>
               ))}
+               {liveSessions.length === 0 && (
+                  <li className="text-center text-muted-foreground py-8">
+                    No upcoming live sessions scheduled.
+                  </li>
+               )}
             </ul>
           </CardContent>
         </Card>

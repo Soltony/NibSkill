@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useTransition, Fragment } from 'react';
 import Link from 'next/link';
 import {
   Card,
@@ -23,40 +23,63 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { Quiz as QuizType, Question } from '@/lib/data';
 import { Input } from './ui/input';
-import { Award, Frown, BookCopy } from 'lucide-react';
+import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
+import { Progress } from './ui/progress';
+import { completeCourse } from '@/app/actions/user-actions';
+import { useToast } from '@/hooks/use-toast';
+
+type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
+
+type Answer = string | string[];
 
 type Answers = {
-  [questionId: string]: string;
+  [questionId: string]: Answer;
 };
 
-export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => void }) {
+export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: string, onComplete: () => void }) {
   const [answers, setAnswers] = useState<Answers>({});
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(quiz.timeLimit ? quiz.timeLimit * 60 : null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
-  const handleAnswerChange = (questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
-  };
+  const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  const isAnswered = (q: Question) => {
-    if (q.type === 'fill-in-the-blank') {
-      return answers[q.id] && answers[q.id].trim() !== '';
-    }
-    return !!answers[q.id];
-  };
+  const getBlankCount = (text: string) => {
+    return (text.match(/____/g) || []).length;
+  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(() => {
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
-       if (q.type === 'fill-in-the-blank') {
-        if (answers[q.id]?.trim().toLowerCase() === q.correctAnswerId.trim().toLowerCase()) {
-          correctAnswers++;
+       if (q.type === 'fill_in_the_blank') {
+        const correctAnswersArray = (q.correctAnswerId || "").split('|||');
+        const userAnswersArray = (answers[q.id] as string[]) || [];
+        
+        let allBlanksCorrect = true;
+        if (correctAnswersArray.length === 0) {
+            allBlanksCorrect = false;
         }
+
+        for (let i = 0; i < correctAnswersArray.length; i++) {
+          const correct = correctAnswersArray[i]?.trim().toLowerCase();
+          const user = userAnswersArray[i]?.trim().toLowerCase();
+          if (correct !== user) {
+            allBlanksCorrect = false;
+            break;
+          }
+        }
+        if (allBlanksCorrect) {
+            correctAnswers++;
+        }
+
       } else {
-        if (answers[q.id] === q.correctAnswerId) {
+        const correctOption = q.options.find(opt => opt.id === q.correctAnswerId);
+        if (correctOption && answers[q.id] === correctOption.id) {
           correctAnswers++;
         }
       }
@@ -64,76 +87,197 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
     const finalScore = quiz.questions.length > 0 ? Math.round((correctAnswers / quiz.questions.length) * 100) : 0;
     setScore(finalScore);
     setShowResult(true);
+
+    if (finalScore >= quiz.passingScore) {
+        startTransition(async () => {
+            const result = await completeCourse({
+                userId,
+                courseId: quiz.courseId,
+                score: finalScore,
+            });
+
+            if (!result.success) {
+                toast({
+                title: "Error Saving Completion",
+                description: result.message,
+                variant: "destructive"
+                })
+            }
+        });
+    }
+  }, [answers, quiz, userId, toast]);
+  
+  useEffect(() => {
+    if (timeLeft === null || showResult) return;
+
+    if (timeLeft <= 0) {
+        handleSubmit();
+        return;
+    }
+
+    const timer = setInterval(() => {
+        setTimeLeft(prevTime => prevTime !== null ? prevTime - 1 : null);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLeft, handleSubmit, showResult]);
+
+  const handleAnswerChange = (questionId: string, value: string) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: value,
+    }));
   };
 
-  const isSubmitDisabled = quiz.questions.some(q => !isAnswered(q));
+  const handleMultiBlankAnswerChange = (questionId: string, blankIndex: number, value: string) => {
+    setAnswers(prev => {
+      const currentAnswers = (prev[questionId] as string[]) || [];
+      const newAnswers = [...currentAnswers];
+      newAnswers[blankIndex] = value;
+      return {
+        ...prev,
+        [questionId]: newAnswers,
+      };
+    });
+  };
+  
+  const isAnswered = (q: Question) => {
+    const answer = answers[q.id];
+    if (q.type === 'fill_in_the_blank') {
+      const blankCount = getBlankCount(q.text);
+      if (!Array.isArray(answer) || answer.length < blankCount) return false;
+      return answer.every(a => a && a.trim() !== '');
+    }
+    return answer && (answer as string).trim() !== '';
+  };
+
+  const allQuestionsAnswered = quiz.questions.every(q => isAnswered(q));
 
   const passed = score >= quiz.passingScore;
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  
+  const goToNext = () => {
+    if (currentQuestionIndex < quiz.questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+    }
+  };
+
+  const goToPrevious = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+    }
+  };
+
+  if (!currentQuestion) {
+    return (
+      <Card>
+        <CardContent>
+          <p>This quiz has no questions.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+  
   return (
     <>
-      <Card className="mt-8 shadow-lg">
-        <form onSubmit={handleSubmit}>
+      <Card className="w-full max-w-3xl mx-auto shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Knowledge Check</CardTitle>
-            <CardDescription>Let's see what you've learned. Answer all questions to complete the course. The passing score is {quiz.passingScore}%.</CardDescription>
+            <CardDescription>
+                Let's see what you've learned. Answer all questions to complete the course. 
+                The passing score is {quiz.passingScore}%.
+                {quiz.timeLimit && quiz.timeLimit > 0 && ` You have ${quiz.timeLimit} minutes.`}
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-8">
-            {quiz.questions.map((q, index) => (
-              <div key={q.id}>
-                <p className="mb-4 font-semibold">
-                  {index + 1}. {q.text}
-                </p>
-                {q.type === 'multiple-choice' && (
-                   <RadioGroup
-                    onValueChange={(value) => handleAnswerChange(q.id, value)}
-                    className="space-y-2"
-                  >
-                    {q.options.map((opt) => (
-                      <div key={opt.id} className="flex items-center space-x-2">
-                        <RadioGroupItem value={opt.id} id={`${q.id}-${opt.id}`} />
-                        <Label htmlFor={`${q.id}-${opt.id}`} className="font-normal cursor-pointer">
-                          {opt.text}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                )}
-                 {q.type === 'true-false' && (
-                  <RadioGroup
-                    onValueChange={(value) => handleAnswerChange(q.id, value)}
-                    className="space-y-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="true" id={`${q.id}-true`} />
-                      <Label htmlFor={`${q.id}-true`} className="font-normal cursor-pointer">True</Label>
+           <CardContent>
+            {quiz.timeLimit && quiz.timeLimit > 0 && timeLeft !== null && (
+                <div className="mb-6">
+                    <div className="flex justify-between text-sm font-medium mb-1">
+                        <span>Time Remaining</span>
+                        <span className="font-mono">{formatTime(timeLeft)}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="false" id={`${q.id}-false`} />
-                      <Label htmlFor={`${q.id}-false`} className="font-normal cursor-pointer">False</Label>
-                    </div>
-                  </RadioGroup>
+                    <Progress value={(timeLeft / (quiz.timeLimit * 60)) * 100} />
+                </div>
+            )}
+            
+             <div className="mb-6">
+                <div className="flex justify-between text-sm font-medium mb-1">
+                    <span>Question {currentQuestionIndex + 1} of {quiz.questions.length}</span>
+                </div>
+                <Progress value={((currentQuestionIndex + 1) / quiz.questions.length) * 100} />
+            </div>
+
+            {currentQuestion && (
+              <div>
+                {(currentQuestion.type === 'multiple_choice' || currentQuestion.type === 'true_false') && (
+                  <>
+                    <p className="mb-4 font-semibold text-lg">{currentQuestion.text}</p>
+                    <RadioGroup
+                        value={(answers[currentQuestion.id] as string) || ''}
+                        onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
+                        className="space-y-2"
+                    >
+                        {currentQuestion.options.map((opt) => (
+                        <div key={opt.id} className="flex items-center space-x-3 rounded-md border p-3 hover:bg-muted/50 has-[[data-state=checked]]:bg-muted">
+                            <RadioGroupItem value={opt.id} id={`${currentQuestion.id}-${opt.id}`} />
+                            <Label htmlFor={`${currentQuestion.id}-${opt.id}`} className="font-normal cursor-pointer flex-1">
+                            {opt.text}
+                            </Label>
+                        </div>
+                        ))}
+                    </RadioGroup>
+                  </>
                 )}
-                 {q.type === 'fill-in-the-blank' && (
-                  <Input
-                    placeholder="Type your answer here..."
-                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                  />
+                 {currentQuestion.type === 'fill_in_the_blank' && (
+                  <div className="mb-4 font-semibold text-lg leading-relaxed">
+                      {currentQuestion.text.split('____').map((part, i) => (
+                        <Fragment key={i}>
+                          {part}
+                          {i < getBlankCount(currentQuestion.text) && (
+                            <Input
+                              className="inline-block w-40 h-8 mx-2 px-2 text-base"
+                              value={(answers[currentQuestion.id] as string[])?.[i] || ''}
+                              onChange={(e) => handleMultiBlankAnswerChange(currentQuestion.id, i, e.target.value)}
+                            />
+                          )}
+                        </Fragment>
+                      ))}
+                  </div>
                 )}
               </div>
-            ))}
+            )}
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={isSubmitDisabled}>
-              Submit Quiz
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" onClick={goToPrevious} disabled={currentQuestionIndex === 0}>
+              <ChevronLeft className="mr-2 h-4 w-4" /> Previous
             </Button>
+            
+            {currentQuestionIndex === quiz.questions.length - 1 ? (
+              <Button onClick={handleSubmit} disabled={!allQuestionsAnswered}>
+                Submit Quiz
+              </Button>
+            ) : (
+              <Button onClick={goToNext}>
+                Next <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
           </CardFooter>
-        </form>
       </Card>
       
       <AlertDialog open={showResult} onOpenChange={setShowResult}>
         <AlertDialogContent>
           <AlertDialogHeader>
+             {timeLeft !== null && timeLeft <= 0 && (
+                 <div className="flex items-center justify-center gap-2 text-destructive">
+                    <AlertTriangle className="h-5 w-5" />
+                    <p className="font-bold text-center">Time's Up!</p>
+                 </div>
+             )}
             <AlertDialogTitle className="font-headline text-center text-2xl">
               {passed ? "Certification Granted!" : "More Study Needed"}
             </AlertDialogTitle>
@@ -165,8 +309,8 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
                     </Link>
                 </Button>
             )}
-             <Button variant="outline" onClick={onComplete}>
-                <BookCopy className="mr-2 h-4 w-4" />
+             <Button variant="outline" onClick={() => onComplete()} disabled={isPending}>
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCopy className="mr-2 h-4 w-4" />}
                 {passed ? 'Back to Course' : 'Review and Retry'}
             </Button>
           </AlertDialogFooter>
@@ -175,3 +319,5 @@ export function Quiz({ quiz, onComplete }: { quiz: QuizType, onComplete: () => v
     </>
   );
 }
+
+  

@@ -1,10 +1,12 @@
 
+
 'use server'
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { FieldType } from '@prisma/client'
 
 const updateUserRoleSchema = z.object({
   userId: z.string(),
@@ -65,6 +67,74 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
     }
 }
 
+const permissionSchema = z.object({
+  c: z.boolean(),
+  r: z.boolean(),
+  u: z.boolean(),
+  d: z.boolean(),
+});
+
+const roleSchema = z.object({
+  name: z.string().min(2, "Role name must be at least 2 characters."),
+  permissions: z.object({
+    courses: permissionSchema,
+    users: permissionSchema,
+    analytics: permissionSchema,
+    products: permissionSchema,
+    quizzes: permissionSchema,
+    staff: permissionSchema,
+    liveSessions: permissionSchema,
+  })
+})
+
+export async function addRole(values: z.infer<typeof roleSchema>) {
+    try {
+        const validatedFields = roleSchema.safeParse(values);
+        if (!validatedFields.success) {
+            return { success: false, message: 'Invalid data provided.' };
+        }
+        
+        await prisma.role.create({
+            data: {
+                name: validatedFields.data.name,
+                permissions: validatedFields.data.permissions as any,
+            }
+        });
+
+        revalidatePath('/admin/settings');
+        return { success: true, message: 'Role created successfully.' };
+
+    } catch (error) {
+        console.error("Error creating role:", error);
+        return { success: false, message: 'Failed to create role.' };
+    }
+}
+
+export async function updateRole(id: string, values: z.infer<typeof roleSchema>) {
+    try {
+        const validatedFields = roleSchema.safeParse(values);
+        if (!validatedFields.success) {
+            return { success: false, message: 'Invalid data provided.' };
+        }
+        
+        await prisma.role.update({
+            where: { id },
+            data: {
+                name: validatedFields.data.name,
+                permissions: validatedFields.data.permissions as any,
+            }
+        });
+
+        revalidatePath('/admin/settings');
+        return { success: true, message: 'Role updated successfully.' };
+
+    } catch (error) {
+        console.error("Error updating role:", error);
+        return { success: false, message: 'Failed to update role.' };
+    }
+}
+
+
 export async function deleteRole(roleId: string) {
     try {
         await prisma.role.delete({ where: { id: roleId }});
@@ -119,6 +189,8 @@ export async function updateRegistrationFields(values: z.infer<typeof registrati
 const addFieldSchema = z.object({
   label: z.string().min(2, "Label must be at least 2 characters."),
   id: z.string().min(2, "ID must be at least 2 characters.").regex(/^[a-zA-Z0-9_]+$/, "ID can only contain letters, numbers, and underscores."),
+  type: z.nativeEnum(FieldType),
+  options: z.string().optional(),
 })
 
 export async function addRegistrationField(values: z.infer<typeof addFieldSchema>) {
@@ -132,6 +204,8 @@ export async function addRegistrationField(values: z.infer<typeof addFieldSchema
             data: {
                 id: validatedFields.data.id,
                 label: validatedFields.data.label,
+                type: validatedFields.data.type,
+                options: validatedFields.data.options?.split(',').map(o => o.trim()).filter(o => o),
                 enabled: false,
                 required: false
             }
@@ -142,7 +216,10 @@ export async function addRegistrationField(values: z.infer<typeof addFieldSchema
 
     } catch (error) {
         console.error("Error adding registration field:", error);
-        return { success: false, message: 'Failed to add field. The ID might already exist.' };
+        if ((error as any).code === 'P2002') {
+             return { success: false, message: 'Failed to add field. The ID might already exist.' };
+        }
+        return { success: false, message: 'Failed to add field.' };
     }
 }
 
@@ -156,3 +233,4 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
+

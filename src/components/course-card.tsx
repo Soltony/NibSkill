@@ -1,4 +1,6 @@
 
+"use client"
+
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -11,28 +13,35 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { usePathname } from 'next/navigation';
-import type { Course } from '@prisma/client';
+import type { Course, Product } from '@prisma/client';
 import { Skeleton } from './ui/skeleton';
 
-type CourseWithProgress = Course & { progress: number };
+type CourseWithProgressAndProduct = Course & { 
+  progress: number,
+  product: Product | null;
+};
 
-export function CourseCard({ course }: { course: CourseWithProgress }) {
+export function CourseCard({ course }: { course: CourseWithProgressAndProduct }) {
   const pathname = usePathname();
   const isAdminView = pathname.startsWith('/admin');
   const courseLink = isAdminView ? `/admin/courses/${course.id}` : `/courses/${course.id}`;
+
+  const displayImageUrl = course.imageUrl ?? course.product?.imageUrl;
+  const displayImageHint = course.imageHint ?? course.product?.imageHint;
+  const displayImageDescription = course.imageDescription ?? course.product?.description;
 
   return (
     <Link href={courseLink} className="block h-full transition-transform hover:scale-[1.02]">
       <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-xl">
         <CardHeader className="p-0">
           <div className="relative aspect-video">
-            {course.imageUrl ? (
+            {displayImageUrl ? (
               <Image
-                src={course.imageUrl}
-                alt={course.imageDescription ?? ''}
+                src={displayImageUrl}
+                alt={displayImageDescription ?? ''}
                 fill
                 className="object-cover"
-                data-ai-hint={course.imageHint ?? ''}
+                data-ai-hint={displayImageHint ?? ''}
               />
             ) : (
               <Skeleton className="h-full w-full" />
