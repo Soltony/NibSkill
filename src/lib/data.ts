@@ -39,13 +39,6 @@ export type User = {
   phoneNumber?: string;
 };
 
-export type Product = {
-  id: string;
-  name: string;
-  description: string;
-  image: ImagePlaceholder;
-}
-
 export type Module = {
   id: string;
   title: string;
@@ -527,5 +520,3 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
-
-    
