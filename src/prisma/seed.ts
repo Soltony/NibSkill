@@ -12,7 +12,6 @@ import {
     courses as initialCourses,
     learningPaths as initialLearningPaths,
     liveSessions as initialLiveSessions,
-    quizzes as initialQuizzes,
     roles as initialRoles,
     initialRegistrationFields
 } from '../src/lib/data';
@@ -207,49 +206,6 @@ async function main() {
       });
   }
   console.log('Seeded live sessions');
-
-  // Seed Quizzes and Questions
-  for (const quiz of initialQuizzes) {
-    const { questions, ...quizData } = quiz;
-    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'fill_in_the_blank' || q.type === 'short_answer');
-
-    const createdQuiz = await prisma.quiz.upsert({
-        where: { id: quiz.id },
-        update: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
-        create: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
-    });
-    for (const question of questions) {
-        const { options, ...questionData } = question;
-        const questionType = question.type as QuestionType
-        const createdQuestion = await prisma.question.upsert({
-            where: { id: question.id },
-            update: {
-                ...questionData,
-                type: questionType,
-                quizId: createdQuiz.id
-            },
-            create: {
-                ...questionData,
-                type: questionType,
-                quizId: createdQuiz.id
-            }
-        });
-
-        if (question.type === 'multiple_choice' || question.type === 'true_false') {
-            await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
-            for (const option of options) {
-                await prisma.option.create({
-                    data: {
-                        id: option.id,
-                        text: option.text,
-                        questionId: createdQuestion.id,
-                    }
-                });
-            }
-        }
-    }
-  }
-  console.log('Seeded quizzes and questions');
   
   // Seed UserCompletedCourse
   const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
@@ -292,14 +248,14 @@ async function main() {
       where: { id: field.id },
       update: {
         label: field.label,
-        type: field.type,
+        type: field.type as FieldType,
         enabled: field.enabled,
         required: field.required,
       },
       create: {
         id: field.id,
         label: field.label,
-        type: field.type,
+        type: field.type as FieldType,
         enabled: field.enabled,
         required: field.required,
         options: field.options,
