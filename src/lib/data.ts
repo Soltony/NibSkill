@@ -140,6 +140,32 @@ export type Notification = {
     isRead: boolean;
 };
 
+export enum QuestionType {
+  MULTIPLE_CHOICE = 'MULTIPLE_CHOICE',
+  TRUE_FALSE = 'TRUE_FALSE',
+  FILL_IN_THE_BLANK = 'FILL_IN_THE_BLANK',
+  SHORT_ANSWER = 'SHORT_ANSWER',
+}
+
+export enum ModuleType {
+    VIDEO = 'video',
+    PDF = 'pdf',
+    SLIDES = 'slides',
+    AUDIO = 'audio'
+}
+
+export enum FieldType {
+    TEXT = "TEXT",
+    NUMBER = "NUMBER",
+    DATE = "DATE",
+    SELECT = "SELECT"
+}
+
+export enum QuizType {
+    OPEN_LOOP = "OPEN_LOOP",
+    CLOSED_LOOP = "CLOSED_LOOP",
+}
+
 // To add more fields to the registration form, add them to this array.
 // The `id` must be a unique string, and it will be used as the key in the form data.
 export const initialRegistrationFields: RegistrationField[] = [
