@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -51,6 +51,7 @@ async function main() {
         permissions: role.permissions as any,
       },
       create: {
+        id: role.id,
         name: role.name,
         permissions: role.permissions as any,
       },
@@ -77,7 +78,10 @@ async function main() {
         password: hashedPassword,
       },
       create: {
-        ...userData,
+        id: user.id, // Explicitly use the ID from data for stable relations
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
         password: hashedPassword,
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
@@ -194,11 +198,11 @@ async function main() {
           where: { id: session.id },
           update: {
               ...sessionData,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: session.platform as LiveSessionPlatform
           },
           create: {
               ...sessionData,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: session.platform as LiveSessionPlatform
           }
       });
   }
@@ -207,28 +211,31 @@ async function main() {
   // Seed Quizzes and Questions
   for (const quiz of initialQuizzes) {
     const { questions, ...quizData } = quiz;
+    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
+
     const createdQuiz = await prisma.quiz.upsert({
         where: { id: quiz.id },
-        update: quizData,
-        create: quizData,
+        update: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
+        create: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
     });
     for (const question of questions) {
         const { options, ...questionData } = question;
+        const questionType = question.type as QuestionType
         const createdQuestion = await prisma.question.upsert({
             where: { id: question.id },
             update: {
                 ...questionData,
-                type: question.type.replace(/-/g, '_') as QuestionType,
+                type: questionType,
                 quizId: createdQuiz.id
             },
             create: {
                 ...questionData,
-                type: question.type.replace(/-/g, '_') as QuestionType,
+                type: questionType,
                 quizId: createdQuiz.id
             }
         });
 
-        if (question.type === 'multiple-choice' || question.type === 'true-false') {
+        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'TRUE_FALSE') {
             for (const option of options) {
                 await prisma.option.upsert({
                     where: { id: option.id },

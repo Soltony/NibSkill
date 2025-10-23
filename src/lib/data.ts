@@ -1,18 +1,19 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
+import type { QuestionType as TQuestionType, QuizType as TQuizType, ModuleType as TModuleType, FieldType as TFieldType, LiveSessionPlatform as TLiveSessionPlatform } from '@prisma/client';
 
-export enum FieldType {
-    TEXT = "TEXT",
-    NUMBER = "NUMBER",
-    DATE = "DATE",
-    SELECT = "SELECT",
-}
+export const FieldType: { [key: string]: TFieldType } = {
+    TEXT: "TEXT",
+    NUMBER: "NUMBER",
+    DATE: "DATE",
+    SELECT: "SELECT",
+};
 
-export enum QuizType {
-    OPEN_LOOP = "OPEN_LOOP",
-    CLOSED_LOOP = "CLOSED_LOOP"
-}
+export const QuizType: { [key: string]: TQuizType } = {
+    OPEN_LOOP: "OPEN_LOOP",
+    CLOSED_LOOP: "CLOSED_LOOP"
+};
 
 export type District = {
   id: string;
@@ -61,7 +62,7 @@ export type Module = {
   id: string;
   title: string;
   description: string;
-  type: 'video' | 'pdf' | 'slides' | 'audio';
+  type: TModuleType;
   duration: number; // in minutes
   content: string; // URL to the content
 };
@@ -89,7 +90,7 @@ export type LiveSession = {
   speaker: string;
   keyTakeaways: string;
   dateTime: Date;
-  platform: 'Zoom' | 'Google_Meet';
+  platform: TLiveSessionPlatform;
   joinUrl: string;
   recordingUrl?: string;
   attendees?: string[]; // Array of user IDs
@@ -98,9 +99,9 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
-  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank';
+  type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK' | 'SHORT_ANSWER';
   options: { id: string; text: string }[];
-  correctAnswerId: string; // Also used for true/false (value will be 'true' or 'false') and fill-in-the-blank (value is the answer)
+  correctAnswerId: string;
 };
 
 
@@ -137,7 +138,7 @@ export type Role = {
 export type RegistrationField = {
   id: string;
   label: string;
-  type: FieldType;
+  type: TFieldType;
   enabled: boolean;
   required: boolean;
   options?: string[];
@@ -155,10 +156,10 @@ export type Notification = {
 // To add more fields to the registration form, add them to this array.
 // The `id` must be a unique string, and it will be used as the key in the form data.
 export const initialRegistrationFields: RegistrationField[] = [
-    { id: 'phoneNumber', label: 'Phone Number', type: FieldType.TEXT, enabled: true, required: false },
-    { id: 'department', label: 'Department', type: FieldType.SELECT, enabled: true, required: true },
-    { id: 'district', label: 'District', type: FieldType.SELECT, enabled: true, required: true },
-    { id: 'branch', label: 'Branch', type: FieldType.SELECT, enabled: true, required: true },
+    { id: 'phoneNumber', label: 'Phone Number', type: 'TEXT', enabled: true, required: false },
+    { id: 'department', label: 'Department', type: 'SELECT', enabled: true, required: true },
+    { id: 'district', label: 'District', type: 'SELECT', enabled: true, required: true },
+    { id: 'branch', label: 'Branch', type: 'SELECT', enabled: true, required: true },
 ]
 
 
@@ -365,7 +366,7 @@ export const liveSessions: LiveSession[] = [
   },
 ];
 
-export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
+export const quizzes: Quiz[] = [
   {
     id: 'quiz-1',
     courseId: 'course-1',
@@ -375,7 +376,7 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
       {
         id: 'q1-1',
         text: 'What is the primary new capability of FusionX?',
-        type: 'multiple-choice',
+        type: 'MULTIPLE_CHOICE',
         options: [
           { id: 'o1-1-1', text: 'AI-powered analytics' },
           { id: 'o1-1-2', text: 'Decentralized storage' },
@@ -387,7 +388,7 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
       {
         id: 'q1-2',
         text: 'FusionX is primarily targeting enterprise clients.',
-        type: 'true-false',
+        type: 'TRUE_FALSE',
         options: [
             { id: 'true', text: 'True' },
             { id: 'false', text: 'False' },
@@ -397,7 +398,7 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
        {
         id: 'q1-3',
         text: 'What technology powers the new analytics features? ______ Learning.',
-        type: 'fill-in-the-blank',
+        type: 'FILL_IN_THE_BLANK',
         options: [],
         correctAnswerId: 'Machine',
       },
@@ -412,7 +413,7 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
       {
         id: 'q4-1',
         text: 'What is a key part of the Nova Suite sales strategy?',
-        type: 'multiple-choice',
+        type: 'MULTIPLE_CHOICE',
         options: [
           { id: 'o4-1-1', text: 'Focusing only on technical specs' },
           { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
@@ -420,6 +421,13 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
           { id: 'o4-1-4', text: 'Avoiding discussion of competitors' },
         ],
         correctAnswerId: 'o4-1-2',
+      },
+       {
+        id: 'q4-2',
+        text: 'What is the best way to handle an objection?',
+        type: 'SHORT_ANSWER',
+        options: [],
+        correctAnswerId: 'Acknowledge, clarify, respond, and confirm.',
       },
     ],
   },
@@ -548,3 +556,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    
