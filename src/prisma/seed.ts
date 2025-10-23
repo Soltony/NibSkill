@@ -211,7 +211,7 @@ async function main() {
   // Seed Quizzes and Questions
   for (const quiz of initialQuizzes) {
     const { questions, ...quizData } = quiz;
-    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'fill-in-the-blank' || q.type === 'short_answer');
+    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'fill_in_the_blank' || q.type === 'short_answer');
 
     const createdQuiz = await prisma.quiz.upsert({
         where: { id: quiz.id },
@@ -220,22 +220,22 @@ async function main() {
     });
     for (const question of questions) {
         const { options, ...questionData } = question;
-        const questionTypeStr = question.type.replace(/-/g, '_') as QuestionType;
+        const questionType = question.type as QuestionType
         const createdQuestion = await prisma.question.upsert({
             where: { id: question.id },
             update: {
                 ...questionData,
-                type: questionTypeStr,
+                type: questionType,
                 quizId: createdQuiz.id
             },
             create: {
                 ...questionData,
-                type: questionTypeStr,
+                type: questionType,
                 quizId: createdQuiz.id
             }
         });
 
-        if (question.type === 'multiple-choice' || question.type === 'true-false') {
+        if (question.type === 'multiple_choice' || question.type === 'true_false') {
             await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
             for (const option of options) {
                 await prisma.option.create({
@@ -320,6 +320,8 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
 
     
 

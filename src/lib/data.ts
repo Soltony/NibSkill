@@ -1,6 +1,7 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
+import { QuestionType as TQuestionType } from '@prisma/client'
 
 export enum FieldType {
     TEXT = "TEXT",
@@ -98,7 +99,7 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
-  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank' | 'short_answer';
+  type: TQuestionType;
   options: { id: string; text: string }[];
   correctAnswerId: string;
 };
@@ -375,7 +376,7 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
       {
         id: 'q1-1',
         text: 'What is the primary new capability of FusionX?',
-        type: 'multiple-choice',
+        type: 'multiple_choice',
         options: [
           { id: 'o1-1-1', text: 'AI-powered analytics' },
           { id: 'o1-1-2', text: 'Decentralized storage' },
@@ -387,7 +388,7 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
       {
         id: 'q1-2',
         text: 'FusionX is primarily targeting enterprise clients.',
-        type: 'true-false',
+        type: 'true_false',
         options: [
             { id: 'true', text: 'True' },
             { id: 'false', text: 'False' },
@@ -397,7 +398,7 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
        {
         id: 'q1-3',
         text: 'What technology powers the new analytics features? ______ Learning.',
-        type: 'fill-in-the-blank',
+        type: 'fill_in_the_blank',
         options: [],
         correctAnswerId: 'Machine',
       },
@@ -412,7 +413,7 @@ export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
       {
         id: 'q4-1',
         text: 'What is a key part of the Nova Suite sales strategy?',
-        type: 'multiple-choice',
+        type: 'multiple_choice',
         options: [
           { id: 'o4-1-1', text: 'Focusing only on technical specs' },
           { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
@@ -548,3 +549,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    
