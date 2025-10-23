@@ -53,7 +53,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   const handleSubmit = useCallback(() => {
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
-       if (q.type === 'fill_in_the_blank' || q.type === 'short_answer') {
+       if (q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER') {
         const correctAnswer = (q.correctAnswerId || "").trim().toLowerCase();
         const userAnswer = ((answers[q.id] as string) || "").trim().toLowerCase();
         if (correctAnswer === userAnswer) {
@@ -113,7 +113,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
 
   const isAnswered = (q: Question) => {
     const answer = answers[q.id];
-    if (q.type === 'fill_in_the_blank' || q.type === 'short_answer') {
+    if (q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER') {
       return answer && (answer as string).trim() !== '';
     }
     return answer && (answer as string).trim() !== '';
@@ -182,7 +182,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
 
             {currentQuestion && (
               <div>
-                {(currentQuestion.type === 'multiple_choice' || currentQuestion.type === 'true_false') && (
+                {(currentQuestion.type === 'MULTIPLE_CHOICE' || currentQuestion.type === 'TRUE_FALSE') && (
                   <>
                     <p className="mb-4 font-semibold text-lg">{currentQuestion.text}</p>
                     <RadioGroup
@@ -201,7 +201,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                     </RadioGroup>
                   </>
                 )}
-                 {currentQuestion.type === 'fill_in_the_blank' && (
+                 {currentQuestion.type === 'FILL_IN_THE_BLANK' && (
                   <div className="mb-4 font-semibold text-lg leading-relaxed">
                     <span>{currentQuestion.text.split('____')[0]}</span>
                     <Input
@@ -212,7 +212,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                     <span>{currentQuestion.text.split('____')[1]}</span>
                   </div>
                 )}
-                {currentQuestion.type === 'short_answer' && (
+                {currentQuestion.type === 'SHORT_ANSWER' && (
                   <div className="space-y-2">
                     <p className="mb-4 font-semibold text-lg">{currentQuestion.text}</p>
                     <Textarea
