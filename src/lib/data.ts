@@ -1,8 +1,7 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-
-// Enums from schema are now referenced in the seed file directly
+import { QuestionType as PrismaQuestionType } from '@prisma/client';
 
 export type District = {
   id: string;
@@ -63,6 +62,23 @@ export type Course = {
   productId: string;
   modules: Module[];
   image: ImagePlaceholder;
+};
+
+export type Question = {
+    id: string;
+    text: string;
+    type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK' | 'SHORT_ANSWER';
+    options: { id: string; text: string }[];
+    correctAnswerId: string;
+};
+  
+export type Quiz = {
+    id: string;
+    courseId: string;
+    passingScore: number;
+    timeLimit: number;
+    quizType: 'OPEN_LOOP' | 'CLOSED_LOOP';
+    questions: Question[];
 };
 
 export type LearningPath = {
@@ -272,6 +288,55 @@ export const courses: Course[] = [
   },
 ];
 
+export const initialQuizzes: Quiz[] = [
+    {
+      id: 'quiz-1',
+      courseId: 'course-1',
+      passingScore: 80,
+      timeLimit: 15,
+      quizType: 'CLOSED_LOOP',
+      questions: [
+        {
+          id: 'q1-1',
+          text: 'What is the primary new capability of FusionX?',
+          type: 'MULTIPLE_CHOICE',
+          options: [
+            { id: 'o1-1-1', text: 'AI-powered predictive analytics' },
+            { id: 'o1-1-2', text: 'Enhanced user interface' },
+            { id: 'o1-1-3', text: 'Real-time data streaming' },
+          ],
+          correctAnswerId: 'o1-1-1',
+        },
+        {
+          id: 'q1-2',
+          text: 'FusionX is primarily targeting enterprise clients.',
+          type: 'TRUE_FALSE',
+          options: [
+            { id: 'o1-2-1', text: 'True' },
+            { id: 'o1-2-2', text: 'False' },
+          ],
+          correctAnswerId: 'o1-2-1',
+        },
+      ],
+    },
+    {
+        id: 'quiz-4',
+        courseId: 'course-4',
+        passingScore: 70,
+        timeLimit: 0,
+        quizType: 'CLOSED_LOOP',
+        questions: [
+          {
+            id: 'q4-1',
+            text: 'What is a key part of the Nova Suite sales strategy?',
+            type: 'SHORT_ANSWER',
+            options: [],
+            correctAnswerId: 'Value-based selling',
+          },
+        ],
+    },
+  ];
+
 export const learningPaths: LearningPath[] = [
     {
         id: 'lp-1',
@@ -460,3 +525,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    

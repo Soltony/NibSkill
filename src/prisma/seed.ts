@@ -1,7 +1,7 @@
 
 import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import {
+import { 
     districts as initialDistricts,
     branches as initialBranches,
     departments as initialDepartments,
@@ -12,7 +12,8 @@ import {
     learningPaths as initialLearningPaths,
     liveSessions as initialLiveSessions,
     roles as initialRoles,
-    initialRegistrationFields
+    initialRegistrationFields,
+    initialQuizzes
 } from '../lib/data';
 
 const prisma = new PrismaClient()
@@ -158,18 +159,10 @@ async function main() {
     });
 
     for (const module of modules) {
-        let moduleType: ModuleType;
-        switch(module.type) {
-            case 'video': moduleType = ModuleType.video; break;
-            case 'pdf': moduleType = ModuleType.pdf; break;
-            case 'slides': moduleType = ModuleType.slides; break;
-            case 'audio': moduleType = ModuleType.audio; break;
-            default: throw new Error(`Invalid module type: ${module.type}`);
-        }
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...module, type: moduleType, courseId: createdCourse.id },
-        create: { ...module, type: moduleType, courseId: createdCourse.id },
+        update: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
+        create: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
       });
     }
   }
@@ -200,20 +193,63 @@ async function main() {
   // Seed Live Sessions
   for (const session of initialLiveSessions) {
       const { attendees, ...sessionData } = session;
-      const platform : LiveSessionPlatform = session.platform === 'Google_Meet' ? LiveSessionPlatform.Google_Meet : LiveSessionPlatform.Zoom;
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
               ...sessionData,
-              platform: platform
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           },
           create: {
               ...sessionData,
-              platform: platform
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           }
       });
   }
   console.log('Seeded live sessions');
+
+  // Seed Quizzes and Questions
+  for (const quiz of initialQuizzes) {
+    const { questions, ...quizData } = quiz;
+    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
+
+    const createdQuiz = await prisma.quiz.upsert({
+        where: { id: quiz.id },
+        update: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
+        create: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
+    });
+
+    for (const question of questions) {
+        const { options, ...questionData } = question;
+        const questionType = question.type as QuestionType
+        const createdQuestion = await prisma.question.upsert({
+            where: { id: question.id },
+            update: {
+                ...questionData,
+                type: questionType,
+                quizId: createdQuiz.id
+            },
+            create: {
+                ...questionData,
+                type: questionType,
+                quizId: createdQuiz.id
+            }
+        });
+
+        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'TRUE_FALSE') {
+            await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
+            for (const option of options) {
+                await prisma.option.create({
+                    data: {
+                        id: option.id,
+                        text: option.text,
+                        questionId: createdQuestion.id,
+                    }
+                });
+            }
+        }
+    }
+  }
+  console.log('Seeded quizzes and questions');
   
   // Seed UserCompletedCourse
   const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
@@ -252,33 +288,25 @@ async function main() {
 
   // Seed Registration Fields
   for (const field of initialRegistrationFields) {
-    let fieldType: FieldType;
-    switch(field.type) {
-        case 'TEXT': fieldType = FieldType.TEXT; break;
-        case 'NUMBER': fieldType = FieldType.NUMBER; break;
-        case 'DATE': fieldType = FieldType.DATE; break;
-        case 'SELECT': fieldType = FieldType.SELECT; break;
-        default: throw new Error(`Invalid field type: ${field.type}`);
-    }
     await prisma.registrationField.upsert({
       where: { id: field.id },
       update: {
         label: field.label,
-        type: fieldType,
+        type: field.type,
         enabled: field.enabled,
         required: field.required,
       },
       create: {
         id: field.id,
         label: field.label,
-        type: fieldType,
+        type: field.type,
         enabled: field.enabled,
         required: field.required,
         options: field.options,
       }
     });
   }
-  console.log('Seeded registration fields');
+
 
   console.log(`Seeding finished.`)
 }
@@ -292,3 +320,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
