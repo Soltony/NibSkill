@@ -64,7 +64,7 @@ const updateQuizFormSchema = z.object({
     }).transform(data => ({
       ...data,
       type: data.type.toUpperCase() as QuestionType, // Then transform to uppercase enum
-    })).pipe(questionSchema.omit({ type: true })) // And finally validate against the schema without the original type
+    })).pipe(questionSchema) // And finally validate against the schema with the now-uppercase type
   ),
 });
 
