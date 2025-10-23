@@ -1,7 +1,19 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import { QuestionType as PrismaQuestionType } from '@prisma/client';
+import type { QuestionType as TQuestionType, QuizType as TQuizType, ModuleType as TModuleType, FieldType as TFieldType, LiveSessionPlatform as TLiveSessionPlatform } from '@prisma/client';
+
+export const FieldType: { [key: string]: TFieldType } = {
+    TEXT: "TEXT",
+    NUMBER: "NUMBER",
+    DATE: "DATE",
+    SELECT: "SELECT",
+};
+
+export const QuizType: { [key: string]: TQuizType } = {
+    OPEN_LOOP: "OPEN_LOOP",
+    CLOSED_LOOP: "CLOSED_LOOP"
+};
 
 export type District = {
   id: string;
@@ -50,7 +62,7 @@ export type Module = {
   id: string;
   title: string;
   description: string;
-  type: 'video' | 'pdf' | 'slides' | 'audio';
+  type: TModuleType;
   duration: number; // in minutes
   content: string; // URL to the content
 };
@@ -95,10 +107,28 @@ export type LiveSession = {
   speaker: string;
   keyTakeaways: string;
   dateTime: Date;
-  platform: 'Zoom' | 'Google_Meet';
+  platform: TLiveSessionPlatform;
   joinUrl: string;
   recordingUrl?: string;
   attendees?: string[]; // Array of user IDs
+};
+
+export type Question = {
+  id: string;
+  text: string;
+  type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK' | 'SHORT_ANSWER';
+  options: { id: string; text: string }[];
+  correctAnswerId: string;
+};
+
+
+export type Quiz = {
+  id:string;
+  courseId: string;
+  passingScore: number; // Percentage from 0 to 100
+  questions: Question[];
+  quizType: 'OPEN_LOOP' | 'CLOSED_LOOP';
+  requiresManualGrading?: boolean;
 };
 
 export type Permission = {
@@ -125,7 +155,7 @@ export type Role = {
 export type RegistrationField = {
   id: string;
   label: string;
-  type: 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT';
+  type: TFieldType;
   enabled: boolean;
   required: boolean;
   options?: string[];
@@ -428,6 +458,73 @@ export const liveSessions: LiveSession[] = [
   },
 ];
 
+export const quizzes: Quiz[] = [
+  {
+    id: 'quiz-1',
+    courseId: 'course-1',
+    passingScore: 80,
+    quizType: 'CLOSED_LOOP',
+    questions: [
+      {
+        id: 'q1-1',
+        text: 'What is the primary new capability of FusionX?',
+        type: 'MULTIPLE_CHOICE',
+        options: [
+          { id: 'o1-1-1', text: 'AI-powered analytics' },
+          { id: 'o1-1-2', text: 'Decentralized storage' },
+          { id: 'o1-1-3', text: 'Real-time collaboration' },
+          { id: 'o1-1-4', text: 'Quantum computing integration' },
+        ],
+        correctAnswerId: 'o1-1-1',
+      },
+      {
+        id: 'q1-2',
+        text: 'FusionX is primarily targeting enterprise clients.',
+        type: 'TRUE_FALSE',
+        options: [
+            { id: 'true', text: 'True' },
+            { id: 'false', text: 'False' },
+        ],
+        correctAnswerId: 'true',
+      },
+       {
+        id: 'q1-3',
+        text: 'What technology powers the new analytics features? ______ Learning.',
+        type: 'FILL_IN_THE_BLANK',
+        options: [],
+        correctAnswerId: 'Machine',
+      },
+    ],
+  },
+    {
+    id: 'quiz-4',
+    courseId: 'course-4',
+    passingScore: 90,
+    quizType: 'CLOSED_LOOP',
+    questions: [
+      {
+        id: 'q4-1',
+        text: 'What is a key part of the Nova Suite sales strategy?',
+        type: 'MULTIPLE_CHOICE',
+        options: [
+          { id: 'o4-1-1', text: 'Focusing only on technical specs' },
+          { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
+          { id: 'o4-1-3', text: 'Offering large discounts immediately' },
+          { id: 'o4-1-4', text: 'Avoiding discussion of competitors' },
+        ],
+        correctAnswerId: 'o4-1-2',
+      },
+       {
+        id: 'q4-2',
+        text: 'What is the best way to handle an objection?',
+        type: 'SHORT_ANSWER',
+        options: [],
+        correctAnswerId: 'Acknowledge, clarify, respond, and confirm.',
+      },
+    ],
+  },
+];
+
 const detailedProgressReport = [
     ...users.map(user => {
         return courses.map(course => ({
@@ -551,3 +648,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    

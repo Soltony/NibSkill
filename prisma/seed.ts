@@ -198,11 +198,11 @@ async function main() {
           where: { id: session.id },
           update: {
               ...sessionData,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: session.platform as LiveSessionPlatform
           },
           create: {
               ...sessionData,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: session.platform as LiveSessionPlatform
           }
       });
   }
@@ -211,7 +211,7 @@ async function main() {
   // Seed Quizzes and Questions
   for (const quiz of initialQuizzes) {
     const { questions, ...quizData } = quiz;
-    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'fill_in_the_blank' || q.type === 'short_answer');
+    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
 
     const createdQuiz = await prisma.quiz.upsert({
         where: { id: quiz.id },
@@ -235,8 +235,7 @@ async function main() {
             }
         });
 
-        if (question.type === 'multiple_choice' || question.type === 'true_false') {
-            await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
+        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'TRUE_FALSE') {
             for (const option of options) {
                 await prisma.option.create({
                     data: {
