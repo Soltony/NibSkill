@@ -9,6 +9,7 @@ import {
   Command,
   CommandGroup,
   CommandItem,
+  CommandEmpty,
 } from "@/components/ui/command";
 import { Command as CommandPrimitive } from "cmdk";
 
@@ -115,6 +116,7 @@ export function MultiSelect({
                   </CommandItem>
                 );
               })}
+               <CommandEmpty>No results found.</CommandEmpty>
             </CommandGroup>
           </div>
           : null
