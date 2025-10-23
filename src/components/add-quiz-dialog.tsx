@@ -35,11 +35,15 @@ import { useToast } from "@/hooks/use-toast"
 import { Input } from "./ui/input"
 import { addQuiz } from "@/app/actions/quiz-actions"
 import type { Course, Quiz } from "@prisma/client"
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
+import { Label } from "./ui/label"
+import { QuizType } from "@/lib/data"
 
 const formSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
   passingScore: z.coerce.number().min(0, "Passing score must be at least 0.").max(100, "Passing score cannot exceed 100."),
   timeLimit: z.coerce.number().min(0, "Time limit must be a positive number or 0 for no limit."),
+  quizType: z.nativeEnum(QuizType, { required_error: "Please select a quiz type."}),
 })
 
 type AddQuizDialogProps = {
@@ -56,6 +60,7 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
     defaultValues: {
       passingScore: 80,
       timeLimit: 0,
+      quizType: "CLOSED_LOOP"
     }
   })
 
@@ -70,7 +75,7 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
         description: `A new quiz has been created. You can now add questions.`,
       })
       setOpen(false)
-      form.reset({ passingScore: 80, timeLimit: 0, courseId: undefined })
+      form.reset({ passingScore: 80, timeLimit: 0, courseId: undefined, quizType: "CLOSED_LOOP" })
     } else {
         toast({
             title: "Error",
@@ -87,11 +92,11 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
           <PlusCircle className="mr-2 h-4 w-4" /> Add Quiz
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add New Quiz</DialogTitle>
           <DialogDescription>
-            Select a course to associate this new quiz with.
+            Select a course and define the quiz settings.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -121,6 +126,42 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
                   <FormMessage />
                 </FormItem>
               )}
+            />
+             <FormField
+                control={form.control}
+                name="quizType"
+                render={({ field }) => (
+                    <FormItem className="space-y-3">
+                        <FormLabel>Quiz Type</FormLabel>
+                        <FormControl>
+                            <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="flex flex-col space-y-1"
+                            >
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                <RadioGroupItem value="CLOSED_LOOP" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                    <span className="font-semibold">Closed Loop (Graded)</span>
+                                    <p className="text-xs text-muted-foreground">The quiz is graded and counts towards completion.</p>
+                                </FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                <RadioGroupItem value="OPEN_LOOP" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                    <span className="font-semibold">Open Loop (Non-Graded)</span>
+                                    <p className="text-xs text-muted-foreground">A practice quiz for feedback; no grade is assigned.</p>
+                                </FormLabel>
+                            </FormItem>
+                            </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
             />
             <div className="grid grid-cols-2 gap-4">
               <FormField

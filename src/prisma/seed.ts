@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -211,10 +211,12 @@ async function main() {
   // Seed Quizzes and Questions
   for (const quiz of initialQuizzes) {
     const { questions, ...quizData } = quiz;
+    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'fill-in-the-blank');
+
     const createdQuiz = await prisma.quiz.upsert({
         where: { id: quiz.id },
-        update: quizData,
-        create: quizData,
+        update: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
+        create: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
     });
     for (const question of questions) {
         const { options, ...questionData } = question;

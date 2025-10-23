@@ -9,6 +9,11 @@ export enum FieldType {
     SELECT = "SELECT",
 }
 
+export enum QuizType {
+    OPEN_LOOP = "OPEN_LOOP",
+    CLOSED_LOOP = "CLOSED_LOOP"
+}
+
 export type District = {
   id: string;
   name: string;
@@ -104,6 +109,8 @@ export type Quiz = {
   courseId: string;
   passingScore: number; // Percentage from 0 to 100
   questions: Question[];
+  quizType: 'OPEN_LOOP' | 'CLOSED_LOOP';
+  requiresManualGrading?: boolean;
 };
 
 export type Permission = {
@@ -358,11 +365,12 @@ export const liveSessions: LiveSession[] = [
   },
 ];
 
-export const quizzes: Quiz[] = [
+export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
   {
     id: 'quiz-1',
     courseId: 'course-1',
     passingScore: 80,
+    quizType: 'CLOSED_LOOP',
     questions: [
       {
         id: 'q1-1',
@@ -399,6 +407,7 @@ export const quizzes: Quiz[] = [
     id: 'quiz-4',
     courseId: 'course-4',
     passingScore: 90,
+    quizType: 'CLOSED_LOOP',
     questions: [
       {
         id: 'q4-1',
@@ -539,5 +548,3 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
-
-    

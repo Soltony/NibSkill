@@ -4,12 +4,13 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
-import type { QuestionType } from '@prisma/client'
+import type { QuestionType, QuizType } from '@prisma/client'
 
 const quizFormSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
   passingScore: z.coerce.number().min(0, "Passing score must be at least 0.").max(100, "Passing score cannot exceed 100."),
   timeLimit: z.coerce.number().min(0, "Time limit must be a positive number or 0 for no limit."),
+  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"]),
 })
 
 export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
@@ -24,6 +25,7 @@ export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
                 courseId: validatedFields.data.courseId,
                 passingScore: validatedFields.data.passingScore,
                 timeLimit: validatedFields.data.timeLimit,
+                quizType: validatedFields.data.quizType as QuizType,
             }
         });
 
@@ -51,6 +53,7 @@ const questionSchema = z.object({
 const updateQuizFormSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
   timeLimit: z.coerce.number().min(0),
+  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"]),
   questions: z.array(questionSchema),
 })
 
@@ -63,12 +66,13 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             return { success: false, message: "Invalid data provided. Check question and option fields." }
         }
 
-        const { passingScore, timeLimit, questions: incomingQuestions } = validatedFields.data;
+        const { passingScore, timeLimit, quizType, questions: incomingQuestions } = validatedFields.data;
+        const requiresManualGrading = quizType === 'CLOSED_LOOP' && incomingQuestions.some(q => q.type === 'fill_in_the_blank');
 
         await prisma.$transaction(async (tx) => {
             await tx.quiz.update({
                 where: { id: quizId },
-                data: { passingScore, timeLimit },
+                data: { passingScore, timeLimit, quizType, requiresManualGrading },
             });
 
             const existingQuestionIds = (await tx.question.findMany({ where: { quizId }, select: { id: true } })).map(q => q.id);
