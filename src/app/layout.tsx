@@ -36,6 +36,7 @@ import {
   User,
   FilePieChart,
   UserCheck,
+  Edit,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
@@ -134,6 +135,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
     { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
+    { href: '/admin/grading', icon: Edit, label: 'Grading', adminOnly: true },
     { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
     { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
     { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
