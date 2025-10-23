@@ -12,9 +12,9 @@ import {
     courses as initialCourses,
     learningPaths as initialLearningPaths,
     liveSessions as initialLiveSessions,
-    quizzes as initialQuizzes,
     roles as initialRoles,
-    initialRegistrationFields
+    initialRegistrationFields,
+    initialQuizzes
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -162,8 +162,8 @@ async function main() {
     for (const module of modules) {
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
-        create: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
+        update: { ...module, type: module.type.toUpperCase() as ModuleType, courseId: createdCourse.id },
+        create: { ...module, type: module.type.toUpperCase() as ModuleType, courseId: createdCourse.id },
       });
     }
   }
@@ -198,11 +198,11 @@ async function main() {
           where: { id: session.id },
           update: {
               ...sessionData,
-              platform: session.platform as LiveSessionPlatform
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           },
           create: {
               ...sessionData,
-              platform: session.platform as LiveSessionPlatform
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           }
       });
   }
@@ -218,6 +218,7 @@ async function main() {
         update: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
         create: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
     });
+
     for (const question of questions) {
         const { options, ...questionData } = question;
         const questionType = question.type as QuestionType
@@ -236,6 +237,7 @@ async function main() {
         });
 
         if (question.type === 'MULTIPLE_CHOICE' || question.type === 'TRUE_FALSE') {
+            await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
             for (const option of options) {
                 await prisma.option.create({
                     data: {
@@ -291,14 +293,14 @@ async function main() {
       where: { id: field.id },
       update: {
         label: field.label,
-        type: field.type,
+        type: field.type as FieldType,
         enabled: field.enabled,
         required: field.required,
       },
       create: {
         id: field.id,
         label: field.label,
-        type: field.type,
+        type: field.type as FieldType,
         enabled: field.enabled,
         required: field.required,
         options: field.options,
@@ -319,9 +321,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-    
-
-    
-
-    
