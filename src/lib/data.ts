@@ -1,7 +1,7 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import type { QuestionType, QuizType, ModuleType, FieldType, LiveSessionPlatform } from '@prisma/client';
+import type { FieldType, LiveSessionPlatform, QuestionType, QuizType } from '@prisma/client';
 
 export type District = {
   id: string;
@@ -50,7 +50,7 @@ export type Module = {
   id: string;
   title: string;
   description: string;
-  type: ModuleType;
+  type: 'video' | 'pdf' | 'slides' | 'audio';
   duration: number; // in minutes
   content: string; // URL to the content
 };
@@ -96,7 +96,7 @@ export type LiveSession = {
   speaker: string;
   keyTakeaways: string;
   dateTime: Date;
-  platform: LiveSessionPlatform;
+  platform: 'Zoom' | 'Google_Meet';
   joinUrl: string;
   recordingUrl?: string;
   attendees?: string[]; // Array of user IDs
@@ -527,3 +527,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    

@@ -13,8 +13,8 @@ import {
     liveSessions as initialLiveSessions,
     roles as initialRoles,
     initialRegistrationFields,
-    initialQuizzes
-} from '../lib/data';
+    quizzes as initialQuizzes,
+} from '../src/lib/data';
 
 const prisma = new PrismaClient()
 
@@ -161,8 +161,8 @@ async function main() {
     for (const module of modules) {
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...module, type: module.type.toUpperCase() as ModuleType, courseId: createdCourse.id },
-        create: { ...module, type: module.type.toUpperCase() as ModuleType, courseId: createdCourse.id },
+        update: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
+        create: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
       });
     }
   }
@@ -197,11 +197,11 @@ async function main() {
           where: { id: session.id },
           update: {
               ...sessionData,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: session.platform as LiveSessionPlatform
           },
           create: {
               ...sessionData,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: session.platform as LiveSessionPlatform
           }
       });
   }
@@ -320,3 +320,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
