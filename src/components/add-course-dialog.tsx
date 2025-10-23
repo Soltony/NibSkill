@@ -65,6 +65,7 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
       title: "",
       description: "",
       isPaid: false,
+      price: undefined,
     },
   })
   
@@ -183,7 +184,7 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
                   <FormItem>
                     <FormLabel>Price ($)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 49.99" {...field} step="0.01" />
+                      <Input type="number" placeholder="e.g., 49.99" {...field} step="0.01" value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

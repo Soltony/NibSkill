@@ -19,6 +19,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -192,7 +193,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
                   <FormItem>
                     <FormLabel>Price ($)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="e.g., 49.99" {...field} step="0.01" />
+                      <Input type="number" placeholder="e.g., 49.99" {...field} step="0.01" value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
