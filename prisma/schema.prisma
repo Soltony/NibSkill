@@ -80,6 +80,8 @@ model Course {
   title               String
   description         String                @db.Text
   productId           String
+  isPaid              Boolean               @default(false)
+  price               Float?
   imageUrl            String?
   imageDescription    String?
   imageHint           String?
