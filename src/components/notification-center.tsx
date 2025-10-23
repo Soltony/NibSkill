@@ -9,27 +9,34 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { notifications as initialNotifications, type Notification } from "@/lib/data";
+import type { Notification } from "@prisma/client";
 import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Badge } from "./ui/badge";
+import { markNotificationsAsRead } from "@/app/actions/notification-actions";
+import { useToast } from "@/hooks/use-toast";
 
-export function NotificationCenter() {
+export function NotificationCenter({ initialNotifications }: { initialNotifications: Notification[] }) {
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  const { toast } = useToast();
+  
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const handleMarkAsRead = (id: string) => {
-    setNotifications(
-      notifications.map(n => (n.id === id ? { ...n, isRead: true } : n))
-    );
-  };
-  
-  const handleMarkAllRead = () => {
-    setNotifications(notifications.map(n => ({...n, isRead: true})));
+  const handleMarkAllRead = async () => {
+    if (unreadCount === 0) return;
+    const result = await markNotificationsAsRead(notifications.filter(n => !n.isRead).map(n => n.id));
+    if (result.success) {
+      setNotifications(notifications.map(n => ({...n, isRead: true})));
+    } else {
+      toast({
+        title: "Error",
+        description: "Could not mark notifications as read.",
+        variant: "destructive"
+      })
+    }
   }
 
   const getTimeAgo = (date: Date) => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
     let interval = seconds / 31536000;
     if (interval > 1) return Math.floor(interval) + "y ago";
     interval = seconds / 2592000;

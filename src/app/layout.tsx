@@ -37,6 +37,7 @@ import {
   FilePieChart,
   UserCheck,
   Edit,
+  Bell,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
@@ -47,16 +48,14 @@ import './globals.css';
 import { Inter } from 'next/font/google';
 import { logout } from './actions/user-actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Notification, User as UserType, Role } from '@prisma/client';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 // This would typically come from a session context
-type CurrentUser = {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl: string;
-  role: { name: string };
+type CurrentUser = UserType & {
+  role: Role;
+  notifications: Notification[];
 };
 
 // Create a context to provide the user role
@@ -277,7 +276,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                           }
                       </h1>
                   </div>
-                  <NotificationCenter />
+                  {currentUser && <NotificationCenter initialNotifications={currentUser.notifications} />}
               </header>
               <main className="flex-1 p-4 lg:p-6">{children}</main>
             </SidebarInset>

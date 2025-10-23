@@ -55,13 +55,34 @@ export async function updateLiveSession(id: string, values: z.infer<typeof formS
             return { success: false, message: "Invalid data provided." }
         }
 
+        const existingSession = await prisma.liveSession.findUnique({
+            where: { id },
+        });
+
+        if (!existingSession) {
+            return { success: false, message: "Session not found." };
+        }
+
         const { isRestricted, allowedUserIds, ...sessionData } = validatedFields.data;
+        const newDateTime = new Date(sessionData.dateTime);
+
+        if (newDateTime.getTime() !== new Date(existingSession.dateTime).getTime()) {
+            const allUsers = await prisma.user.findMany({ select: { id: true } });
+            
+            await prisma.notification.createMany({
+                data: allUsers.map(user => ({
+                    userId: user.id,
+                    title: "Session Rescheduled",
+                    description: `The session "${existingSession.title}" has been rescheduled to ${newDateTime.toLocaleString()}.`,
+                }))
+            });
+        }
 
         await prisma.liveSession.update({
             where: { id },
             data: {
                 ...sessionData,
-                dateTime: new Date(sessionData.dateTime),
+                dateTime: newDateTime,
                 isRestricted,
                 allowedAttendees: {
                     deleteMany: {},
