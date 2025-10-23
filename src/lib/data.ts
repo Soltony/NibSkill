@@ -2,25 +2,7 @@
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
 
-export enum FieldType {
-    TEXT = "TEXT",
-    NUMBER = "NUMBER",
-    DATE = "DATE",
-    SELECT = "SELECT",
-}
-
-export enum QuizType {
-    OPEN_LOOP = "OPEN_LOOP",
-    CLOSED_LOOP = "CLOSED_LOOP"
-}
-
-export enum QuestionType {
-  multiple_choice = "multiple_choice",
-  true_false = "true_false",
-  fill_in_the_blank = "fill_in_the_blank",
-  short_answer = "short_answer"
-}
-
+// Enums from schema are now referenced in the seed file directly
 
 export type District = {
   id: string;
@@ -127,7 +109,7 @@ export type Role = {
 export type RegistrationField = {
   id: string;
   label: string;
-  type: FieldType;
+  type: 'TEXT' | 'NUMBER' | 'DATE' | 'SELECT';
   enabled: boolean;
   required: boolean;
   options?: string[];
@@ -145,10 +127,10 @@ export type Notification = {
 // To add more fields to the registration form, add them to this array.
 // The `id` must be a unique string, and it will be used as the key in the form data.
 export const initialRegistrationFields: RegistrationField[] = [
-    { id: 'phoneNumber', label: 'Phone Number', type: FieldType.TEXT, enabled: true, required: false },
-    { id: 'department', label: 'Department', type: FieldType.SELECT, enabled: true, required: true },
-    { id: 'district', label: 'District', type: FieldType.SELECT, enabled: true, required: true },
-    { id: 'branch', label: 'Branch', type: FieldType.SELECT, enabled: true, required: true },
+    { id: 'phoneNumber', label: 'Phone Number', type: 'TEXT', enabled: true, required: false },
+    { id: 'department', label: 'Department', type: 'SELECT', enabled: true, required: true },
+    { id: 'district', label: 'District', type: 'SELECT', enabled: true, required: true },
+    { id: 'branch', label: 'Branch', type: 'SELECT', enabled: true, required: true },
 ]
 
 
