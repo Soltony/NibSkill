@@ -292,14 +292,14 @@ async function main() {
       where: { id: field.id },
       update: {
         label: field.label,
-        type: field.type,
+        type: field.type as FieldType,
         enabled: field.enabled,
         required: field.required,
       },
       create: {
         id: field.id,
         label: field.label,
-        type: field.type,
+        type: field.type as FieldType,
         enabled: field.enabled,
         required: field.required,
         options: field.options,
@@ -320,5 +320,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-    

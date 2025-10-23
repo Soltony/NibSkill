@@ -148,10 +148,10 @@ export enum QuestionType {
 }
 
 export enum ModuleType {
-    VIDEO = 'video',
-    PDF = 'pdf',
-    SLIDES = 'slides',
-    AUDIO = 'audio'
+    VIDEO = 'VIDEO',
+    PDF = 'PDF',
+    SLIDES = 'SLIDES',
+    AUDIO = 'AUDIO'
 }
 
 export enum FieldType {
@@ -551,5 +551,3 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
-
-    
