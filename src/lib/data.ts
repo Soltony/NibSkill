@@ -103,24 +103,6 @@ export type LiveSession = {
   attendees?: string[]; // Array of user IDs
 };
 
-export type Question = {
-  id: string;
-  text: string;
-  type: QuestionType;
-  options: { id: string; text: string }[];
-  correctAnswerId: string;
-};
-
-
-export type Quiz = {
-  id:string;
-  courseId: string;
-  passingScore: number; // Percentage from 0 to 100
-  questions: Question[];
-  quizType: 'OPEN_LOOP' | 'CLOSED_LOOP';
-  requiresManualGrading?: boolean;
-};
-
 export type Permission = {
   c: boolean;
   r: boolean;
@@ -496,5 +478,3 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
-
-    
