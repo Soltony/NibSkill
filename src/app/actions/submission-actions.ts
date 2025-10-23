@@ -21,10 +21,10 @@ export async function createSubmission(data: SubmissionData) {
                 status: 'PENDING_REVIEW',
                 answers: {
                     create: Object.entries(answers).map(([questionId, answer]) => {
-                        const isMcOrTf = Array.isArray(answer);
+                        const isMcOrTf = Array.isArray(answer) || typeof answer === 'string' && answer.startsWith('opt_');
                         return {
                             questionId,
-                            selectedOptionId: isMcOrTf ? answer[0] : undefined,
+                            selectedOptionId: isMcOrTf ? (Array.isArray(answer) ? answer[0] : answer) : undefined,
                             answerText: !isMcOrTf ? answer as string : undefined,
                         };
                     }),
@@ -41,4 +41,21 @@ export async function createSubmission(data: SubmissionData) {
     }
 }
 
-    
+export async function gradeSubmission({ submissionId, finalScore }: { submissionId: string, finalScore: number }) {
+    try {
+        await prisma.quizSubmission.update({
+            where: { id: submissionId },
+            data: {
+                score: finalScore,
+                status: 'COMPLETED',
+                gradedAt: new Date(),
+            }
+        });
+        
+        revalidatePath('/admin/grading');
+        return { success: true };
+    } catch (error) {
+        console.error("Error grading submission:", error);
+        return { success: false, message: 'Failed to finalize grade.' };
+    }
+}
