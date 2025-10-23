@@ -236,14 +236,10 @@ async function main() {
         });
 
         if (question.type === 'multiple-choice' || question.type === 'true-false') {
+            await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
             for (const option of options) {
-                await prisma.option.upsert({
-                    where: { id: option.id },
-                    update: {
-                        text: option.text,
-                        questionId: createdQuestion.id,
-                    },
-                    create: {
+                await prisma.option.create({
+                    data: {
                         id: option.id,
                         text: option.text,
                         questionId: createdQuestion.id,

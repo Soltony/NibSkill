@@ -88,7 +88,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                 
                 const questionPayload = {
                     text: qData.text,
-                    type: qData.type.replace(/-/g, '_') as QuestionType,
+                    type: qData.type as QuestionType,
                 };
 
                 if (isNewQuestion) {
@@ -157,10 +157,10 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             where: { id: quizId },
             include: {
                 questions: {
-                    orderBy: { text: 'asc' }, // Consistent ordering
+                    orderBy: { createdAt: 'asc' },
                     include: {
                         options: {
-                            orderBy: { text: 'asc' } // Consistent ordering
+                            orderBy: { createdAt: 'asc' }
                         }
                     }
                 }
