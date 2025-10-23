@@ -14,6 +14,8 @@ const formSchema = z.object({
   platform: z.enum(["Zoom", "Google_Meet"]),
   joinUrl: z.string().url("Must be a valid URL"),
   recordingUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
+  isRestricted: z.boolean().default(false),
+  allowedUserIds: z.array(z.string()).optional(),
 })
 
 export async function addLiveSession(values: z.infer<typeof formSchema>) {
@@ -23,10 +25,18 @@ export async function addLiveSession(values: z.infer<typeof formSchema>) {
             return { success: false, message: "Invalid data provided." }
         }
         
+        const { isRestricted, allowedUserIds, ...sessionData } = validatedFields.data;
+
         await prisma.liveSession.create({
             data: {
-                ...validatedFields.data,
-                dateTime: new Date(validatedFields.data.dateTime),
+                ...sessionData,
+                dateTime: new Date(sessionData.dateTime),
+                isRestricted,
+                allowedAttendees: isRestricted && allowedUserIds ? {
+                    create: allowedUserIds.map(userId => ({
+                        user: { connect: { id: userId } }
+                    }))
+                } : undefined,
             }
         });
 
@@ -45,11 +55,20 @@ export async function updateLiveSession(id: string, values: z.infer<typeof formS
             return { success: false, message: "Invalid data provided." }
         }
 
+        const { isRestricted, allowedUserIds, ...sessionData } = validatedFields.data;
+
         await prisma.liveSession.update({
             where: { id },
             data: {
-                ...validatedFields.data,
-                dateTime: new Date(validatedFields.data.dateTime),
+                ...sessionData,
+                dateTime: new Date(sessionData.dateTime),
+                isRestricted,
+                allowedAttendees: {
+                    deleteMany: {},
+                    create: isRestricted && allowedUserIds ? allowedUserIds.map(userId => ({
+                        user: { connect: { id: userId } }
+                    })) : undefined,
+                }
             }
         });
 

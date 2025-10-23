@@ -29,9 +29,16 @@ export default async function LiveSessionManagementPage() {
         include: {
           user: true
         }
+      },
+      allowedAttendees: {
+        include: {
+            user: true
+        }
       }
     }
   });
+
+  const users = await prisma.user.findMany({ where: { role: { name: 'Staff' } } });
 
   const getStatus = (dateTime: Date): { text: "Upcoming" | "Past" | "Live", variant: "default" | "secondary" | "destructive" | "outline" } => {
     const now = new Date();
@@ -59,7 +66,7 @@ export default async function LiveSessionManagementPage() {
               A list of all upcoming and past live sessions.
             </CardDescription>
           </div>
-          <AddLiveSessionDialog />
+          <AddLiveSessionDialog users={users}/>
         </CardHeader>
         <CardContent>
           <Table>
@@ -70,6 +77,7 @@ export default async function LiveSessionManagementPage() {
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Attendees</TableHead>
+                <TableHead>Access</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -87,9 +95,16 @@ export default async function LiveSessionManagementPage() {
                   <TableCell>
                       <ViewAttendeesDialog session={session} />
                   </TableCell>
+                   <TableCell>
+                    {session.isRestricted ? (
+                        <Badge variant="destructive">Restricted</Badge>
+                    ) : (
+                        <Badge variant="secondary">Open to All</Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <EditLiveSessionDialog session={session} />
+                      <EditLiveSessionDialog session={session} users={users} />
                       <DeleteLiveSessionAction session={session} />
                     </div>
                   </TableCell>

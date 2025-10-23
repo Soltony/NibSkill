@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -33,6 +34,7 @@ model User {
   loginHistory          LoginHistory[]
   quizSubmissions       QuizSubmission[]
   gradedSubmissions     QuizSubmission[]         @relation("Grader")
+  allowedLiveSessions   LiveSessionAllowedUser[]
 }
 
 model Role {
@@ -125,16 +127,30 @@ model LearningPathItem {
 }
 
 model LiveSession {
-  id              String                  @id @default(cuid())
-  title           String
-  description     String
-  speaker         String
-  keyTakeaways    String
-  dateTime        DateTime
-  platform        LiveSessionPlatform
-  joinUrl         String
-  recordingUrl    String?
-  attendees       UserAttendedLiveSession[]
+  id                 String                  @id @default(cuid())
+  title              String
+  description        String
+  speaker            String
+  keyTakeaways       String
+  dateTime           DateTime
+  platform           LiveSessionPlatform
+  joinUrl            String
+  recordingUrl       String?
+  isRestricted       Boolean                 @default(false)
+
+  attendees          UserAttendedLiveSession[]
+  allowedAttendees   LiveSessionAllowedUser[]
+}
+
+model LiveSessionAllowedUser {
+  id          String  @id @default(cuid())
+  userId      String
+  sessionId   String
+  
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session     LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, sessionId])
 }
 
 model Quiz {

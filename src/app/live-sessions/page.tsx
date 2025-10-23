@@ -1,6 +1,6 @@
 
 import prisma from "@/lib/db"
-import { Radio, Video, Sparkles } from 'lucide-react';
+import { Radio, Video, Sparkles, Lock } from 'lucide-react';
 import {
   Tabs,
   TabsContent,
@@ -19,6 +19,11 @@ async function getLiveSessionsData(userId: string) {
           userId: userId,
         },
       },
+      allowedAttendees: {
+        select: {
+            userId: true
+        }
+      }
     },
   });
 
@@ -67,14 +72,18 @@ export default async function LiveSessionsPage() {
         <TabsContent value="upcoming">
             {upcomingSessions.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                    {upcomingSessions.map(session => (
-                        <SessionCard 
-                            key={session.id} 
-                            session={session} 
-                            userId={userId}
-                            hasAttended={session.attendees.length > 0}
-                        />
-                    ))}
+                    {upcomingSessions.map(session => {
+                        const isAllowed = !session.isRestricted || session.allowedAttendees.some(attendee => attendee.userId === userId);
+                        return (
+                            <SessionCard 
+                                key={session.id} 
+                                session={session} 
+                                userId={userId}
+                                hasAttended={session.attendees.length > 0}
+                                isAllowed={isAllowed}
+                            />
+                        )
+                    })}
                 </div>
             ) : (
                 <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-lg mt-6">
@@ -87,14 +96,18 @@ export default async function LiveSessionsPage() {
         <TabsContent value="past">
              {pastSessions.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                    {pastSessions.map(session => (
-                        <SessionCard 
-                            key={session.id} 
-                            session={session} 
-                            userId={userId}
-                            hasAttended={session.attendees.length > 0}
-                        />
-                    ))}
+                    {pastSessions.map(session => {
+                         const isAllowed = !session.isRestricted || session.allowedAttendees.some(attendee => attendee.userId === userId);
+                         return (
+                            <SessionCard 
+                                key={session.id} 
+                                session={session} 
+                                userId={userId}
+                                hasAttended={session.attendees.length > 0}
+                                isAllowed={isAllowed}
+                            />
+                        )
+                    })}
                 </div>
             ) : (
                 <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-lg mt-6">

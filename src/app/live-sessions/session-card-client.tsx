@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { LiveSession as SessionType, UserAttendedLiveSession } from "@prisma/client";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, Mic, Video, Radio, CheckSquare } from 'lucide-react';
+import { Calendar, Clock, Mic, Video, Radio, CheckSquare, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast";
 import { markAttendance } from "../actions/live-session-actions";
@@ -16,9 +16,10 @@ type SessionCardProps = {
     session: SessionWithAttendance;
     userId: string;
     hasAttended: boolean;
+    isAllowed: boolean;
 }
 
-export const SessionCard = ({ session, userId, hasAttended: initialHasAttended }: SessionCardProps) => {
+export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, isAllowed }: SessionCardProps) => {
     const { toast } = useToast();
     const [hasAttended, setHasAttended] = useState(initialHasAttended);
 
@@ -28,7 +29,6 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended }
 
     const isPast = now > endTime;
     const isLive = now >= sessionTime && now <= endTime;
-    const isUpcoming = now < sessionTime;
     
     const handleAttend = async (sessionId: string) => {
         if (hasAttended) return;
@@ -76,10 +76,16 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended }
                     <h4 className="font-semibold mb-1">Key Takeaways:</h4>
                     <p className="text-sm text-muted-foreground">{session.keyTakeaways}</p>
                 </div>
+                 {session.isRestricted && (
+                    <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
+                        <Lock className="h-4 w-4" />
+                        <span>This is a restricted session.</span>
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="flex flex-col gap-2 items-stretch">
                 {isPast ? (
-                    session.recordingUrl ? (
+                    session.recordingUrl && isAllowed ? (
                          <Button asChild>
                             <a href={session.recordingUrl} target="_blank" rel="noopener noreferrer">
                                 <Video className="mr-2 h-4 w-4" />
@@ -88,18 +94,18 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended }
                         </Button>
                     ) : (
                          <Button variant="outline" disabled>
-                            Recording Unavailable
+                            {session.recordingUrl ? 'Recording Restricted' : 'Recording Unavailable'}
                         </Button>
                     )
                 ) : (
-                     <Button asChild>
-                        <a href={session.joinUrl} target="_blank" rel="noopener noreferrer">
+                     <Button asChild disabled={!isAllowed}>
+                        <a href={isAllowed ? session.joinUrl : undefined} target="_blank" rel="noopener noreferrer">
                             <Mic className="mr-2 h-4 w-4" />
-                            Join Session
+                            {isAllowed ? 'Join Session' : 'Session Restricted'}
                         </a>
                     </Button>
                 )}
-                {!isUpcoming && (
+                {!isPast && isAllowed && (
                      <Button variant="secondary" onClick={() => handleAttend(session.id)} disabled={hasAttended}>
                         <CheckSquare className="mr-2 h-4 w-4" />
                         {hasAttended ? "Attendance Marked" : "I Attended"}
