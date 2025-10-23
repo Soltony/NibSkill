@@ -78,13 +78,14 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     if (open) {
       const questionsWithCorrectAnswerHandling = quiz.questions.map(q => {
         let correctAnswerValue = '';
-        if (q.type === 'multiple_choice' || q.type === 'true_false') {
+        if (q.type === 'MULTIPLE_CHOICE' || q.type === 'TRUE_FALSE') {
           correctAnswerValue = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
         } else {
           correctAnswerValue = q.correctAnswerId || '';
         }
         return {
           ...q,
+          type: q.type.toLowerCase() as 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'short_answer',
           options: q.options || [],
           correctAnswerId: correctAnswerValue,
         };
@@ -100,7 +101,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
   }, [open, quiz, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = await updateQuiz(quiz.id, { ...values, quizType: values.quizType as QuizType });
+    const result = await updateQuiz(quiz.id, values);
     if (result.success) {
       toast({
         title: "Quiz Updated",
