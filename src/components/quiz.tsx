@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, Fragment } from 'react';
@@ -24,12 +25,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from './ui/input';
-import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Hourglass } from 'lucide-react';
 import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
 import { Progress } from './ui/progress';
 import { completeCourse } from '@/app/actions/user-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
+import { createSubmission } from '@/app/actions/submission-actions';
 
 type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
 
@@ -46,11 +48,25 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   const [timeLeft, setTimeLeft] = useState(quiz.timeLimit ? quiz.timeLimit * 60 : null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const [isUnderReview, setIsUnderReview] = useState(false);
   const { toast } = useToast();
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
   const handleSubmit = useCallback(() => {
+    if (quiz.requiresManualGrading) {
+        setIsUnderReview(true);
+        startTransition(async () => {
+            await createSubmission({
+                userId,
+                quizId: quiz.id,
+                answers: answers
+            });
+        });
+        setShowResult(true);
+        return;
+    }
+
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
        if (q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER') {
@@ -212,7 +228,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                     <span>{currentQuestion.text.split('____')[1]}</span>
                   </div>
                 )}
-                {currentQuestion.type === 'SHORT_ANSWER' && (
+                 {currentQuestion.type === 'SHORT_ANSWER' && (
                   <div className="space-y-2">
                     <p className="mb-4 font-semibold text-lg">{currentQuestion.text}</p>
                     <Textarea
@@ -253,45 +269,71 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                  </div>
              )}
             <AlertDialogTitle className="font-headline text-center text-2xl">
-              {passed ? "Certification Granted!" : "More Study Needed"}
+              {isUnderReview 
+                ? "Submission Received" 
+                : passed ? "Certification Granted!" : "More Study Needed"
+              }
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
-              You have completed the quiz. Here is your result.
+              {isUnderReview
+                ? "Your answers have been submitted for review."
+                : "You have completed the quiz. Here is your result."
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4 text-center flex flex-col items-center gap-4">
-             {passed ? (
+            {isUnderReview ? (
+                <Hourglass className="h-20 w-20 text-primary" />
+            ) : passed ? (
                 <Award className="h-20 w-20 text-green-500" />
              ) : (
                 <Frown className="h-20 w-20 text-red-500" />
              )}
             <div>
-                <p className="text-sm text-muted-foreground">Your Score</p>
-                <p className="text-6xl font-bold text-primary">{score}%</p>
-                <p className="text-sm text-muted-foreground">Passing Score: {quiz.passingScore}%</p>
+              {isUnderReview ? (
+                <p className="text-lg text-muted-foreground mt-2">
+                  Some questions require manual grading. You will be notified once your results are ready.
+                </p>
+              ) : (
+                <>
+                    <p className="text-sm text-muted-foreground">Your Score</p>
+                    <p className="text-6xl font-bold text-primary">{score}%</p>
+                    <p className="text-sm text-muted-foreground">Passing Score: {quiz.passingScore}%</p>
+                    <p className="text-lg text-muted-foreground mt-2">
+                        {passed ? "Excellent work! You've successfully passed the assessment." : "Good effort! Please review the materials and try again."}
+                    </p>
+                </>
+              )}
             </div>
-            <p className="text-lg text-muted-foreground mt-2">
-                {passed ? "Excellent work! You've successfully passed the assessment." : "Good effort! Please review the materials and try again."}
-            </p>
           </div>
           <AlertDialogFooter className="sm:justify-center">
-            {passed && (
+            {isUnderReview ? (
+                 <Button onClick={() => onComplete()} disabled={isPending}>
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCopy className="mr-2 h-4 w-4" />}
+                    Back to Course
+                </Button>
+            ) : passed ? (
                 <Button asChild>
                     <Link href={`/courses/${quiz.courseId}/certificate`}>
                         <Award className="mr-2 h-4 w-4" />
                         View Certificate
                     </Link>
                 </Button>
-            )}
-             <Button variant="outline" onClick={() => onComplete()} disabled={isPending}>
-                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCopy className="mr-2 h-4 w-4" />}
-                {passed ? 'Back to Course' : 'Review and Retry'}
-            </Button>
+            ) : null }
+
+             {!isUnderReview && (
+                <Button variant="outline" onClick={() => onComplete()} disabled={isPending}>
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCopy className="mr-2 h-4 w-4" />}
+                    {passed ? 'Back to Course' : 'Review and Retry'}
+                </Button>
+             )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
   );
 }
+
+    
 
     

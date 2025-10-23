@@ -156,7 +156,7 @@ model Question {
   quizId          String
   text            String
   type            QuestionType
-  correctAnswerId String      // For MC/TF, it's an Option ID. For FIB, it's the text answer.
+  correctAnswerId String      // For MC/TF, it's an Option ID. For FIB/SA, it's the text answer.
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   
@@ -180,29 +180,27 @@ model QuizSubmission {
   userId            String
   quizId            String
   submittedAt       DateTime    @default(now())
-  score             Int
-  status            QuizStatus  @default(COMPLETED)
+  score             Int?
+  status            QuizStatus  @default(PENDING_REVIEW)
   gradedAt          DateTime?
   gradedById        String?
 
-  user              User        @relation(fields: [userId], references: [id])
-  quiz              Quiz        @relation(fields: [quizId], references: [id])
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz              Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
   grader            User?       @relation("Grader", fields: [gradedById], references: [id])
   answers           Answer[]
-  
-  @@unique([userId, quizId])
 }
 
 model Answer {
   id              String      @id @default(cuid())
   submissionId    String
   questionId      String
-  answerText      String?     @db.Text // Used for FIB
-  selectedOptionId String?    // Used for MC/TF
+  answerText      String?     @db.Text // Used for FIB/SA
+  selectedOptionId String?    // Used for MC/TF - This will store the Option ID
   isCorrect       Boolean?    // Null until graded
 
-  submission      QuizSubmission @relation(fields: [submissionId], references: [id])
-  question        Question       @relation(fields: [questionId], references: [id])
+  submission      QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question        Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 
 model Badge {
@@ -325,3 +323,5 @@ enum QuizStatus {
   COMPLETED
   PENDING_REVIEW
 }
+
+    
