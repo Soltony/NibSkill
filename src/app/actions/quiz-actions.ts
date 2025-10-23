@@ -45,7 +45,7 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   id: z.string().optional(),
   text: z.string().min(1, "Question text cannot be empty."),
-  type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
+  type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank', 'short_answer']),
   options: z.array(optionSchema),
   correctAnswerId: z.string().min(1, "A correct answer is required."),
 })
@@ -67,7 +67,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
         }
 
         const { passingScore, timeLimit, quizType, questions: incomingQuestions } = validatedFields.data;
-        const requiresManualGrading = quizType === 'CLOSED_LOOP' && incomingQuestions.some(q => q.type === 'fill_in_the_blank');
+        const requiresManualGrading = quizType === 'CLOSED_LOOP' && incomingQuestions.some(q => q.type === 'fill_in_the_blank' || q.type === 'short_answer');
 
         await prisma.$transaction(async (tx) => {
             await tx.quiz.update({
@@ -92,7 +92,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                 };
 
                 if (isNewQuestion) {
-                    if (qData.type === 'fill_in_the_blank') {
+                    if (qData.type === 'fill_in_the_blank' || qData.type === 'short_answer') {
                         await tx.question.create({
                             data: {
                                 ...questionPayload,
@@ -139,7 +139,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                             where: { id: qData.id },
                             data: { correctAnswerId: correctOption.id }
                         });
-                    } else if (qData.type === 'fill_in_the_blank') {
+                    } else if (qData.type === 'fill_in_the_blank' || qData.type === 'short_answer') {
                         await tx.option.deleteMany({ where: { questionId: qData.id } });
                         await tx.question.update({
                             where: { id: qData.id },
@@ -174,3 +174,5 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
         return { success: false, message: `Failed to update quiz: ${error.message}` };
     }
 }
+
+    

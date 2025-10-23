@@ -44,7 +44,7 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   id: z.string().optional(),
   text: z.string().min(1, "Question text cannot be empty."),
-  type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
+  type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank', 'short_answer']),
   options: z.array(optionSchema),
   correctAnswerId: z.string().min(1, "A correct answer is required."),
 })
@@ -114,7 +114,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     }
   }
 
-  const addQuestion = (type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank') => {
+  const addQuestion = (type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'short_answer') => {
     let newQuestion: z.infer<typeof questionSchema>;
 
     switch (type) {
@@ -143,10 +143,11 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
         };
         break;
       case 'fill_in_the_blank':
+      case 'short_answer':
         newQuestion = {
           id: undefined,
           text: "",
-          type: 'fill_in_the_blank',
+          type: type,
           options: [],
           correctAnswerId: "",
         };
@@ -293,7 +294,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                         />
                     )}
 
-                    {question.type === 'fill_in_the_blank' && (
+                    {(question.type === 'fill_in_the_blank' || question.type === 'short_answer') && (
                        <FormField
                           control={form.control}
                           name={`questions.${qIndex}.correctAnswerId`}
@@ -338,6 +339,9 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                    <Button type="button" variant="outline" onClick={() => addQuestion('fill_in_the_blank')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Fill in the Blank
                   </Button>
+                   <Button type="button" variant="outline" onClick={() => addQuestion('short_answer')}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Short Answer
+                  </Button>
                 </div>
 
               </div>
@@ -353,3 +357,5 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     </Dialog>
   )
 }
+
+    

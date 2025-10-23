@@ -211,7 +211,7 @@ async function main() {
   // Seed Quizzes and Questions
   for (const quiz of initialQuizzes) {
     const { questions, ...quizData } = quiz;
-    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'fill-in-the-blank');
+    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'fill-in-the-blank' || q.type === 'short_answer');
 
     const createdQuiz = await prisma.quiz.upsert({
         where: { id: quiz.id },
@@ -323,5 +323,7 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
 
     

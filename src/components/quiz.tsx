@@ -29,6 +29,7 @@ import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client'
 import { Progress } from './ui/progress';
 import { completeCourse } from '@/app/actions/user-actions';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from './ui/textarea';
 
 type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
 
@@ -49,34 +50,15 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-  const getBlankCount = (text: string) => {
-    return (text.match(/____/g) || []).length;
-  }
-
   const handleSubmit = useCallback(() => {
     let correctAnswers = 0;
     quiz.questions.forEach((q) => {
-       if (q.type === 'fill_in_the_blank') {
-        const correctAnswersArray = (q.correctAnswerId || "").split('|||');
-        const userAnswersArray = (answers[q.id] as string[]) || [];
-        
-        let allBlanksCorrect = true;
-        if (correctAnswersArray.length === 0) {
-            allBlanksCorrect = false;
+       if (q.type === 'fill_in_the_blank' || q.type === 'short_answer') {
+        const correctAnswer = (q.correctAnswerId || "").trim().toLowerCase();
+        const userAnswer = ((answers[q.id] as string) || "").trim().toLowerCase();
+        if (correctAnswer === userAnswer) {
+          correctAnswers++;
         }
-
-        for (let i = 0; i < correctAnswersArray.length; i++) {
-          const correct = correctAnswersArray[i]?.trim().toLowerCase();
-          const user = userAnswersArray[i]?.trim().toLowerCase();
-          if (correct !== user) {
-            allBlanksCorrect = false;
-            break;
-          }
-        }
-        if (allBlanksCorrect) {
-            correctAnswers++;
-        }
-
       } else {
         const correctOption = q.options.find(opt => opt.id === q.correctAnswerId);
         if (correctOption && answers[q.id] === correctOption.id) {
@@ -129,24 +111,10 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     }));
   };
 
-  const handleMultiBlankAnswerChange = (questionId: string, blankIndex: number, value: string) => {
-    setAnswers(prev => {
-      const currentAnswers = (prev[questionId] as string[]) || [];
-      const newAnswers = [...currentAnswers];
-      newAnswers[blankIndex] = value;
-      return {
-        ...prev,
-        [questionId]: newAnswers,
-      };
-    });
-  };
-  
   const isAnswered = (q: Question) => {
     const answer = answers[q.id];
-    if (q.type === 'fill_in_the_blank') {
-      const blankCount = getBlankCount(q.text);
-      if (!Array.isArray(answer) || answer.length < blankCount) return false;
-      return answer.every(a => a && a.trim() !== '');
+    if (q.type === 'fill_in_the_blank' || q.type === 'short_answer') {
+      return answer && (answer as string).trim() !== '';
     }
     return answer && (answer as string).trim() !== '';
   };
@@ -235,18 +203,24 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                 )}
                  {currentQuestion.type === 'fill_in_the_blank' && (
                   <div className="mb-4 font-semibold text-lg leading-relaxed">
-                      {currentQuestion.text.split('____').map((part, i) => (
-                        <Fragment key={i}>
-                          {part}
-                          {i < getBlankCount(currentQuestion.text) && (
-                            <Input
-                              className="inline-block w-40 h-8 mx-2 px-2 text-base"
-                              value={(answers[currentQuestion.id] as string[])?.[i] || ''}
-                              onChange={(e) => handleMultiBlankAnswerChange(currentQuestion.id, i, e.target.value)}
-                            />
-                          )}
-                        </Fragment>
-                      ))}
+                    <span>{currentQuestion.text.split('____')[0]}</span>
+                    <Input
+                      className="inline-block w-48 h-8 mx-2 px-2 text-base align-baseline"
+                      value={(answers[currentQuestion.id] as string) || ''}
+                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                    />
+                    <span>{currentQuestion.text.split('____')[1]}</span>
+                  </div>
+                )}
+                {currentQuestion.type === 'short_answer' && (
+                  <div className="space-y-2">
+                    <p className="mb-4 font-semibold text-lg">{currentQuestion.text}</p>
+                    <Textarea
+                      placeholder="Type your answer here..."
+                      value={(answers[currentQuestion.id] as string) || ''}
+                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                      rows={5}
+                    />
                   </div>
                 )}
               </div>
@@ -320,4 +294,4 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   );
 }
 
-  
+    
