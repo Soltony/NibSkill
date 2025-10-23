@@ -1,6 +1,6 @@
+
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import { Prisma } from '@prisma/client'
 
 export enum FieldType {
     TEXT = "TEXT",
@@ -13,6 +13,14 @@ export enum QuizType {
     OPEN_LOOP = "OPEN_LOOP",
     CLOSED_LOOP = "CLOSED_LOOP"
 }
+
+export enum QuestionType {
+  multiple_choice = "multiple_choice",
+  true_false = "true_false",
+  fill_in_the_blank = "fill_in_the_blank",
+  short_answer = "short_answer"
+}
+
 
 export type District = {
   id: string;
@@ -98,7 +106,7 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
-  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'short_answer';
+  type: QuestionType;
   options: { id: string; text: string }[];
   correctAnswerId: string;
 };
@@ -365,66 +373,6 @@ export const liveSessions: LiveSession[] = [
   },
 ];
 
-export const quizzes: Omit<Quiz, 'requiresManualGrading'>[] = [
-  {
-    id: 'quiz-1',
-    courseId: 'course-1',
-    passingScore: 80,
-    quizType: 'CLOSED_LOOP',
-    questions: [
-      {
-        id: 'q1-1',
-        text: 'What is the primary new capability of FusionX?',
-        type: 'multiple_choice',
-        options: [
-          { id: 'o1-1-1', text: 'AI-powered analytics' },
-          { id: 'o1-1-2', text: 'Decentralized storage' },
-          { id: 'o1-1-3', text: 'Real-time collaboration' },
-          { id: 'o1-1-4', text: 'Quantum computing integration' },
-        ],
-        correctAnswerId: 'o1-1-1',
-      },
-      {
-        id: 'q1-2',
-        text: 'FusionX is primarily targeting enterprise clients.',
-        type: 'true_false',
-        options: [
-            { id: 'true', text: 'True' },
-            { id: 'false', text: 'False' },
-        ],
-        correctAnswerId: 'true',
-      },
-       {
-        id: 'q1-3',
-        text: 'What technology powers the new analytics features? ______ Learning.',
-        type: 'fill_in_the_blank',
-        options: [],
-        correctAnswerId: 'Machine',
-      },
-    ],
-  },
-    {
-    id: 'quiz-4',
-    courseId: 'course-4',
-    passingScore: 90,
-    quizType: 'CLOSED_LOOP',
-    questions: [
-      {
-        id: 'q4-1',
-        text: 'What is a key part of the Nova Suite sales strategy?',
-        type: 'multiple_choice',
-        options: [
-          { id: 'o4-1-1', text: 'Focusing only on technical specs' },
-          { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
-          { id: 'o4-1-3', text: 'Offering large discounts immediately' },
-          { id: 'o4-1-4', text: 'Avoiding discussion of competitors' },
-        ],
-        correctAnswerId: 'o4-1-2',
-      },
-    ],
-  },
-];
-
 const detailedProgressReport = [
     ...users.map(user => {
         return courses.map(course => ({
@@ -548,3 +496,5 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+
+    
