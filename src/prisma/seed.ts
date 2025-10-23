@@ -1,7 +1,8 @@
 
+
 import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { 
+import {
     districts as initialDistricts,
     branches as initialBranches,
     departments as initialDepartments,
@@ -275,10 +276,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-    
-
-    
-
-    
-
