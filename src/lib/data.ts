@@ -98,9 +98,9 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
-  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank';
+  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank' | 'short_answer';
   options: { id: string; text: string }[];
-  correctAnswerId: string; // Also used for true/false (value will be 'true' or 'false') and fill-in-the-blank (value is the answer)
+  correctAnswerId: string;
 };
 
 
