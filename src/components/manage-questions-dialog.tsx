@@ -30,7 +30,7 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
 import { Label } from "./ui/label"
 import { ScrollArea } from "./ui/scroll-area"
 import { updateQuiz } from "@/app/actions/quiz-actions"
-import type { Quiz, Question, Option as OptionType } from "@prisma/client"
+import type { Quiz, Question, Option as OptionType, QuizType } from "@prisma/client"
 
 type QuizWithRelations = Quiz & {
   questions: (Question & { options: OptionType[] })[]
@@ -52,6 +52,7 @@ const questionSchema = z.object({
 const formSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
   timeLimit: z.coerce.number().min(0),
+  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"], { required_error: "Required" }),
   questions: z.array(questionSchema),
 })
 
@@ -92,13 +93,14 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
       form.reset({
         passingScore: quiz.passingScore,
         timeLimit: quiz.timeLimit || 0,
+        quizType: quiz.quizType,
         questions: questionsWithCorrectAnswerHandling,
       })
     }
   }, [open, quiz, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = await updateQuiz(quiz.id, values);
+    const result = await updateQuiz(quiz.id, { ...values, quizType: values.quizType as QuizType });
     if (result.success) {
       toast({
         title: "Quiz Updated",
@@ -187,37 +189,72 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <FormField
-                control={form.control}
-                name="passingScore"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Passing Score (%)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="0" max="100" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="timeLimit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Time Limit (minutes)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="0" placeholder="0 for none" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="mb-6 space-y-4">
+                 <FormField
+                    control={form.control}
+                    name="quizType"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel>Quiz Type</FormLabel>
+                            <FormControl>
+                                <RadioGroup
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                className="flex items-center space-x-4"
+                                >
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                    <RadioGroupItem value="CLOSED_LOOP" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                        Graded (Closed Loop)
+                                    </FormLabel>
+                                </FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                    <RadioGroupItem value="OPEN_LOOP" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                       Practice (Open Loop)
+                                    </FormLabel>
+                                </FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="passingScore"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Passing Score (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="0" max="100" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="timeLimit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time Limit (minutes)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="0" placeholder="0 for none" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
-            <ScrollArea className="h-[55vh] p-4 border rounded-md">
+            <ScrollArea className="h-[50vh] p-4 border rounded-md">
               <div className="space-y-8">
                 {fields.map((question, qIndex) => (
                   <div key={question.id || qIndex} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
@@ -357,5 +394,3 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     </Dialog>
   )
 }
-
-    
