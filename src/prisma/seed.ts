@@ -220,16 +220,17 @@ async function main() {
     });
     for (const question of questions) {
         const { options, ...questionData } = question;
+        const questionTypeStr = question.type.replace(/-/g, '_').toUpperCase() as QuestionType;
         const createdQuestion = await prisma.question.upsert({
             where: { id: question.id },
             update: {
                 ...questionData,
-                type: question.type.replace(/-/g, '_') as QuestionType,
+                type: questionTypeStr,
                 quizId: createdQuiz.id
             },
             create: {
                 ...questionData,
-                type: question.type.replace(/-/g, '_') as QuestionType,
+                type: questionTypeStr,
                 quizId: createdQuiz.id
             }
         });
@@ -327,3 +328,4 @@ main()
     
 
     
+

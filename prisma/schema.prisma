@@ -157,6 +157,8 @@ model Question {
   text            String
   type            QuestionType
   correctAnswerId String      // For MC/TF, it's an Option ID. For FIB, it's the text answer.
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   
   quiz            Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
   options         Option[]
@@ -167,6 +169,8 @@ model Option {
   id          String   @id @default(cuid())
   questionId  String
   text        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
@@ -299,10 +303,10 @@ enum LiveSessionPlatform {
 }
 
 enum QuestionType {
-  multiple_choice
-  true_false
-  fill_in_the_blank
-  short_answer
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  FILL_IN_THE_BLANK
+  SHORT_ANSWER
 }
 
 enum FieldType {
