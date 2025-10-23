@@ -37,13 +37,12 @@ import { addQuiz } from "@/app/actions/quiz-actions"
 import type { Course, Quiz } from "@prisma/client"
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
 import { Label } from "./ui/label"
-import { QuizType } from "@/lib/data"
 
 const formSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
   passingScore: z.coerce.number().min(0, "Passing score must be at least 0.").max(100, "Passing score cannot exceed 100."),
   timeLimit: z.coerce.number().min(0, "Time limit must be a positive number or 0 for no limit."),
-  quizType: z.nativeEnum(QuizType, { required_error: "Please select a quiz type."}),
+  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"], { required_error: "Please select a quiz type."}),
 })
 
 type AddQuizDialogProps = {

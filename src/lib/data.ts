@@ -1,7 +1,12 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import type { FieldType, LiveSessionPlatform, QuestionType, QuizType } from '@prisma/client';
+import type { FieldType, LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType } from '@prisma/client';
+
+export enum QuizType {
+  OPEN_LOOP = "OPEN_LOOP",
+  CLOSED_LOOP = "CLOSED_LOOP",
+}
 
 export type District = {
   id: string;
@@ -520,3 +525,4 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
+export { FieldType };
