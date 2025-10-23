@@ -16,8 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { FeatureNotImplementedDialog } from "@/components/feature-not-implemented-dialog";
+import Link from "next/link";
 
 async function getPendingSubmissions() {
     const submissions = await prisma.quizSubmission.findMany({
@@ -75,12 +74,9 @@ export default async function GradingPage() {
                                     <TableCell>{submission.user.name}</TableCell>
                                     <TableCell>{new Date(submission.submittedAt).toLocaleString()}</TableCell>
                                     <TableCell className="text-right">
-                                        <FeatureNotImplementedDialog
-                                            title="Grade Submission"
-                                            description="The grading interface is not yet implemented. This feature will allow you to review answers and assign a final score."
-                                        >
-                                            <Button variant="outline" size="sm">Grade</Button>
-                                        </FeatureNotImplementedDialog>
+                                        <Button asChild variant="outline" size="sm">
+                                            <Link href={`/admin/grading/${submission.id}`}>Grade</Link>
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
