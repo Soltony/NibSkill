@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -156,6 +155,7 @@ model Question {
   quizId          String
   text            String
   type            QuestionType
+  weight          Float       @default(1)
   correctAnswerId String      // For MC/TF, it's an Option ID. For FIB, it's the text answer.
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
