@@ -13,7 +13,7 @@ import {
     liveSessions as initialLiveSessions,
     roles as initialRoles,
     initialRegistrationFields,
-    quizzes as initialQuizzes,
+    initialQuizzes
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -197,11 +197,11 @@ async function main() {
           where: { id: session.id },
           update: {
               ...sessionData,
-              platform: session.platform as LiveSessionPlatform
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           },
           create: {
               ...sessionData,
-              platform: session.platform as LiveSessionPlatform
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           }
       });
   }
@@ -320,5 +320,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-    

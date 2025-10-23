@@ -1,5 +1,4 @@
 
-
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -62,5 +61,3 @@ export async function updateModule(id: string, values: z.infer<typeof formSchema
         return { success: false, message: "Failed to update module." }
     }
 }
-
-    
