@@ -220,7 +220,7 @@ async function main() {
     });
     for (const question of questions) {
         const { options, ...questionData } = question;
-        const questionTypeStr = question.type.replace(/-/g, '_').toUpperCase() as QuestionType;
+        const questionTypeStr = question.type.replace(/-/g, '_') as QuestionType;
         const createdQuestion = await prisma.question.upsert({
             where: { id: question.id },
             update: {
@@ -328,4 +328,3 @@ main()
     
 
     
-
