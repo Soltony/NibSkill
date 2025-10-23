@@ -1,7 +1,6 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import { QuestionType as TQuestionType } from '@prisma/client'
 
 export enum FieldType {
     TEXT = "TEXT",
@@ -99,7 +98,7 @@ export type LiveSession = {
 export type Question = {
   id: string;
   text: string;
-  type: TQuestionType;
+  type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'short_answer';
   options: { id: string; text: string }[];
   correctAnswerId: string;
 };
@@ -549,5 +548,3 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
-
-    

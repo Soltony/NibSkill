@@ -174,5 +174,3 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
         return { success: false, message: `Failed to update quiz: ${error.message}` };
     }
 }
-
-    
