@@ -31,10 +31,10 @@ model User {
   completedModules      UserCompletedModule[]
   completedCourses      UserCompletedCourse[]
   attendedSessions      UserAttendedLiveSession[]
+  allowedSessions       LiveSessionAllowedUser[]
   loginHistory          LoginHistory[]
   quizSubmissions       QuizSubmission[]
   gradedSubmissions     QuizSubmission[]         @relation("Grader")
-  allowedLiveSessions   LiveSessionAllowedUser[]
   notifications         Notification[]
 }
 
@@ -138,19 +138,8 @@ model LiveSession {
   joinUrl           String
   recordingUrl      String?
   isRestricted      Boolean                   @default(false)
-  
   attendees         UserAttendedLiveSession[]
   allowedAttendees  LiveSessionAllowedUser[]
-}
-
-model LiveSessionAllowedUser {
-  sessionId String
-  userId    String
-  
-  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@id([sessionId, userId])
 }
 
 model Quiz {
@@ -227,17 +216,6 @@ model Badge {
   users        UserBadge[]
 }
 
-model Notification {
-  id          String    @id @default(cuid())
-  userId      String
-  title       String
-  description String
-  isRead      Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
 model RegistrationField {
   id        String    @id
   label     String
@@ -256,6 +234,17 @@ model LoginHistory {
   ipAddress String?
   userAgent String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserBadge {
@@ -297,6 +286,16 @@ model UserAttendedLiveSession {
   userId      String
   sessionId   String
   attendedAt  DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session     LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, sessionId])
+}
+
+model LiveSessionAllowedUser {
+  userId      String
+  sessionId   String
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   session     LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
