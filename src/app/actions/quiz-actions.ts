@@ -88,7 +88,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                 
                 const questionPayload = {
                     text: qData.text,
-                    type: qData.type as QuestionType,
+                    type: qData.type.replace(/-/g, '_') as QuestionType,
                 };
 
                 if (isNewQuestion) {
