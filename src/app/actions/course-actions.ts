@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -9,7 +10,12 @@ const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
   productId: z.string({ required_error: "Please select a product." }),
   description: z.string().min(10, "Description must be at least 10 characters long."),
-})
+  isPaid: z.boolean().default(false),
+  price: z.coerce.number().optional(),
+}).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
+    message: "Price must be a positive number for paid courses.",
+    path: ["price"],
+});
 
 export async function addCourse(values: z.infer<typeof formSchema>) {
     try {
@@ -31,6 +37,8 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 productId: validatedFields.data.productId,
+                isPaid: validatedFields.data.isPaid,
+                price: validatedFields.data.isPaid ? validatedFields.data.price : null,
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description, // Use product description as a fallback for image description
@@ -66,6 +74,8 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 productId: validatedFields.data.productId,
+                isPaid: validatedFields.data.isPaid,
+                price: validatedFields.data.isPaid ? validatedFields.data.price : null,
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description,

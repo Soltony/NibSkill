@@ -36,12 +36,18 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { updateCourse } from "@/app/actions/course-actions"
 import type { Course, Product } from "@prisma/client"
+import { Switch } from "./ui/switch"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
   productId: z.string({ required_error: "Please select a product." }),
   description: z.string().min(10, "Description must be at least 10 characters long."),
-})
+  isPaid: z.boolean().default(false),
+  price: z.coerce.number().optional(),
+}).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
+    message: "Price must be a positive number for paid courses.",
+    path: ["price"],
+});
 
 type EditCourseDialogProps = {
   course: Course;
@@ -59,15 +65,21 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
       title: course.title,
       productId: course.productId ?? "",
       description: course.description,
+      isPaid: course.isPaid,
+      price: course.price ?? undefined,
     },
   })
   
+  const isPaid = form.watch("isPaid");
+
   useEffect(() => {
     if (open) {
       form.reset({
         title: course.title,
         productId: course.productId ?? "",
         description: course.description,
+        isPaid: course.isPaid,
+        price: course.price ?? undefined,
       })
     }
   }, [open, course, form])
@@ -152,6 +164,41 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
                 </FormItem>
               )}
             />
+             <FormField
+              control={form.control}
+              name="isPaid"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Paid Course</FormLabel>
+                    <FormDescription>
+                      Is this a paid course?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            {isPaid && (
+               <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Price ($)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="e.g., 49.99" {...field} step="0.01" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}

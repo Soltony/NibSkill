@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useContext } from 'react';
@@ -14,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Video, FileText, Presentation, Music, Bookmark, Pencil } from 'lucide-react';
+import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,6 +25,7 @@ import { toggleModuleCompletion } from '@/app/actions/user-actions';
 import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
+import { Badge } from '@/components/ui/badge';
 
 
 const iconMap = {
@@ -140,9 +142,16 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
             <Skeleton className="h-full w-full" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-        <div className="absolute bottom-0 p-6">
+        <div className="absolute bottom-0 p-6 w-full flex justify-between items-end">
+          <div>
             <h1 className="text-4xl font-bold text-white font-headline">{course.title}</h1>
             <p className="text-lg text-white/90 max-w-2xl">{course.description}</p>
+          </div>
+          {course.isPaid && course.price && (
+            <Badge variant="secondary" className="text-lg">
+              ${course.price.toFixed(2)}
+            </Badge>
+          )}
         </div>
       </div>
       
@@ -214,7 +223,16 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
             )}
 
             <div className="mt-8 text-center">
-                {quiz ? (
+                {course.isPaid ? (
+                  <FeatureNotImplementedDialog
+                    title="Purchase Course"
+                    description="This is a paid course. The payment and enrollment flow has not been implemented yet."
+                    triggerVariant="default"
+                    triggerSize="lg"
+                    triggerText="Purchase Course to Continue"
+                    triggerIcon={<ShoppingCart className="mr-2 h-5 w-5" />}
+                  />
+                ) : quiz ? (
                     allModulesCompleted ? (
                         <Button size="lg" asChild>
                             <Link href={`/courses/${course.id}/quiz`}>Take Quiz</Link>
@@ -227,7 +245,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                 ) : (
                     <p className="text-muted-foreground">Quiz not available for this course.</p>
                 )}
-                {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
+                {!allModulesCompleted && quiz && !course.isPaid && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
             </div>
         </>
     </div>

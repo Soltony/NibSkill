@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import Link from 'next/link';
@@ -15,6 +16,7 @@ import { Progress } from '@/components/ui/progress';
 import { usePathname } from 'next/navigation';
 import type { Course, Product } from '@prisma/client';
 import { Skeleton } from './ui/skeleton';
+import { Badge } from './ui/badge';
 
 type CourseWithProgressAndProduct = Course & { 
   progress: number,
@@ -45,6 +47,11 @@ export function CourseCard({ course }: { course: CourseWithProgressAndProduct })
               />
             ) : (
               <Skeleton className="h-full w-full" />
+            )}
+             {course.isPaid && course.price && (
+              <Badge className="absolute top-2 right-2" variant="secondary">
+                ${course.price.toFixed(2)}
+              </Badge>
             )}
           </div>
         </CardHeader>

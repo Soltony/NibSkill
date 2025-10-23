@@ -1,4 +1,5 @@
 
+
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
 import type { FieldType, LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType } from '@prisma/client';
@@ -60,6 +61,8 @@ export type Course = {
   productId: string;
   modules: Module[];
   image: ImagePlaceholder;
+  isPaid?: boolean;
+  price?: number;
 };
 
 export type Question = {
@@ -99,6 +102,8 @@ export type LiveSession = {
   joinUrl: string;
   recordingUrl?: string;
   attendees?: string[]; // Array of user IDs
+  isRestricted?: boolean;
+  allowedAttendees?: { userId: string }[];
 };
 
 
@@ -242,6 +247,7 @@ export const courses: Course[] = [
     description: 'Get up to speed with our latest flagship product, FusionX. This course covers all the new features and selling points.',
     productId: 'prod-1',
     image: PlaceHolderImages[0],
+    isPaid: false,
     modules: [
       { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
       { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -254,6 +260,8 @@ export const courses: Course[] = [
     description: 'Become a power user of our Centauri platform. This course is for experienced users who want to master advanced functionalities.',
     productId: 'prod-2',
     image: PlaceHolderImages[1],
+    isPaid: true,
+    price: 49.99,
     modules: [
       { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#' },
       { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -267,6 +275,7 @@ export const courses: Course[] = [
     description: 'For our engineering team, a detailed look into the new Pulsar Engine, its capabilities, and how to build on top of it.',
     productId: 'prod-3',
     image: PlaceHolderImages[2],
+    isPaid: false,
     modules: [
         { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
         { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, description: 'A deep dive into the rendering pipeline.', content: '#' },
@@ -281,6 +290,7 @@ export const courses: Course[] = [
     description: 'Equip your sales team with the knowledge and strategies to effectively sell the Nova Suite to enterprise clients.',
     productId: 'prod-4',
     image: PlaceHolderImages[3],
+    isPaid: false,
     modules: [
         { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, description: 'An overview of the current market landscape.', content: '#' },
         { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -391,6 +401,8 @@ export const liveSessions: LiveSession[] = [
     joinUrl: 'https://your-company.zoom.us/j/1234567890',
     recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     attendees: [],
+    isRestricted: true,
+    allowedAttendees: [{ userId: 'user-1' }, { userId: 'user-3' }],
   },
   {
     id: 'ls-2',
@@ -403,6 +415,8 @@ export const liveSessions: LiveSession[] = [
     joinUrl: 'https://meet.google.com/abc-defg-hij',
     recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     attendees: ['user-1'],
+    isRestricted: false,
+    allowedAttendees: [],
   },
 ];
 
