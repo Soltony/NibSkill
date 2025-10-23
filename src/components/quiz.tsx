@@ -67,22 +67,32 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
         return;
     }
 
-    let correctAnswers = 0;
+    let totalWeight = 0;
+    let earnedWeight = 0;
+
     quiz.questions.forEach((q) => {
-       if (q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER') {
-        const correctAnswer = (q.correctAnswerId || "").trim().toLowerCase();
-        const userAnswer = ((answers[q.id] as string) || "").trim().toLowerCase();
-        if (correctAnswer === userAnswer) {
-          correctAnswers++;
+        const questionWeight = q.weight || 1;
+        totalWeight += questionWeight;
+
+        let isCorrect = false;
+        if (q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER') {
+            const correctAnswer = (q.correctAnswerId || "").trim().toLowerCase();
+            const userAnswer = ((answers[q.id] as string) || "").trim().toLowerCase();
+            if (correctAnswer === userAnswer) {
+                isCorrect = true;
+            }
+        } else {
+            const correctOption = q.options.find(opt => opt.id === q.correctAnswerId);
+            if (correctOption && answers[q.id] === correctOption.id) {
+                isCorrect = true;
+            }
         }
-      } else {
-        const correctOption = q.options.find(opt => opt.id === q.correctAnswerId);
-        if (correctOption && answers[q.id] === correctOption.id) {
-          correctAnswers++;
+        if (isCorrect) {
+            earnedWeight += questionWeight;
         }
-      }
     });
-    const finalScore = quiz.questions.length > 0 ? Math.round((correctAnswers / quiz.questions.length) * 100) : 0;
+
+    const finalScore = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
     setScore(finalScore);
     setShowResult(true);
 
@@ -333,7 +343,3 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     </>
   );
 }
-
-    
-
-    

@@ -68,6 +68,7 @@ export type Question = {
     type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK' | 'SHORT_ANSWER';
     options: { id: string; text: string }[];
     correctAnswerId: string;
+    weight: number;
 };
 
 export type Quiz = {
@@ -306,6 +307,7 @@ export const initialQuizzes: Quiz[] = [
             { id: 'o1-1-3', text: 'Real-time data streaming' },
           ],
           correctAnswerId: 'o1-1-1',
+          weight: 1,
         },
         {
           id: 'q1-2',
@@ -316,6 +318,7 @@ export const initialQuizzes: Quiz[] = [
             { id: 'o1-2-2', text: 'False' },
           ],
           correctAnswerId: 'o1-2-1',
+          weight: 1,
         },
       ],
     },
@@ -332,6 +335,7 @@ export const initialQuizzes: Quiz[] = [
             type: 'SHORT_ANSWER',
             options: [],
             correctAnswerId: 'Value-based selling',
+            weight: 2,
           },
         ],
     },

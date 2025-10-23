@@ -48,6 +48,7 @@ const questionSchema = z.object({
   type: z.enum(['MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_IN_THE_BLANK', 'SHORT_ANSWER']),
   options: z.array(optionSchema),
   correctAnswerId: z.string().min(1, "A correct answer is required."),
+  weight: z.coerce.number().min(0.1, "Weight must be greater than 0."),
 })
 
 const updateQuizFormSchema = z.object({
@@ -61,6 +62,7 @@ const updateQuizFormSchema = z.object({
       type: z.string(), // Accept string first
       options: z.array(optionSchema),
       correctAnswerId: z.string().min(1, "A correct answer is required."),
+      weight: z.coerce.number().min(0.1, "Weight must be greater than 0."),
     }).transform(data => ({
       ...data,
       type: data.type.toUpperCase() as QuestionType, // Then transform to uppercase enum
@@ -100,6 +102,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                 const questionPayload = {
                     text: qData.text,
                     type: qData.type,
+                    weight: qData.weight,
                 };
 
                 if (isNewQuestion) {

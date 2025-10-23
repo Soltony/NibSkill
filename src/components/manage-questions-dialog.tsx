@@ -47,6 +47,7 @@ const questionSchema = z.object({
   type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank', 'short_answer']),
   options: z.array(optionSchema),
   correctAnswerId: z.string().min(1, "A correct answer is required."),
+  weight: z.coerce.number().min(0.1, "Weight must be greater than 0."),
 })
 
 const formSchema = z.object({
@@ -88,6 +89,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
           type: q.type.toLowerCase() as 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'short_answer',
           options: q.options || [],
           correctAnswerId: correctAnswerValue,
+          weight: q.weight || 1,
         };
       });
 
@@ -131,6 +133,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
             { id: undefined, text: "" },
           ],
           correctAnswerId: "",
+          weight: 1,
         };
         break;
       case 'true_false':
@@ -143,6 +146,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
             { id: undefined, text: 'False' },
           ],
           correctAnswerId: "True",
+          weight: 1,
         };
         break;
       case 'fill_in_the_blank':
@@ -153,6 +157,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
           type: type,
           options: [],
           correctAnswerId: "",
+          weight: 1,
         };
         break;
     }
@@ -259,19 +264,34 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
               <div className="space-y-8">
                 {fields.map((question, qIndex) => (
                   <div key={question.id || qIndex} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
-                     <FormField
-                      control={form.control}
-                      name={`questions.${qIndex}.text`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Question {qIndex + 1} ({question.type?.replace(/_/g, ' ')})</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter question text" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_100px] gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`questions.${qIndex}.text`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Question {qIndex + 1} ({question.type?.replace(/_/g, ' ')})</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter question text" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`questions.${qIndex}.weight`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Weight</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" min="0.1" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     {question.type === 'multiple_choice' && (
                       <Controller
