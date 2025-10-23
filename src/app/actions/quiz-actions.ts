@@ -53,7 +53,7 @@ const questionSchema = z.object({
 const updateQuizFormSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
   timeLimit: z.coerce.number().min(0),
-  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"], { required_error: "Required" }),
+  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"]),
   questions: z.array(questionSchema),
 })
 

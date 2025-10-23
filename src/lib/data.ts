@@ -1,6 +1,6 @@
-
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
+import { Prisma } from '@prisma/client'
 
 export enum FieldType {
     TEXT = "TEXT",
