@@ -2,7 +2,7 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import { FieldType } from '@prisma/client';
+import { FieldType, Prisma } from '@prisma/client';
 import type { LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType, Currency } from '@prisma/client';
 
 export enum QuizType {
@@ -122,15 +122,7 @@ export type Permission = {
 export type Role = {
     id: 'admin' | 'staff' | 'super-admin' | string;
     name: string;
-    permissions: {
-        courses: Permission;
-        users: Permission;
-        analytics: Permission;
-        products: Permission;
-        quizzes: Permission;
-        staff: Permission;
-        liveSessions: Permission;
-    }
+    permissions: Prisma.JsonValue,
 }
 
 export type RegistrationField = {
@@ -462,94 +454,6 @@ export const liveSessions: LiveSession[] = [
   },
 ];
 
-const detailedProgressReport = [
-    ...users.map(user => {
-        return courses.map(course => ({
-            userId: user.id,
-            userName: user.name,
-            userEmail: user.email,
-            department: user.department,
-            district: user.district,
-            branch: user.branch,
-            courseId: course.id,
-            courseTitle: course.title,
-            progress: (user.name.length + course.title.length) % 81, // Modulo 81 to keep it under 80
-        }));
-    }).flat()
-];
-
-
-export const analyticsData = {
-  kpis: {
-    totalUsers: 142,
-    avgCompletionRate: 78,
-    avgScore: 89,
-  },
-  completionByDept: [
-    { department: 'Engineering', completionRate: 92 },
-    { department: 'Sales', completionRate: 85 },
-    { department: 'Marketing', completionRate: 71 },
-    { department: 'HR', completionRate: 65 },
-  ],
-  scoresDistribution: [
-    { range: '0-59%', count: 5 },
-    { range: '60-69%', count: 12 },
-    { range: '70-79%', count: 28 },
-    { range: '80-89%', count: 45 },
-    { range: '90-100%', count: 35 },
-  ],
-  leaderboard: [
-    { id: 'user-3', name: 'Samira Khan', avatarUrl: 'https://picsum.photos/seed/user3/100/100', coursesCompleted: 12, department: 'Engineering' },
-    { id: 'user-4', name: 'David Chen', avatarUrl: 'https://picsum.photos/seed/user4/100/100', coursesCompleted: 10, department: 'Sales' },
-    { id: 'user-5', name: 'Emily White', avatarUrl: 'https://picsum.photos/seed/user5/100/100', coursesCompleted: 9, department: 'Engineering' },
-    { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', coursesCompleted: 8 },
-    { id: 'user-1', name: 'Alex Johnson', avatarUrl: 'https://picsum.photos/seed/user1/100/100', coursesCompleted: 7, department: 'Engineering' },
-  ].map(({ coursesCompleted, ...rest }) => ({...rest, coursesCompleted})),
-  courseEngagement: {
-    mostCompleted: [
-        { id: 'course-4', title: 'Sales Strategy for Nova Suite', completionRate: 98 },
-        { id: 'course-1', title: 'New Product Launch: FusionX', completionRate: 95 },
-        { id: 'course-3', title: 'Technical Deep Dive: Pulsar Engine', completionRate: 91 },
-    ],
-    leastCompleted: [
-        { id: 'course-x', title: 'Legacy Systems 101', completionRate: 45 },
-        { id: 'course-y', title: 'Advanced Compliance Training', completionRate: 52 },
-        { id: 'course-2', title: 'Advanced User Training for Centauri', completionRate: 61 },
-    ]
-  },
-  quizQuestionAnalysis: [
-    {
-      questionId: 'q1-1',
-      courseTitle: 'New Product Launch: FusionX',
-      questionText: 'What is the primary new capability of FusionX?',
-      correctAttempts: 110,
-      incorrectAttempts: 15,
-    },
-    {
-      questionId: 'q1-2',
-      courseTitle: 'New Product Launch: FusionX',
-      questionText: 'FusionX is primarily targeting enterprise clients.',
-      correctAttempts: 120,
-      incorrectAttempts: 5,
-    },
-    {
-      questionId: 'q1-3',
-      courseTitle: 'New Product Launch: FusionX',
-      questionText: 'What technology powers the new analytics features? ...',
-      correctAttempts: 95,
-      incorrectAttempts: 30,
-    },
-     {
-      questionId: 'q4-1',
-      courseTitle: 'Sales Strategy for Nova Suite',
-      questionText: 'What is a key part of the Nova Suite sales strategy?',
-      correctAttempts: 130,
-      incorrectAttempts: 2,
-    },
-  ],
-  detailedProgressReport,
-};
-
 export const notifications: Notification[] = [
     {
         id: 'notif-1',
@@ -586,5 +490,3 @@ export type UserCompletedCourse = {
     score: number;
 }
 export { FieldType };
-
-

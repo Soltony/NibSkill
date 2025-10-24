@@ -1,283 +1,122 @@
 
-"use client"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
+import { AnalyticsDashboard } from "./analytics-dashboard"
+import prisma from "@/lib/db"
 
-import { useState } from "react";
-import Link from "next/link";
-import { analyticsData } from "@/lib/data"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Target, CheckCircle, Download, TrendingUp, TrendingDown, HelpCircle, ArrowRight, Loader2, UserCheck } from "lucide-react"
-import { AnalyticsCharts } from "@/components/analytics-charts"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Medal } from "lucide-react"
-import { generateProgressReportCsv } from "@/app/actions/analytics-actions";
-import { useToast } from "@/hooks/use-toast";
+async function getAnalyticsData(trainingProviderId: string) {
+    const totalUsers = await prisma.user.count({
+        where: { trainingProviderId },
+    });
 
-const rankIcons = [
-    <Medal key="gold" className="h-6 w-6 text-yellow-500" />,
-    <Medal key="silver" className="h-6 w-6 text-slate-400" />,
-    <Medal key="bronze" className="h-6 w-6 text-amber-700" />,
-];
+    const courses = await prisma.course.findMany({
+        where: { trainingProviderId },
+        include: { 
+            completedBy: true,
+            modules: true,
+        },
+    });
 
-export default function AnalyticsPage() {
-  const { kpis, completionByDept, scoresDistribution, leaderboard, courseEngagement, quizQuestionAnalysis } = analyticsData
-  const [isGenerating, setIsGenerating] = useState(false);
-  const { toast } = useToast();
+    const totalCompletions = courses.reduce((acc, course) => acc + course.completedBy.length, 0);
+    const totalEnrollments = totalUsers * courses.length; // Simplified: assumes all users are enrolled in all courses
+    const avgCompletionRate = totalEnrollments > 0 ? Math.round((totalCompletions / totalEnrollments) * 100) : 0;
+    
+    const allCompletions = await prisma.userCompletedCourse.findMany({
+        where: { user: { trainingProviderId } },
+    });
+    const avgScore = allCompletions.length > 0 ? Math.round(allCompletions.reduce((acc, c) => acc + c.score, 0) / allCompletions.length) : 0;
 
-  const handleGenerateReport = async () => {
-    setIsGenerating(true);
-    try {
-        const csvData = await generateProgressReportCsv();
+    const leaderboard = await prisma.user.findMany({
+        where: { trainingProviderId },
+        include: {
+            completedCourses: true,
+            department: true,
+        },
+        orderBy: {
+            completedCourses: {
+                _count: 'desc'
+            }
+        },
+        take: 5
+    });
 
-        if (csvData) {
-            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', 'progress_report.csv');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            toast({
-                title: "Report Generated",
-                description: "Your progress report has been downloaded.",
-            });
-        } else {
-             throw new Error("No data returned from server.");
+    const courseEngagement = courses.map(course => {
+        const completionCount = course.completedBy.length;
+        const completionRate = totalUsers > 0 ? Math.round((completionCount / totalUsers) * 100) : 0;
+        return {
+            id: course.id,
+            title: course.title,
+            completionRate
+        };
+    }).sort((a, b) => b.completionRate - a.completionRate);
+
+    const scores = await prisma.userCompletedCourse.findMany({
+        where: { user: { trainingProviderId } },
+        select: { score: true }
+    });
+    const scoresDistribution = scores.reduce((acc, curr) => {
+        if (curr.score <= 59) acc['0-59%']++;
+        else if (curr.score <= 69) acc['60-69%']++;
+        else if (curr.score <= 79) acc['70-79%']++;
+        else if (curr.score <= 89) acc['80-89%']++;
+        else acc['90-100%']++;
+        return acc;
+    }, { '0-59%': 0, '60-69%': 0, '70-79%': 0, '80-89%': 0, '90-100%': 0 });
+    
+    const completionByDept = await prisma.department.findMany({
+        where: { trainingProviderId },
+        include: {
+            users: {
+                include: {
+                    completedCourses: true
+                }
+            }
         }
-    } catch (error) {
-        console.error("Failed to generate report:", error);
-        toast({
-            title: "Error Generating Report",
-            description: "Could not generate the CSV report. Please try again later.",
-            variant: "destructive",
-        });
-    } finally {
-        setIsGenerating(false);
+    });
+
+    const deptCompletionRates = completionByDept.map(dept => {
+        const deptUsers = dept.users;
+        if (deptUsers.length === 0 || courses.length === 0) {
+            return { department: dept.name, completionRate: 0 };
+        }
+        const totalPossibleCompletions = deptUsers.length * courses.length;
+        const actualCompletions = deptUsers.reduce((sum, user) => sum + user.completedCourses.length, 0);
+        return {
+            department: dept.name,
+            completionRate: totalPossibleCompletions > 0 ? Math.round((actualCompletions / totalPossibleCompletions) * 100) : 0,
+        };
+    });
+
+    return {
+        kpis: {
+            totalUsers,
+            avgCompletionRate,
+            avgScore,
+        },
+        leaderboard: leaderboard.map(u => ({
+            id: u.id,
+            name: u.name,
+            avatarUrl: u.avatarUrl,
+            coursesCompleted: u.completedCourses.length,
+            department: u.department?.name || 'N/A',
+        })),
+        courseEngagement: {
+            mostCompleted: courseEngagement.slice(0, 3),
+            leastCompleted: courseEngagement.slice(-3).reverse(),
+        },
+        scoresDistribution: Object.entries(scoresDistribution).map(([range, count]) => ({ range, count })),
+        completionByDept: deptCompletionRates,
     }
-  };
-  
-  return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-start">
-        <div>
-            <h1 className="text-3xl font-bold font-headline">Dashboard</h1>
-            <p className="text-muted-foreground">
-              High-level insights into your team's learning and development.
-            </p>
-        </div>
-        <Button onClick={handleGenerateReport} disabled={isGenerating}>
-            {isGenerating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-                <Download className="mr-2 h-4 w-4" />
-            )}
-            {isGenerating ? "Generating..." : "Download Course Progress"}
-        </Button>
-      </div>
-      
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">Currently enrolled in training</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Completion Rate</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.avgCompletionRate}%</div>
-            <p className="text-xs text-muted-foreground">Across all courses</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Assessment Score</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{kpis.avgScore}%</div>
-            <p className="text-xs text-muted-foreground">On first attempt</p>
-          </CardContent>
-        </Card>
-      </div>
+}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Staff Leaderboard</CardTitle>
-            <CardDescription>Top performers based on courses completed.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Rank</TableHead>
-                  <TableHead>Staff Member</TableHead>
-                  <TableHead className="text-center">Courses Completed</TableHead>
-                  <TableHead>Department</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leaderboard.map((user, index) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium text-center">
-                        <div className="flex justify-center items-center">
-                            {index < 3 ? rankIcons[index] : index + 1}
-                        </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src={user.avatarUrl} alt={user.name} />
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{user.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">{user.coursesCompleted}</TableCell>
-                    <TableCell>{user.department}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
 
-        <div className="space-y-6">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <TrendingUp className="h-5 w-5 text-green-500" />
-                        Most Completed Courses
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ul className="space-y-3">
-                       {courseEngagement.mostCompleted.map(course => (
-                         <li key={course.id} className="flex justify-between items-center text-sm">
-                            <span className="font-medium">{course.title}</span>
-                            <Badge variant="secondary">{course.completionRate}%</Badge>
-                         </li>
-                       ))}
-                    </ul>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <TrendingDown className="h-5 w-5 text-red-500" />
-                        Least Completed Courses
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ul className="space-y-3">
-                       {courseEngagement.leastCompleted.map(course => (
-                         <li key={course.id} className="flex justify-between items-center text-sm">
-                            <span className="font-medium">{course.title}</span>
-                            <Badge variant="outline">{course.completionRate}%</Badge>
-                         </li>
-                       ))}
-                    </ul>
-                </CardContent>
-            </Card>
-        </div>
-      </div>
-      
-       <div className="grid gap-4 md:grid-cols-2">
-         <Link href="/admin/analytics/progress-report">
-            <Card className="hover:bg-muted/50 transition-colors">
-              <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                      <CardTitle>Detailed Progress Report</CardTitle>
-                      <CardDescription>
-                          Drill down into course progress for every staff member.
-                      </CardDescription>
-                  </div>
-                  <ArrowRight className="h-5 w-5 text-muted-foreground" />
-              </CardHeader>
-            </Card>
-          </Link>
-          <Link href="/admin/analytics/attendance-report">
-            <Card className="hover:bg-muted/50 transition-colors">
-              <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                      <CardTitle>Live Session Attendance</CardTitle>
-                      <CardDescription>
-                          View and export attendance records for all live sessions.
-                      </CardDescription>
-                  </div>
-                   <UserCheck className="h-8 w-8 text-muted-foreground" />
-              </CardHeader>
-            </Card>
-          </Link>
-       </div>
-      
-        <AnalyticsCharts 
-            completionByDept={completionByDept} 
-            scoresDistribution={scoresDistribution}
-        />
-        
-      <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-                <HelpCircle className="h-6 w-6 text-primary" />
-                Quiz Question Analysis
-            </CardTitle>
-            <CardDescription>
-                Identify which questions are most challenging for your staff.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-             <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Question</TableHead>
-                        <TableHead>Course</TableHead>
-                        <TableHead className="w-[250px]">Correct Answer Rate</TableHead>
-                        <TableHead className="text-right">Total Attempts</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {quizQuestionAnalysis.map((item) => {
-                        const total = item.correctAttempts + item.incorrectAttempts;
-                        const correctRate = total > 0 ? (item.correctAttempts / total) * 100 : 0;
-                        return (
-                            <TableRow key={item.questionId}>
-                                <TableCell className="font-medium max-w-sm truncate">{item.questionText}</TableCell>
-                                <TableCell>{item.courseTitle}</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <Progress value={correctRate} className="h-2"/>
-                                        <span className="text-muted-foreground font-mono text-sm">{correctRate.toFixed(1)}%</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right font-mono">{total}</TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
-             </Table>
-        </CardContent>
-      </Card>
+export default async function AnalyticsPage() {
+    const session = await getSession();
+    if (!session?.trainingProviderId) {
+        return notFound();
+    }
 
-    </div>
-  )
+    const analyticsData = await getAnalyticsData(session.trainingProviderId);
+
+    return <AnalyticsDashboard analyticsData={analyticsData} />;
 }
