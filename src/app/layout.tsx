@@ -148,7 +148,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const adminNavItems = [
     { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
     { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
-    { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
+    { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
     { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
     { href: '/admin/grading', icon: Edit, label: 'Grading', adminOnly: true },

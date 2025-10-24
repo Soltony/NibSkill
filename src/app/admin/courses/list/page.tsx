@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
-import { CourseClient, CourseLink, CourseActions } from "./course-client"
+import { CourseClient, CourseLink, CourseActions } from "../course-client"
 
 export default async function CourseManagementPage() {
   const courses = await prisma.course.findMany({
