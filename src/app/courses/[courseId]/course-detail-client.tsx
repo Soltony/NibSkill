@@ -207,11 +207,12 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                                 <FeatureNotImplementedDialog
                                     title="Bookmark Module"
                                     description="This feature is not yet implemented. In the future, you will be able to bookmark modules to easily find them later."
-                                    triggerVariant="ghost"
-                                    triggerSize="sm"
-                                    triggerText="Bookmark"
-                                    triggerIcon={<Bookmark className="mr-2 h-4 w-4" />}
-                                />
+                                >
+                                    <Button variant="ghost" size="sm">
+                                        <Bookmark className="mr-2 h-4 w-4" />
+                                        Bookmark
+                                    </Button>
+                                </FeatureNotImplementedDialog>
                             </div>
                             {userRole === 'admin' && (
                                 <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
@@ -241,11 +242,12 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                   <FeatureNotImplementedDialog
                     title="Buy Course"
                     description="This is a paid course. The payment and enrollment flow has not been implemented yet."
-                    triggerText="Buy the course"
-                    triggerIcon={<ShoppingCart className="mr-2 h-5 w-5" />}
-                    triggerVariant="default"
-                    triggerSize="lg"
-                  />
+                  >
+                    <Button size="lg">
+                        <ShoppingCart className="mr-2 h-5 w-5" />
+                        Buy the course
+                    </Button>
+                  </FeatureNotImplementedDialog>
                 ) : quiz ? (
                     allModulesCompleted ? (
                         <Button size="lg" asChild>
