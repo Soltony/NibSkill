@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { getSession } from '@/lib/auth'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -20,6 +21,11 @@ const formSchema = z.object({
 
 export async function addLiveSession(values: z.infer<typeof formSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized operation." };
+        }
+
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
@@ -32,6 +38,7 @@ export async function addLiveSession(values: z.infer<typeof formSchema>) {
                 ...sessionData,
                 dateTime: new Date(sessionData.dateTime),
                 isRestricted,
+                trainingProviderId: session.trainingProviderId,
                 allowedAttendees: isRestricted && allowedUserIds ? {
                     create: allowedUserIds.map(userId => ({
                         user: { connect: { id: userId } }
