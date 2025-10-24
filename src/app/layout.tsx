@@ -68,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isPublicPage = pathname.startsWith('/login') || pathname.startsWith('/register') || pathname === '/';
+  const isPublicPage = pathname.startsWith('/login') || pathname === '/';
   const isSuperAdminLogin = pathname === '/login/super-admin';
 
   useEffect(() => {
@@ -137,10 +137,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       )
   }
 
-  // Simple logic to switch between user roles for demonstration
-  const isAdminView = pathname.startsWith('/admin');
-  const isSuperAdminView = pathname.startsWith('/super-admin');
   const userRole = currentUser?.role?.name.toLowerCase() || 'staff';
+  const isAdminView = pathname.startsWith('/admin') && (userRole === 'admin' || userRole === 'super admin' || userRole === 'training provider');
+  const isSuperAdminView = pathname.startsWith('/super-admin') && userRole === 'super admin';
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
@@ -169,9 +168,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   ];
   
   let currentNavItems;
-  if (isSuperAdminView && userRole === 'super admin') {
+  if (isSuperAdminView) {
     currentNavItems = superAdminNavItems;
-  } else if (isAdminView && (userRole === 'admin' || userRole === 'super admin')) {
+  } else if (isAdminView) {
     currentNavItems = adminNavItems;
   } else {
     currentNavItems = navItems;
@@ -192,6 +191,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     await logout();
     window.location.href = '/login';
   };
+
+  const showStaffViewToggle = userRole === 'admin' || userRole === 'super admin' || userRole === 'training provider';
+  const showAdminViewToggle = userRole === 'super admin' || userRole === 'training provider';
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -221,7 +223,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </div>
                 ) : (
                   <SidebarMenu>
-                    {isSuperAdminView && userRole === 'super admin' ? (
+                    {isSuperAdminView ? (
                       <>
                         <SidebarGroup>
                           <SidebarGroupLabel>Super Admin</SidebarGroupLabel>
@@ -251,7 +253,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </Link>
                           </SidebarMenuItem>
                       </>
-                    ) : isAdminView && (userRole === 'admin' || userRole === 'super admin') ? (
+                    ) : isAdminView ? (
                       <>
                         <SidebarGroup>
                           <SidebarGroupLabel>Admin</SidebarGroupLabel>
@@ -282,17 +284,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                 </Link>
                             </SidebarMenuItem>
                           )}
-                          <SidebarMenuItem>
-                            <Link href={'/dashboard'}>
-                              <SidebarMenuButton
-                                isActive={isLinkActive('/dashboard')}
-                                tooltip={'Staff Dashboard'}
-                              >
-                                <LayoutDashboard />
-                                <span>Staff View</span>
-                              </SidebarMenuButton>
-                            </Link>
-                          </SidebarMenuItem>
+                          {showStaffViewToggle && (
+                            <SidebarMenuItem>
+                              <Link href={'/dashboard'}>
+                                <SidebarMenuButton
+                                  isActive={isLinkActive('/dashboard')}
+                                  tooltip={'Staff Dashboard'}
+                                >
+                                  <LayoutDashboard />
+                                  <span>Staff View</span>
+                                </SidebarMenuButton>
+                              </Link>
+                            </SidebarMenuItem>
+                          )}
                       </>
                     ) : (
                       navItems.map((item) => (
