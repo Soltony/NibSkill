@@ -24,7 +24,12 @@ async function getSettingsData(trainingProviderId: string) {
     });
 
     const registrationFields = await prisma.registrationField.findMany({
-        where: { trainingProviderId },
+        where: { 
+            OR: [
+                { trainingProviderId },
+                { trainingProviderId: null }
+            ]
+        },
         orderBy: { createdAt: "asc" }
     });
 
