@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { getSession } from '@/lib/auth'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
@@ -16,6 +17,11 @@ const formSchema = z.object({
 
 export async function addLearningPath(values: z.infer<typeof formSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized operation." };
+        }
+
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
@@ -26,6 +32,7 @@ export async function addLearningPath(values: z.infer<typeof formSchema>) {
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
                 hasCertificate: validatedFields.data.hasCertificate,
+                trainingProviderId: session.trainingProviderId,
                 courses: {
                     create: validatedFields.data.courseIds.map((courseId, index) => ({
                         order: index + 1,
