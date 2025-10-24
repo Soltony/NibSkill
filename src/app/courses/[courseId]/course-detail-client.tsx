@@ -161,19 +161,25 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         </div>
       </div>
       
-      <div className="mb-6 space-y-2">
-        <div className="flex justify-between text-sm font-medium text-muted-foreground">
-            <span>Overall Progress</span>
-            <span>{progress}%</span>
+      { !course.isPaid && (
+        <div className="mb-6 space-y-2">
+            <div className="flex justify-between text-sm font-medium text-muted-foreground">
+                <span>Overall Progress</span>
+                <span>{progress}%</span>
+            </div>
+            <Progress value={progress} />
         </div>
-        <Progress value={progress} />
-      </div>
+      )}
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold font-headline">Course Modules</h2>
         {userRole === 'admin' && <AddModuleDialog onModuleAdded={handleModuleAdded} courseId={course.id} />}
       </div>
-
+        {course.isPaid ? (
+            <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">
+                <p>This is a paid course. Purchase to access modules and quizzes.</p>
+            </div>
+        ) : (
         <>
             <Accordion type="single" collapsible className="w-full" defaultValue={course.modules.length > 0 ? course.modules[0].id : undefined}>
                 {course.modules.map((module) => (
@@ -227,6 +233,8 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                 {userRole === 'admin' && <p>Click "Add Module" to get started.</p>}
               </div>
             )}
+            </>
+        )}
 
             <div className="mt-8 text-center">
                 {course.isPaid ? (
@@ -253,7 +261,6 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                 )}
                 {!allModulesCompleted && quiz && !course.isPaid && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
             </div>
-        </>
     </div>
   );
 }
