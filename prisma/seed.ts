@@ -67,7 +67,11 @@ async function main() {
     const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
     const districtRecord = await prisma.district.findUnique({ where: { name: district } });
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id } });
-    const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
+    
+    let roleRecord;
+    if (role === 'admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Admin' } });
+    else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Super Admin' } });
+    else roleRecord = await prisma.role.findUnique({ where: { name: 'Staff' } });
     
     // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -150,7 +154,8 @@ async function main() {
         isPaid: courseData.isPaid,
         price: courseData.price,
         currency: courseData.currency,
-        hasCertificate: courseData.hasCertificate
+        hasCertificate: courseData.hasCertificate,
+        status: courseData.status,
       },
       create: {
         id: courseData.id,
@@ -163,7 +168,8 @@ async function main() {
         imageUrl: image?.imageUrl,
         imageDescription: image?.description,
         imageHint: image?.imageHint,
-        hasCertificate: courseData.hasCertificate
+        hasCertificate: courseData.hasCertificate,
+        status: courseData.status || 'PENDING',
       }
     });
 
@@ -181,7 +187,9 @@ async function main() {
   for (const path of initialLearningPaths) {
     await prisma.learningPath.upsert({
       where: { id: path.id },
-      update: {},
+      update: {
+        hasCertificate: path.hasCertificate,
+      },
       create: {
         id: path.id,
         title: path.title,

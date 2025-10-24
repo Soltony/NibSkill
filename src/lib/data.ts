@@ -37,7 +37,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'staff';
+  role: 'admin' | 'staff' | 'super-admin';
   department: string;
   district: string;
   branch: string;
@@ -66,6 +66,7 @@ export type Course = {
   price?: number;
   currency?: Currency;
   hasCertificate?: boolean;
+  status: 'PENDING' | 'PUBLISHED';
 };
 
 export type Question = {
@@ -119,7 +120,7 @@ export type Permission = {
 }
 
 export type Role = {
-    id: 'admin' | 'staff' | string;
+    id: 'admin' | 'staff' | 'super-admin' | string;
     name: string;
     permissions: {
         courses: Permission;
@@ -215,6 +216,7 @@ export const users: User[] = [
   { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', department: 'Sales', district: 'South Region', branch: 'Downtown Branch', password: 'skillup123' },
   { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'skillup123' },
   { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', password: 'skillup123' },
+  { id: 'super-admin-user', name: 'Super Admin', email: 'super@nibtraining.com', avatarUrl: 'https://picsum.photos/seed/superadmin/100/100', role: 'super-admin', department: 'Executive', district: 'North Region', branch: 'Main Office', password: 'superadmin123' },
 ];
 
 export const products: Product[] = [
@@ -253,6 +255,7 @@ export const courses: Course[] = [
     image: PlaceHolderImages[0],
     isPaid: false,
     hasCertificate: true,
+    status: 'PUBLISHED',
     modules: [
       { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
       { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -269,6 +272,7 @@ export const courses: Course[] = [
     price: 49.99,
     currency: 'USD',
     hasCertificate: false,
+    status: 'PUBLISHED',
     modules: [
       { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#' },
       { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -284,6 +288,7 @@ export const courses: Course[] = [
     image: PlaceHolderImages[2],
     isPaid: false,
     hasCertificate: false,
+    status: 'PENDING',
     modules: [
         { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
         { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, description: 'A deep dive into the rendering pipeline.', content: '#' },
@@ -300,6 +305,7 @@ export const courses: Course[] = [
     image: PlaceHolderImages[3],
     isPaid: false,
     hasCertificate: true,
+    status: 'PUBLISHED',
     modules: [
         { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, description: 'An overview of the current market landscape.', content: '#' },
         { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -371,6 +377,19 @@ export const learningPaths: LearningPath[] = [
 ];
 
 export const roles: Role[] = [
+  {
+    id: "super-admin",
+    name: "Super Admin",
+    permissions: {
+      courses: { c: true, r: true, u: true, d: true },
+      users: { c: true, r: true, u: true, d: true },
+      analytics: { c: true, r: true, u: true, d: true },
+      products: { c: true, r: true, u: true, d: true },
+      quizzes: { c: true, r: true, u: true, d: true },
+      staff: { c: true, r: true, u: true, d: true },
+      liveSessions: { c: true, r: true, u: true, d: true },
+    }
+  },
   {
     id: "admin",
     name: "Admin",
@@ -554,3 +573,4 @@ export type UserCompletedCourse = {
     score: number;
 }
 export { FieldType };
+

@@ -10,6 +10,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +19,7 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
 
-export default function LoginPage() {
+export default function SuperAdminLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
@@ -37,22 +38,16 @@ export default function LoginPage() {
 
     const data = await response.json();
 
-    if (data.isSuccess) {
+    if (data.isSuccess && data.user.role.name.toLowerCase() === 'super admin') {
       toast({
         title: 'Login Successful',
-        description: 'Welcome back!',
+        description: 'Welcome Super Admin!',
       });
-      if (data.user.role.name.toLowerCase() === 'admin') {
-         router.push('/admin/analytics');
-      } else if (data.user.role.name.toLowerCase() === 'super admin') {
-         router.push('/super-admin');
-      } else {
-         router.push('/dashboard');
-      }
+      router.push('/super-admin');
     } else {
       toast({
         title: 'Login Failed',
-        description: data.errors?.[0] || 'Invalid credentials.',
+        description: data.errors?.[0] || 'Invalid credentials or not a super admin.',
         variant: 'destructive',
       });
     }
@@ -65,8 +60,8 @@ export default function LoginPage() {
           <div className="mx-auto mb-4">
             <Logo />
           </div>
-          <CardTitle className="font-headline text-3xl">Welcome to NIB Training</CardTitle>
-          <CardDescription>Sign in to continue to your dashboard.</CardDescription>
+          <CardTitle className="font-headline text-3xl">Super Admin Login</CardTitle>
+          <CardDescription>Enter your super admin credentials.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -76,7 +71,8 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="email@example.com"
+                placeholder="super@example.com"
+                defaultValue="super@nibtraining.com"
                 required
               />
             </div>
@@ -87,7 +83,7 @@ export default function LoginPage() {
                   id="password"
                   name="password" 
                   type={showPassword ? 'text' : 'password'} 
-                  placeholder="********"
+                  defaultValue="superadmin123"
                   required 
                   className="pr-10"
                 />
@@ -104,21 +100,15 @@ export default function LoginPage() {
               </div>
             </div>
             <Button type="submit" className="w-full">
-              Sign In
+              Sign In as Super Admin
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
-            Don't have an account?{' '}
-            <Link href="/login/register" className="underline">
-                Sign Up
-            </Link>
-          </div>
-           <div className="mt-2 text-center text-sm">
-            <Link href="/login/super-admin" className="underline text-muted-foreground">
-                Super Admin Login
-            </Link>
-          </div>
         </CardContent>
+         <CardFooter className="flex-col">
+            <Link href="/login" className="text-sm underline text-muted-foreground">
+                Back to main login
+            </Link>
+        </CardFooter>
       </Card>
     </main>
   );
