@@ -56,13 +56,12 @@ export default async function CourseDetailAdminPage({ params }: { params: { cour
   }
 
   // A simplified progress metric for admin view (e.g., based on one user or average)
-  // For this example, we'll just pass all completion data.
   const totalUsersWithProgress = new Set(data.completedModules.map(cm => cm.userId)).size;
 
 
   return (
     <CourseDetailAdminClient 
-        course={data.course}
+        initialCourse={data.course}
         initialProgress={totalUsersWithProgress > 0 ? 50 : 0} // Mock progress for admin
     />
   );
