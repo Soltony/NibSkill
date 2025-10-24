@@ -1,10 +1,9 @@
 
-
 import 'server-only';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 import prisma from './db';
-import { Role } from './data';
+import type { Role } from '@prisma/client';
 
 const getJwtSecret = () => {
     const secret = process.env.JWT_SECRET;
