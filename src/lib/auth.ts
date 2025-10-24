@@ -46,7 +46,7 @@ export async function getSession() {
             return null;
         }
 
-        // Session is valid, return the payload
+        // Session is valid, return the payload including the role
         return {
             id: payload.userId,
             role: payload.role,
