@@ -49,18 +49,19 @@ import './globals.css';
 import { Inter } from 'next/font/google';
 import { logout } from './actions/user-actions';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Notification, User as UserType, Role } from '@prisma/client';
+import type { Notification, User as UserType, Role as RoleType } from '@prisma/client';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 // This would typically come from a session context
 type CurrentUser = UserType & {
-  role: Role;
+  role: RoleType;
   notifications: Notification[];
 };
 
-// Create a context to provide the user role
-export const UserContext = React.createContext<string | null>(null);
+// Create a context to provide the user role and permissions
+export const UserContext = React.createContext<{ roleName: string | null; permissions: any } | null>(null);
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -137,9 +138,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       )
   }
 
-  const userRole = currentUser?.role?.name.toLowerCase() || 'staff';
-  const isAdminView = pathname.startsWith('/admin') && (userRole === 'admin' || userRole === 'super admin' || userRole === 'training provider');
-  const isSuperAdminView = pathname.startsWith('/super-admin') && userRole === 'super admin';
+  const userRole = currentUser?.role;
+  const permissions = userRole?.permissions as any;
+  const userRoleName = userRole?.name.toLowerCase() || 'staff';
+  
+  const canViewAdmin = permissions?.courses?.r === true;
+  const isAdminView = pathname.startsWith('/admin') && canViewAdmin;
+  const isSuperAdminView = pathname.startsWith('/super-admin') && userRoleName === 'super admin';
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
@@ -191,9 +196,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     await logout();
     window.location.href = '/login';
   };
-
-  const showStaffViewToggle = userRole === 'admin' || userRole === 'super admin' || userRole === 'training provider';
-  const showAdminViewToggle = userRole === 'super admin' || userRole === 'training provider';
+  
+  const showStaffViewToggle = canViewAdmin;
+  const showSuperAdminViewToggle = userRoleName === 'super admin';
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -208,7 +213,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.variable} font-body antialiased`}>
-        <UserContext.Provider value={userRole}>
+        <UserContext.Provider value={{ roleName: userRoleName, permissions }}>
           <SidebarProvider>
             <Sidebar>
               <SidebarHeader>
@@ -271,7 +276,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </SidebarMenuItem>
                           ))}
                         </SidebarGroup>
-                          {userRole === 'super admin' && (
+                          {showSuperAdminViewToggle && (
                             <SidebarMenuItem>
                                 <Link href={'/super-admin'}>
                                 <SidebarMenuButton

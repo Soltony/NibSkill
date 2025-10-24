@@ -4,6 +4,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 import prisma from './db';
+import { Role } from './data';
 
 const getJwtSecret = () => {
     const secret = process.env.JWT_SECRET;
@@ -15,7 +16,7 @@ const getJwtSecret = () => {
 
 interface CustomJwtPayload extends JWTPayload {
     userId: string;
-    role: string;
+    role: Role; // Now includes permissions
     name: string;
     email: string;
     avatarUrl: string;
@@ -48,7 +49,7 @@ export async function getSession() {
             return null;
         }
 
-        // Session is valid, return the payload including the role
+        // Session is valid, return the payload including the role with permissions
         return {
             id: payload.userId,
             role: payload.role,

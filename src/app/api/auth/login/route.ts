@@ -1,4 +1,5 @@
 
+
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     const expirationTime = '24h';
     const token = await new SignJWT({ 
         userId: user.id, 
-        role: user.role.name,
+        role: user.role, // Pass the entire role object including permissions
         name: user.name,
         email: user.email,
         avatarUrl: user.avatarUrl,
@@ -94,9 +95,22 @@ export async function POST(request: NextRequest) {
     
     const { password: _, ...userWithoutPassword } = user;
 
+    // Check permissions for redirection
+    const permissions = user.role.permissions as any;
+    const canViewAdmin = permissions?.courses?.r;
+    const isSuperAdmin = user.role.name.toLowerCase() === 'super admin';
+
+    let redirectTo = '/dashboard';
+    if (isSuperAdmin) {
+        redirectTo = '/super-admin';
+    } else if (canViewAdmin) {
+        redirectTo = '/admin/analytics';
+    }
+
     return NextResponse.json({
       isSuccess: true,
       user: userWithoutPassword,
+      redirectTo: redirectTo,
       errors: null,
     });
 
