@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 
 async function getCoursesData(userId: string) {
     const courses = await prisma.course.findMany({
+        where: { status: 'PUBLISHED' },
         include: { modules: true, product: true }
     });
 

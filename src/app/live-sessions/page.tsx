@@ -1,6 +1,6 @@
 
 import prisma from "@/lib/db"
-import { Radio, Video, Sparkles, Lock } from 'lucide-react';
+import { Radio, Video, Sparkles } from 'lucide-react';
 import {
   Tabs,
   TabsContent,
@@ -39,15 +39,11 @@ export default async function LiveSessionsPage() {
     const { sessions, userId } = await getLiveSessionsData(user.id);
 
     const now = new Date();
-    const upcomingSessions = sessions.filter((s) => {
-        const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
-        return now < endTime;
-    }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+    const upcomingSessions = sessions.filter((s) => new Date(s.dateTime) >= now)
+        .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
-    const pastSessions = sessions.filter((s) => {
-        const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
-        return now > endTime;
-    }).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    const pastSessions = sessions.filter((s) => new Date(s.dateTime) < now)
+        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
   return (
     <div className="space-y-8">

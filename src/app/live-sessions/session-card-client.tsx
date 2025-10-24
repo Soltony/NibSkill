@@ -9,6 +9,7 @@ import { Calendar, Clock, Mic, Video, Radio, CheckSquare, Lock } from 'lucide-re
 import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast";
 import { markAttendance } from "../actions/live-session-actions";
+import { cn } from "@/lib/utils";
 
 type SessionWithAttendance = SessionType & { attendedBy: UserAttendedLiveSession[] };
 
@@ -43,7 +44,7 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, 
     }
 
     return (
-        <Card className="flex flex-col">
+        <Card className={cn("flex flex-col", !isAllowed && "bg-muted/50 border-dashed")}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="w-fit mb-2">{session.platform.replace('_', ' ')}</Badge>
@@ -77,9 +78,9 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, 
                     <p className="text-sm text-muted-foreground">{session.keyTakeaways}</p>
                 </div>
                  {session.isRestricted && (
-                    <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
+                    <div className={cn("flex items-center gap-2 text-sm", isAllowed ? "text-muted-foreground" : "text-yellow-600 dark:text-yellow-400")}>
                         <Lock className="h-4 w-4" />
-                        <span>This is a restricted session.</span>
+                        <span>{isAllowed ? "You are invited to this restricted session." : "This is a restricted session."}</span>
                     </div>
                 )}
             </CardContent>

@@ -83,10 +83,8 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
         if (result.success) {
             toast({
                 title: "Profile Updated",
-                description: result.message,
+                description: "Your profile information has been successfully updated.",
             })
-            // After successful update, call the logout server action
-            await logout();
         } else {
             toast({
                 title: "Error",
@@ -141,7 +139,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                     <CardHeader>
                     <CardTitle>My Certificates</CardTitle>
                     <CardDescription>
-                        All of the certificates you've earned from completing courses.
+                        All of the certificates you've earned from completing courses or learning paths.
                     </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -199,7 +197,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                     <CardHeader>
                         <CardTitle>Edit Your Profile</CardTitle>
                         <CardDescription>
-                            Update your personal information below. After saving, you will be asked to log in again.
+                            Update your personal information below. 
                         </CardDescription>
                     </CardHeader>
                     <CardContent>

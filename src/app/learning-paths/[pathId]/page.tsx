@@ -35,17 +35,6 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
   }
   
   const courseIds = learningPath.courses.map(c => c.course.id);
-
-  // Fetch both module completions and full course completions
-  const userModuleCompletions = await prisma.userCompletedModule.findMany({
-    where: { 
-      userId: user.id,
-      moduleId: {
-        in: learningPath.courses.flatMap(c => c.course.modules.map(m => m.id))
-      }
-    },
-    select: { moduleId: true }
-  });
   
   const userCourseCompletions = await prisma.userCompletedCourse.findMany({
       where: {
@@ -56,32 +45,17 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
   });
   const completedCourseIds = new Set(userCourseCompletions.map(c => c.courseId));
 
-  const completedModulesByCourse = userModuleCompletions.reduce((acc, completion) => {
-    const module = learningPath.courses.flatMap(c => c.course.modules).find(m => m.id === completion.moduleId);
-    if (module) {
-      if (!acc[module.courseId]) {
-        acc[module.courseId] = new Set();
-      }
-      acc[module.courseId].add(module.id);
-    }
-    return acc;
-  }, {} as Record<string, Set<string>>);
-
-
   const coursesWithProgress = learningPath.courses.map(({ course }) => {
       const isCompleted = completedCourseIds.has(course.id);
-      if (isCompleted) {
-        return { ...course, progress: 100, isCompleted };
-      }
-      const completedModuleCount = completedModulesByCourse[course.id]?.size || 0;
-      const progress = course.modules.length > 0 ? Math.round((completedModuleCount / course.modules.length) * 100) : 0;
-      return { ...course, progress, isCompleted };
+      return { ...course, isCompleted };
   });
 
   const allCoursesInPathCompleted = coursesWithProgress.every(c => c.isCompleted);
-
-  const overallProgress = allCoursesInPathCompleted ? 100 : coursesWithProgress.length > 0
-    ? Math.round(coursesWithProgress.reduce((sum, course) => sum + (course.isCompleted ? 100 : course.progress), 0) / coursesWithProgress.length)
+  const coursesInPath = coursesWithProgress.length;
+  const completedCoursesInPath = coursesWithProgress.filter(c => c.isCompleted).length;
+  
+  const overallProgress = coursesInPath > 0 
+    ? Math.round((completedCoursesInPath / coursesInPath) * 100)
     : 0;
 
   let firstUncompletedFound = false;
@@ -123,7 +97,6 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
             const displayImageHint = course.imageHint ?? course.product?.imageHint;
             const displayImageDescription = course.imageDescription ?? course.product?.description;
 
-
             return (
               <Card 
                 key={course.id} 
@@ -155,20 +128,9 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
                   </div>
                   <p className="text-muted-foreground mt-1 mb-4">{course.description}</p>
                   
-                  {isNextCourse ? (
-                    <>
-                      <div className="flex w-full items-center justify-between text-xs text-muted-foreground mb-2">
-                        <span>Your Progress</span>
-                        <span>{course.progress}%</span>
-                      </div>
-                      <Progress value={course.progress} className="h-2 w-full mb-4" />
-                       <Button asChild size="lg" className="w-full sm:w-auto">
-                        <Link href={`/courses/${course.id}`}>Start Course</Link>
-                      </Button>
-                    </>
-                  ) : course.isCompleted ? (
-                     <Button asChild variant="outline" className="w-full sm:w-auto">
-                        <Link href={`/courses/${course.id}`}>Review Course</Link>
+                  {isNextCourse || course.isCompleted ? (
+                     <Button asChild variant={isNextCourse ? "default" : "outline"} size="lg" className="w-full sm:w-auto">
+                        <Link href={`/courses/${course.id}`}>{isNextCourse ? 'Start Course' : 'Review Course'}</Link>
                       </Button>
                   ) : (
                     <Button disabled className="w-full sm:w-auto">Complete Previous Step</Button>
