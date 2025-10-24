@@ -45,7 +45,8 @@ async function getCourseData(courseId: string) {
 
 export default async function CourseDetailAdminPage({ params }: { params: { courseId: string } }) {
   const session = await getSession();
-  if (!session || session.role.toLowerCase() !== 'admin') {
+  const permissions = session?.role.permissions as any;
+  if (!session || !permissions?.courses?.r) {
     notFound();
   }
   
