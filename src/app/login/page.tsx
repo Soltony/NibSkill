@@ -113,11 +113,6 @@ export default function LoginPage() {
                 Sign Up
             </Link>
           </div>
-           <div className="mt-2 text-center text-sm">
-            <Link href="/login/super-admin" className="underline text-muted-foreground">
-                Super Admin Login
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </main>
