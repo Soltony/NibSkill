@@ -8,7 +8,7 @@ async function getAttendanceReportData(trainingProviderId: string) {
   const sessions = await prisma.liveSession.findMany({
     where: { trainingProviderId },
     include: {
-      attendees: {
+      attendedBy: {
         include: {
           user: {
             include: {

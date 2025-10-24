@@ -14,7 +14,7 @@ import { redirect } from "next/navigation";
 async function getLiveSessionsData(userId: string) {
   const sessions = await prisma.liveSession.findMany({
     include: {
-      attendees: {
+      attendedBy: {
         where: {
           userId: userId,
         },
@@ -79,7 +79,7 @@ export default async function LiveSessionsPage() {
                                 key={session.id} 
                                 session={session} 
                                 userId={userId}
-                                hasAttended={session.attendees.length > 0}
+                                hasAttended={session.attendedBy.length > 0}
                                 isAllowed={isAllowed}
                             />
                         )
@@ -103,7 +103,7 @@ export default async function LiveSessionsPage() {
                                 key={session.id} 
                                 session={session} 
                                 userId={userId}
-                                hasAttended={session.attendees.length > 0}
+                                hasAttended={session.attendedBy.length > 0}
                                 isAllowed={isAllowed}
                             />
                         )

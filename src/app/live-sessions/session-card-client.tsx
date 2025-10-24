@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast";
 import { markAttendance } from "../actions/live-session-actions";
 
-type SessionWithAttendance = SessionType & { attendees: UserAttendedLiveSession[] };
+type SessionWithAttendance = SessionType & { attendedBy: UserAttendedLiveSession[] };
 
 type SessionCardProps = {
     session: SessionWithAttendance;

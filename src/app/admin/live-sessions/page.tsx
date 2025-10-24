@@ -28,7 +28,7 @@ async function getData(trainingProviderId: string) {
       dateTime: 'desc'
     },
     include: {
-      attendees: {
+      attendedBy: {
         include: {
           user: true
         }
