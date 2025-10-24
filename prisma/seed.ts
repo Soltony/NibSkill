@@ -22,25 +22,43 @@ const prisma = new PrismaClient()
 async function main() {
   console.log(`Start seeding ...`)
 
-  // Seed Districts
-  await prisma.district.createMany({
-    data: initialDistricts,
-    skipDuplicates: true,
+  const provider = await prisma.trainingProvider.upsert({
+    where: { name: 'NIB Training' },
+    update: {},
+    create: {
+      name: 'NIB Training',
+      address: '123 Training Ave, Skill City, USA',
+      accountNumber: 'NIB-001',
+    },
   });
+  console.log('Upserted training provider');
+
+
+  // Seed Districts
+  await prisma.district.deleteMany({ where: { trainingProviderId: provider.id }});
+  for (const district of initialDistricts) {
+    await prisma.district.create({
+      data: { ...district, trainingProviderId: provider.id }
+    });
+  }
   console.log('Seeded districts');
 
   // Seed Departments
-  await prisma.department.createMany({
-    data: initialDepartments,
-    skipDuplicates: true,
-  });
+  await prisma.department.deleteMany({ where: { trainingProviderId: provider.id }});
+  for (const department of initialDepartments) {
+    await prisma.department.create({
+      data: { ...department, trainingProviderId: provider.id }
+    });
+  }
   console.log('Seeded departments');
 
   // Seed Branches
-  await prisma.branch.createMany({
-    data: initialBranches,
-    skipDuplicates: true,
-  })
+  await prisma.branch.deleteMany({ where: { trainingProviderId: provider.id }});
+  for (const branch of initialBranches) {
+    await prisma.branch.create({
+      data: { ...branch, trainingProviderId: provider.id }
+    })
+  }
   console.log('Seeded branches');
   
   // Seed Roles and Permissions
@@ -64,25 +82,29 @@ async function main() {
     const { id, department, district, branch, role, password, ...userData } = user as any;
 
     // Find related records
-    const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
-    const districtRecord = await prisma.district.findUnique({ where: { name: district } });
-    const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id } });
+    const departmentRecord = await prisma.department.findFirst({ where: { name: department, trainingProviderId: provider.id } });
+    const districtRecord = await prisma.district.findFirst({ where: { name: district, trainingProviderId: provider.id } });
+    const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id, trainingProviderId: provider.id } });
     
     let roleRecord;
     if (role === 'admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Admin' } });
     else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Super Admin' } });
+    else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Training Provider' } });
     else roleRecord = await prisma.role.findUnique({ where: { name: 'Staff' } });
     
     // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const isSuperAdmin = role === 'super-admin';
+
     await prisma.user.upsert({
       where: { email: user.email },
       update: {
         password: hashedPassword,
+        trainingProviderId: isSuperAdmin ? null : provider.id,
       },
       create: {
-        id: user.id, // Explicitly use the ID from data for stable relations
+        id: user.id,
         name: user.name,
         email: user.email,
         avatarUrl: user.avatarUrl,
@@ -91,6 +113,7 @@ async function main() {
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
         roleId: roleRecord!.id,
+        trainingProviderId: isSuperAdmin ? null : provider.id,
       },
     });
   }
@@ -98,6 +121,7 @@ async function main() {
 
 
   // Seed Badges
+  await prisma.badge.deleteMany({});
   for (const badge of initialBadges) {
     await prisma.badge.upsert({
         where: { id: badge.id },
@@ -127,6 +151,7 @@ async function main() {
   }
 
   // Seed Products
+  await prisma.product.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const product of initialProducts) {
     await prisma.product.upsert({
         where: { id: product.id },
@@ -137,12 +162,14 @@ async function main() {
             description: product.description,
             imageUrl: product.image.imageUrl,
             imageHint: product.image.imageHint,
+            trainingProviderId: provider.id,
         }
     })
   }
   console.log('Seeded products');
 
   // Seed Courses and Modules
+  await prisma.course.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const course of initialCourses) {
     const { modules, image, ...courseData } = course as any;
     const createdCourse = await prisma.course.upsert({
@@ -170,6 +197,7 @@ async function main() {
         imageHint: image?.imageHint,
         hasCertificate: courseData.hasCertificate,
         status: courseData.status || 'PENDING',
+        trainingProviderId: provider.id,
       }
     });
 
@@ -184,6 +212,7 @@ async function main() {
   console.log('Seeded courses and modules');
 
   // Seed Learning Paths
+  await prisma.learningPath.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const path of initialLearningPaths) {
     await prisma.learningPath.upsert({
       where: { id: path.id },
@@ -195,6 +224,7 @@ async function main() {
         title: path.title,
         description: path.description,
         hasCertificate: path.hasCertificate,
+        trainingProviderId: provider.id,
         courses: {
           create: path.courseIds.map((courseId, index) => ({
             order: index + 1,
@@ -209,6 +239,7 @@ async function main() {
   console.log('Seeded learning paths');
 
   // Seed Live Sessions
+  await prisma.liveSession.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const session of initialLiveSessions) {
       const { attendees, ...sessionData } = session;
       const { allowedAttendees, ...rest } = sessionData as any;
@@ -220,7 +251,8 @@ async function main() {
           },
           create: {
               ...rest,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: session.platform.replace(' ', '_') as LiveSessionPlatform,
+              trainingProviderId: provider.id,
           }
       });
   }
