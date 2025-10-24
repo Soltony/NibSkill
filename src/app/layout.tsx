@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { NotificationCenter } from '@/components/notification-center';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
@@ -103,6 +103,61 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     fetchUser();
   }, [pathname, isPublicPage, router, isSuperAdminLogin]);
 
+  const userRole = currentUser?.role;
+  const permissions = userRole?.permissions as any;
+
+  const allNavItems = useMemo(() => [
+    // Staff View
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', requiredPermission: null, view: 'staff' },
+    { href: '/courses', icon: BookCopy, label: 'Courses', requiredPermission: null, view: 'staff' },
+    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', requiredPermission: null, view: 'staff' },
+    { href: '/live-sessions', icon: Radio, label: 'Live Sessions', requiredPermission: null, view: 'staff' },
+
+    // Admin View
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', requiredPermission: 'analytics.r', view: 'admin' },
+    { href: '/admin/products', icon: Package, label: 'Products', requiredPermission: 'products.r', view: 'admin' },
+    { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt', requiredPermission: 'courses.r', view: 'admin' },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', requiredPermission: 'courses.r', view: 'admin' },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', requiredPermission: 'quizzes.r', view: 'admin' },
+    { href: '/admin/grading', icon: Edit, label: 'Grading', requiredPermission: 'quizzes.u', view: 'admin' },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', requiredPermission: 'liveSessions.r', view: 'admin' },
+    { href: '/admin/staff', icon: Users2, label: 'Staff', requiredPermission: 'staff.r', view: 'admin' },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', requiredPermission: 'analytics.r', view: 'admin' },
+    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report', requiredPermission: 'analytics.r', view: 'admin' },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate', requiredPermission: 'courses.u', view: 'admin' },
+    { href: '/admin/settings', icon: Settings, label: 'Settings', requiredPermission: 'users.r', view: 'admin' },
+    
+    // Super Admin View
+    { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin', requiredPermission: 'super', view: 'super-admin' },
+  ], []);
+
+  const visibleNavItems = useMemo(() => {
+    if (!permissions) return [];
+
+    const isSuperAdmin = userRole?.name.toLowerCase() === 'super admin';
+
+    return allNavItems.filter(item => {
+      if (item.requiredPermission === 'super') {
+          return isSuperAdmin;
+      }
+      if (item.requiredPermission === null) {
+          return true; // Staff items are always "available" but shown based on view
+      }
+      const [resource, action] = item.requiredPermission.split('.');
+      return permissions[resource]?.[action] === true;
+    });
+  }, [permissions, userRole, allNavItems]);
+  
+  const isAdminPath = pathname.startsWith('/admin');
+  const isSuperAdminPath = pathname.startsWith('/super-admin');
+  
+  let currentView: 'staff' | 'admin' | 'super-admin' = 'staff';
+  if (isSuperAdminPath) currentView = 'super-admin';
+  else if (isAdminPath) currentView = 'admin';
+
+  const currentNavItems = visibleNavItems.filter(item => item.view === currentView);
+  const currentNavItem = currentNavItems.find(item => pathname.startsWith(item.href));
+
   if (isPublicPage) {
     return (
         <html lang="en" suppressHydrationWarning>
@@ -139,57 +194,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       )
   }
 
-  const userRole = currentUser?.role;
-  const permissions = userRole?.permissions as any;
-  const userRoleName = userRole?.name.toLowerCase() || 'staff';
-  
-  const canViewAdmin = permissions?.courses?.r === true;
-  const isAdminPath = pathname.startsWith('/admin');
-  const isSuperAdminPath = pathname.startsWith('/super-admin');
-
-  const navItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
-    { href: '/courses', icon: BookCopy, label: 'Courses', adminOnly: false },
-    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
-    { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
-  ];
-
-  const adminNavItems = [
-    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
-    { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
-    { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
-    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
-    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
-    { href: '/admin/grading', icon: Edit, label: 'Grading', adminOnly: true },
-    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
-    { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
-    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
-    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report', adminOnly: true },
-    { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
-    { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
-  ];
-  
-  const superAdminNavItems = [
-    { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin', adminOnly: true, exact: true },
-  ];
-  
-  let currentNavItems;
-  if (isSuperAdminPath && userRoleName === 'super admin') {
-    currentNavItems = superAdminNavItems;
-  } else if (isAdminPath && canViewAdmin) {
-    currentNavItems = adminNavItems;
-  } else {
-    currentNavItems = navItems;
-  }
-  
-  const isLinkActive = (path: string, exact?: boolean) => {
-    if (exact) {
-        return pathname === path;
-    }
-    if (path === '/courses' && pathname.startsWith('/courses/')) {
-        return true;
-    }
-    return pathname.startsWith(path);
+  const isLinkActive = (path: string) => {
+    if (path === '/admin/analytics' && pathname === '/admin/analytics') return true;
+    if (path !== '/admin/analytics' && pathname.startsWith(path)) return true;
+    if (path === '/courses' && pathname.startsWith('/courses/')) return true;
+    return false;
   }
 
   const handleLogout = async () => {
@@ -197,8 +206,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     window.location.href = '/login';
   };
   
-  const showStaffViewToggle = canViewAdmin;
-  const showSuperAdminViewToggle = userRoleName === 'super admin';
+  const hasAdminReadAccess = permissions?.courses?.r === true;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -213,14 +221,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.variable} font-body antialiased`}>
-        <UserContext.Provider value={{ roleName: userRoleName, permissions }}>
+        <UserContext.Provider value={{ roleName: userRole?.name.toLowerCase() || null, permissions }}>
           <SidebarProvider>
             <Sidebar>
               <SidebarHeader>
                 <Logo className="text-primary-foreground" />
               </SidebarHeader>
               <SidebarContent>
-                 {isLoading ? (
+                 {isLoading || !currentUser ? (
                     <div className="space-y-2 p-2">
                         <Skeleton className="h-8 w-full" />
                         <Skeleton className="h-8 w-full" />
@@ -228,83 +236,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </div>
                 ) : (
                   <SidebarMenu>
-                    {isSuperAdminPath && userRoleName === 'super admin' ? (
-                      <>
-                        <SidebarGroup>
-                          <SidebarGroupLabel>Super Admin</SidebarGroupLabel>
-                          {superAdminNavItems.map((item) => (
-                            <SidebarMenuItem key={item.href}>
-                              <Link href={item.href}>
-                                <SidebarMenuButton
-                                  isActive={isLinkActive(item.href, item.exact)}
-                                  tooltip={item.label}
-                                >
-                                  <item.icon />
-                                  <span>{item.label}</span>
-                                </SidebarMenuButton>
-                              </Link>
-                            </SidebarMenuItem>
-                          ))}
-                        </SidebarGroup>
-                         <SidebarMenuItem>
-                            <Link href={'/admin/analytics'}>
-                              <SidebarMenuButton
-                                isActive={isLinkActive('/admin/analytics')}
-                                tooltip={'Admin Dashboard'}
-                              >
-                                <LayoutDashboard />
-                                <span>Admin View</span>
-                              </SidebarMenuButton>
-                            </Link>
-                          </SidebarMenuItem>
-                      </>
-                    ) : isAdminPath && canViewAdmin ? (
-                      <>
-                        <SidebarGroup>
-                          <SidebarGroupLabel>Admin</SidebarGroupLabel>
-                          {adminNavItems.map((item) => (
-                            <SidebarMenuItem key={item.href}>
-                              <Link href={item.href}>
-                                <SidebarMenuButton
-                                  isActive={isLinkActive(item.href, item.exact)}
-                                  tooltip={item.label}
-                                >
-                                  <item.icon />
-                                  <span>{item.label}</span>
-                                </SidebarMenuButton>
-                              </Link>
-                            </SidebarMenuItem>
-                          ))}
-                        </SidebarGroup>
-                          {showSuperAdminViewToggle && (
-                            <SidebarMenuItem>
-                                <Link href={'/super-admin'}>
-                                <SidebarMenuButton
-                                    isActive={isLinkActive('/super-admin')}
-                                    tooltip={'Super Admin Dashboard'}
-                                >
-                                    <ShieldCheck />
-                                    <span>Super Admin</span>
-                                </SidebarMenuButton>
-                                </Link>
-                            </SidebarMenuItem>
-                          )}
-                          {showStaffViewToggle && (
-                            <SidebarMenuItem>
-                              <Link href={'/dashboard'}>
-                                <SidebarMenuButton
-                                  isActive={isLinkActive('/dashboard')}
-                                  tooltip={'Staff Dashboard'}
-                                >
-                                  <LayoutDashboard />
-                                  <span>Staff View</span>
-                                </SidebarMenuButton>
-                              </Link>
-                            </SidebarMenuItem>
-                          )}
-                      </>
-                    ) : (
-                      navItems.map((item) => (
+                    <SidebarGroup>
+                      <SidebarGroupLabel>
+                        {currentView.charAt(0).toUpperCase() + currentView.slice(1)} Menu
+                      </SidebarGroupLabel>
+                      {currentNavItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
                           <Link href={item.href}>
                             <SidebarMenuButton
@@ -316,7 +252,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </SidebarMenuButton>
                           </Link>
                         </SidebarMenuItem>
-                      ))
+                      ))}
+                    </SidebarGroup>
+                    
+                    {currentView !== 'staff' && (
+                        <SidebarMenuItem>
+                          <Link href={'/dashboard'}>
+                            <SidebarMenuButton tooltip={'Staff View'}>
+                              <User />
+                              <span>Staff View</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                    )}
+
+                    {currentView === 'staff' && hasAdminReadAccess && (
+                      <SidebarMenuItem>
+                          <Link href={'/admin/analytics'}>
+                            <SidebarMenuButton tooltip={'Admin View'}>
+                              <ShieldCheck />
+                              <span>Admin View</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
                     )}
                   </SidebarMenu>
                 )}
@@ -359,9 +317,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <SidebarTrigger className="md:hidden"/>
                   <div className="flex-1">
                       <h1 className="text-lg font-semibold md:text-xl font-headline">
-                          {
-                              currentNavItems.find(item => isLinkActive(item.href, item.exact))?.label
-                          }
+                          {currentNavItem?.label}
                       </h1>
                   </div>
                   {currentUser && <NotificationCenter initialNotifications={currentUser.notifications} />}

@@ -1,5 +1,4 @@
 
-
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
 import { FieldType, Prisma } from '@prisma/client';
@@ -412,13 +411,13 @@ export const roles: Role[] = [
     id: "staff",
     name: "Staff",
     permissions: {
-      courses: { c: false, r: true, u: false, d: false },
+      courses: { c: false, r: false, u: false, d: false },
       users: { c: false, r: false, u: false, d: false },
       analytics: { c: false, r: false, u: false, d: false },
       products: { c: false, r: false, u: false, d: false },
-      quizzes: { c: false, r: true, u: false, d: false },
+      quizzes: { c: false, r: false, u: false, d: false },
       staff: { c: false, r: false, u: false, d: false },
-      liveSessions: { c: false, r: true, u: false, d: false },
+      liveSessions: { c: false, r: false, u: false, d: false },
     }
   },
 ]
