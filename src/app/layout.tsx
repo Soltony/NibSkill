@@ -2,7 +2,7 @@
 'use client';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Avatar,
   AvatarFallback,
@@ -63,41 +63,43 @@ export const UserContext = React.createContext<string | null>(null);
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const isPublicPage = pathname.startsWith('/login') || pathname.startsWith('/register') || pathname === '/';
+
   useEffect(() => {
-    // This is a stand-in for a proper session management hook
     async function fetchUser() {
-      // Don't fetch user on login/register pages
-      if (!pathname.startsWith('/login') && !pathname.startsWith('/register') && pathname !== '/') {
-        try {
-          setIsLoading(true);
-          const res = await fetch('/api/auth/session'); // This fetches the current session user
-          if (res.ok) {
-            const user = await res.json();
-            if (user) {
-              setCurrentUser(user);
-            } else {
-              window.location.href = '/login';
-            }
+      if (isPublicPage) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        const res = await fetch('/api/auth/session');
+        if (res.ok) {
+          const user = await res.json();
+          if (user) {
+            setCurrentUser(user);
           } else {
-             window.location.href = '/login';
+            router.replace('/login');
           }
-        } catch (error) {
-           console.error("Failed to fetch user", error);
-           window.location.href = '/login';
-        } finally {
-          setIsLoading(false);
+        } else {
+           router.replace('/login');
         }
-      } else {
+      } catch (error) {
+         console.error("Failed to fetch user", error);
+         router.replace('/login');
+      } finally {
         setIsLoading(false);
       }
     }
     fetchUser();
-  }, [pathname]);
+  }, [pathname, isPublicPage, router]);
 
-  if (pathname.startsWith('/login') || pathname.startsWith('/register') || pathname === '/') {
+  if (isPublicPage) {
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
@@ -116,6 +118,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </body>
         </html>
     );
+  }
+
+  if (isLoading) {
+      return (
+        <html lang="en" suppressHydrationWarning>
+            <head>
+              <title>NIB Training</title>
+            </head>
+            <body className={`${inter.variable} font-body antialiased`}>
+                <div className="flex items-center justify-center min-h-screen">
+                    <Logo />
+                </div>
+            </body>
+        </html>
+      )
   }
 
   // Simple logic to switch between user roles for demonstration
