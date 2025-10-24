@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button"
 import { AddCourseDialog } from "@/components/add-course-dialog"
 import { EditCourseDialog } from "@/components/edit-course-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { deleteCourse } from "@/app/actions/course-actions"
+import { deleteCourse, publishCourse } from "@/app/actions/course-actions"
 import type { Course as CourseType, Product as ProductType, Module } from "@prisma/client"
 
 type CourseWithRelations = CourseType & {
@@ -76,6 +76,22 @@ export function CourseActions({ course, products }: { course: CourseWithRelation
         }
     };
     
+    const handlePublish = async () => {
+        const result = await publishCourse(course.id);
+        if (result.success) {
+            toast({
+                title: "Course Published",
+                description: `The course "${course.title}" is now live.`,
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: result.message,
+                variant: "destructive"
+            });
+        }
+    }
+
     return (
         <>
         <DropdownMenu>
@@ -91,6 +107,9 @@ export function CourseActions({ course, products }: { course: CourseWithRelation
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            {course.status === 'PENDING' && (
+                <DropdownMenuItem onClick={handlePublish}>Publish</DropdownMenuItem>
+            )}
             <EditCourseDialog course={course} products={products}>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                     Edit

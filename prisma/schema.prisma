@@ -90,6 +90,7 @@ model Course {
   price              Float?
   currency           Currency?
   hasCertificate     Boolean               @default(false)
+  status             CourseStatus          @default(PENDING)
   productId          String?
   product            Product?              @relation(fields: [productId], references: [id])
   modules            Module[]
@@ -353,4 +354,9 @@ enum FieldType {
 enum Currency {
   USD
   ETB
+}
+
+enum CourseStatus {
+  PENDING
+  PUBLISHED
 }

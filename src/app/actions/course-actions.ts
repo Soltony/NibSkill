@@ -50,6 +50,7 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description, // Use product description as a fallback for image description
+                status: 'PENDING'
             }
         });
 
@@ -113,5 +114,20 @@ export async function deleteCourse(id: string) {
     } catch (error) {
         console.error("Error deleting course:", error);
         return { success: false, message: "Failed to delete course." }
+    }
+}
+
+export async function publishCourse(id: string) {
+    try {
+        await prisma.course.update({
+            where: { id },
+            data: { status: 'PUBLISHED' }
+        });
+
+        revalidatePath('/admin/courses/list');
+        return { success: true, message: 'Course published successfully.' }
+    } catch (error) {
+        console.error("Error publishing course:", error);
+        return { success: false, message: "Failed to publish course." }
     }
 }

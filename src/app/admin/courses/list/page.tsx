@@ -19,10 +19,11 @@ import {
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
 import { CourseClient, CourseLink, CourseActions } from "../course-client"
+import { cn } from "@/lib/utils"
 
 export default async function CourseManagementPage() {
   const courses = await prisma.course.findMany({
-    orderBy: { title: 'asc' },
+    orderBy: { createdAt: 'desc' },
     include: {
       modules: true,
       product: true,
@@ -94,7 +95,12 @@ export default async function CourseManagementPage() {
                       {course.modules.length}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="outline">Published</Badge>
+                       <Badge 
+                        variant={course.status === 'PUBLISHED' ? 'secondary' : 'outline'}
+                        className={cn(course.status === 'PUBLISHED' ? 'text-green-600 border-green-600' : 'text-amber-600 border-amber-600')}
+                      >
+                        {course.status}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <CourseActions course={course} products={products} />
