@@ -66,8 +66,16 @@ async function main() {
   // Seed Roles and Permissions
   for (const role of initialRoles) {
     const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
+    
+    let whereClause;
+    if (isGlobal) {
+        whereClause = { id: role.id };
+    } else {
+        whereClause = { name_trainingProviderId: { name: role.name, trainingProviderId: provider.id } };
+    }
+
     await prisma.role.upsert({
-      where: { name: role.name },
+      where: whereClause,
       update: {
         permissions: role.permissions as any,
       },
@@ -92,8 +100,8 @@ async function main() {
     
     let roleRecord;
     if (role === 'admin') roleRecord = await prisma.role.findFirst({ where: { name: 'Admin', trainingProviderId: provider.id } });
-    else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Super Admin' } });
-    else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Training Provider' } });
+    else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'super-admin' } });
+    else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'provider-admin' } });
     else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: provider.id } });
     
     // Hash password before saving
