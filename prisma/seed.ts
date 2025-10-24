@@ -13,8 +13,7 @@ import {
     learningPaths as initialLearningPaths,
     liveSessions as initialLiveSessions,
     roles as initialRoles,
-    initialRegistrationFields,
-    initialQuizzes
+    initialRegistrationFields
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -258,51 +257,6 @@ async function main() {
       });
   }
   console.log('Seeded live sessions');
-
-  // Seed Quizzes and Questions
-  for (const quiz of initialQuizzes) {
-    const { questions, ...quizData } = quiz;
-    const quizType = quiz.quizType.toUpperCase() as QuizType;
-    const requiresManualGrading = quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
-
-    const createdQuiz = await prisma.quiz.upsert({
-        where: { id: quiz.id },
-        update: { ...quizData, quizType: quizType, requiresManualGrading },
-        create: { ...quizData, quizType: quizType, requiresManualGrading },
-    });
-
-    for (const question of questions) {
-        const { options, ...questionData } = question;
-        const questionType = question.type.toUpperCase() as QuestionType;
-        const createdQuestion = await prisma.question.upsert({
-            where: { id: question.id },
-            update: {
-                ...questionData,
-                type: questionType,
-                quizId: createdQuiz.id
-            },
-            create: {
-                ...questionData,
-                type: questionType,
-                quizId: createdQuiz.id
-            }
-        });
-
-        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'TRUE_FALSE') {
-            await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
-            for (const option of options) {
-                await prisma.option.create({
-                    data: {
-                        id: option.id,
-                        text: option.text,
-                        questionId: createdQuestion.id,
-                    }
-                });
-            }
-        }
-    }
-  }
-  console.log('Seeded quizzes and questions');
   
   // Seed UserCompletedCourse
   const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
@@ -325,15 +279,15 @@ async function main() {
   
   // Seed Certificate Template
   await prisma.certificateTemplate.upsert({
-    where: { id: "singleton" },
+    where: { trainingProviderId: provider.id },
     update: {},
     create: {
-        id: 'singleton',
         title: "Certificate of Completion",
-        organization: "NIB Training Inc.",
+        organization: provider.name,
         body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
         signatoryName: "Jane Doe",
         signatoryTitle: "Head of Training & Development",
+        trainingProviderId: provider.id,
     }
   });
   console.log('Seeded certificate template');

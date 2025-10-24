@@ -5,12 +5,17 @@ import { CertificateClient } from "./certificate-client";
 import { getSession } from "@/lib/auth";
 
 async function getCertificateData(courseId: string, user: { id: string, name: string }) {
-    const template = await prisma.certificateTemplate.findUnique({
-        where: { id: 'singleton' },
-    });
 
     const course = await prisma.course.findUnique({
         where: { id: courseId },
+    });
+
+    if (!course || !course.trainingProviderId) {
+        return { template: null, course: null, completionDate: null };
+    }
+
+    const template = await prisma.certificateTemplate.findUnique({
+        where: { trainingProviderId: course.trainingProviderId },
     });
     
     // Check if this specific user has completed this course
@@ -29,12 +34,12 @@ async function getCertificateData(courseId: string, user: { id: string, name: st
 }
 
 
-export default async function UserCertificatePage({ params }: { params: Promise<{ courseId: string }> }) {
+export default async function UserCertificatePage({ params }: { params: { courseId: string } }) {
     const user = await getSession();
     if (!user) {
         notFound();
     }
-    const { courseId } = await params;
+    const { courseId } = params;
     const { template, course, completionDate } = await getCertificateData(courseId, user);
 
     if (!template || !course || !completionDate) {

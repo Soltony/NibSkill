@@ -5,16 +5,19 @@ import { CertificateClient } from "./certificate-client";
 import { getSession } from "@/lib/auth";
 
 async function getCertificateData(pathId: string, user: { id: string, name: string }) {
-    const template = await prisma.certificateTemplate.findUnique({
-        where: { id: 'singleton' },
-    });
 
     const learningPath = await prisma.learningPath.findUnique({
         where: { id: pathId },
         include: { courses: true }
     });
 
-    if (!learningPath) return { template: null, learningPath: null, completionDate: null };
+    if (!learningPath || !learningPath.trainingProviderId) {
+        return { template: null, learningPath: null, completionDate: null };
+    }
+    
+    const template = await prisma.certificateTemplate.findUnique({
+        where: { trainingProviderId: learningPath.trainingProviderId },
+    });
 
     const courseIds = learningPath.courses.map(c => c.courseId);
     
