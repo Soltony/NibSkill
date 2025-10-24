@@ -69,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [isLoading, setIsLoading] = useState(true);
 
   const isPublicPage = pathname.startsWith('/login') || pathname.startsWith('/register') || pathname === '/';
+  const isSuperAdminLogin = pathname === '/login/super-admin';
 
   useEffect(() => {
     async function fetchUser() {
@@ -85,10 +86,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           if (user) {
             setCurrentUser(user);
           } else {
-            router.replace('/login');
+            router.replace(isSuperAdminLogin ? '/login/super-admin' : '/login');
           }
         } else {
-           router.replace('/login');
+           router.replace(isSuperAdminLogin ? '/login/super-admin' : '/login');
         }
       } catch (error) {
          console.error("Failed to fetch user", error);
@@ -98,7 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       }
     }
     fetchUser();
-  }, [pathname, isPublicPage, router]);
+  }, [pathname, isPublicPage, router, isSuperAdminLogin]);
 
   if (isPublicPage) {
     return (
@@ -162,16 +163,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
     { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
   ];
-
+  
   const superAdminNavItems = [
     { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin', adminOnly: true, exact: true },
   ];
   
-  let allNavItems = navItems;
+  let currentNavItems;
   if (isSuperAdminView && userRole === 'super admin') {
-    allNavItems = superAdminNavItems;
+    currentNavItems = superAdminNavItems;
   } else if (isAdminView && (userRole === 'admin' || userRole === 'super admin')) {
-    allNavItems = adminNavItems;
+    currentNavItems = adminNavItems;
+  } else {
+    currentNavItems = navItems;
   }
   
 
@@ -218,7 +221,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </div>
                 ) : (
                   <SidebarMenu>
-                    {isSuperAdminView ? (
+                    {isSuperAdminView && userRole === 'super admin' ? (
                       <>
                         <SidebarGroup>
                           <SidebarGroupLabel>Super Admin</SidebarGroupLabel>
@@ -236,7 +239,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </SidebarMenuItem>
                           ))}
                         </SidebarGroup>
-                        <SidebarMenuItem>
+                         <SidebarMenuItem>
                             <Link href={'/admin/analytics'}>
                               <SidebarMenuButton
                                 isActive={isLinkActive('/admin/analytics')}
@@ -248,7 +251,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </Link>
                           </SidebarMenuItem>
                       </>
-                    ) : isAdminView ? (
+                    ) : isAdminView && (userRole === 'admin' || userRole === 'super admin') ? (
                       <>
                         <SidebarGroup>
                           <SidebarGroupLabel>Admin</SidebarGroupLabel>
@@ -266,7 +269,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </SidebarMenuItem>
                           ))}
                         </SidebarGroup>
-                        <SidebarMenuItem>
+                          {userRole === 'super admin' && (
+                            <SidebarMenuItem>
+                                <Link href={'/super-admin'}>
+                                <SidebarMenuButton
+                                    isActive={isLinkActive('/super-admin')}
+                                    tooltip={'Super Admin Dashboard'}
+                                >
+                                    <ShieldCheck />
+                                    <span>Super Admin</span>
+                                </SidebarMenuButton>
+                                </Link>
+                            </SidebarMenuItem>
+                          )}
+                          <SidebarMenuItem>
                             <Link href={'/dashboard'}>
                               <SidebarMenuButton
                                 isActive={isLinkActive('/dashboard')}
@@ -335,7 +351,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div className="flex-1">
                       <h1 className="text-lg font-semibold md:text-xl font-headline">
                           {
-                              allNavItems.find(item => isLinkActive(item.href, item.exact))?.label
+                              currentNavItems.find(item => isLinkActive(item.href, item.exact))?.label
                           }
                       </h1>
                   </div>
