@@ -35,28 +35,31 @@ async function main() {
 
 
   // Seed Districts
-  await prisma.district.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const district of initialDistricts) {
-    await prisma.district.create({
-      data: { ...district, trainingProviderId: provider.id }
+    await prisma.district.upsert({
+      where: { id: district.id },
+      update: { name: district.name },
+      create: { ...district, trainingProviderId: provider.id }
     });
   }
   console.log('Seeded districts');
 
   // Seed Departments
-  await prisma.department.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const department of initialDepartments) {
-    await prisma.department.create({
-      data: { ...department, trainingProviderId: provider.id }
+    await prisma.department.upsert({
+      where: { id: department.id },
+      update: { name: department.name },
+      create: { ...department, trainingProviderId: provider.id }
     });
   }
   console.log('Seeded departments');
 
   // Seed Branches
-  await prisma.branch.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const branch of initialBranches) {
-    await prisma.branch.create({
-      data: { ...branch, trainingProviderId: provider.id }
+    await prisma.branch.upsert({
+      where: { id: branch.id },
+      update: { name: branch.name, districtId: branch.districtId },
+      create: { ...branch, trainingProviderId: provider.id }
     })
   }
   console.log('Seeded branches');
@@ -121,7 +124,6 @@ async function main() {
 
 
   // Seed Badges
-  await prisma.badge.deleteMany({});
   for (const badge of initialBadges) {
     await prisma.badge.upsert({
         where: { id: badge.id },
@@ -151,7 +153,6 @@ async function main() {
   }
 
   // Seed Products
-  await prisma.product.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const product of initialProducts) {
     await prisma.product.upsert({
         where: { id: product.id },
@@ -169,7 +170,6 @@ async function main() {
   console.log('Seeded products');
 
   // Seed Courses and Modules
-  await prisma.course.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const course of initialCourses) {
     const { modules, image, ...courseData } = course as any;
     const createdCourse = await prisma.course.upsert({
@@ -212,7 +212,6 @@ async function main() {
   console.log('Seeded courses and modules');
 
   // Seed Learning Paths
-  await prisma.learningPath.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const path of initialLearningPaths) {
     await prisma.learningPath.upsert({
       where: { id: path.id },
@@ -239,7 +238,6 @@ async function main() {
   console.log('Seeded learning paths');
 
   // Seed Live Sessions
-  await prisma.liveSession.deleteMany({ where: { trainingProviderId: provider.id }});
   for (const session of initialLiveSessions) {
       const { attendees, ...sessionData } = session;
       const { allowedAttendees, ...rest } = sessionData as any;
