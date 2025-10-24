@@ -37,7 +37,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'staff' | 'super-admin';
+  role: 'admin' | 'staff' | 'super-admin' | 'provider-admin';
   department: string;
   district: string;
   branch: string;
@@ -391,6 +391,19 @@ export const roles: Role[] = [
     }
   },
   {
+    id: "provider-admin",
+    name: "Training Provider",
+    permissions: {
+      courses: { c: true, r: true, u: true, d: true },
+      users: { c: true, r: true, u: true, d: true },
+      analytics: { c: true, r: true, u: true, d: true },
+      products: { c: true, r: true, u: true, d: true },
+      quizzes: { c: true, r: true, u: true, d: true },
+      staff: { c: true, r: true, u: true, d: true },
+      liveSessions: { c: true, r: true, u: true, d: true },
+    }
+  },
+  {
     id: "admin",
     name: "Admin",
     permissions: {
@@ -573,4 +586,5 @@ export type UserCompletedCourse = {
     score: number;
 }
 export { FieldType };
+
 

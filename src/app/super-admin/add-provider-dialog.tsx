@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react"
@@ -35,6 +36,7 @@ const formSchema = z.object({
   adminFirstName: z.string().min(2, "Admin first name is required."),
   adminLastName: z.string().min(2, "Admin last name is required."),
   adminEmail: z.string().email("A valid email is required."),
+  adminPassword: z.string().min(6, "Password must be at least 6 characters."),
   adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
 })
 
@@ -51,6 +53,7 @@ export function AddProviderDialog() {
       adminFirstName: "",
       adminLastName: "",
       adminEmail: "",
+      adminPassword: "",
       adminPhoneNumber: "",
     },
   })
@@ -84,7 +87,7 @@ export function AddProviderDialog() {
         <DialogHeader>
           <DialogTitle>Register New Training Provider</DialogTitle>
           <DialogDescription>
-            Fill in the details below to register a new provider.
+            Fill in the details below to register a new provider and create their admin account.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -154,6 +157,17 @@ export function AddProviderDialog() {
                 <FormItem>
                   <FormLabel>Admin Email</FormLabel>
                   <FormControl><Input type="email" placeholder="admin@acme.com" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="adminPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Admin Password</FormLabel>
+                  <FormControl><Input type="password" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -10,19 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model TrainingProvider {
-  id               String   @id @default(cuid())
-  name             String   @unique
-  address          String
-  accountNumber    String   @unique
-  adminFirstName   String
-  adminLastName    String
-  adminEmail       String   @unique
-  adminPhoneNumber String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
 model User {
   id                    String                    @id @default(cuid())
   name                  String
@@ -35,10 +22,12 @@ model User {
   branchId              String?
   phoneNumber           String?
   activeSessionId       String?                   @unique
+  trainingProviderId    String?
   role                  Role                      @relation(fields: [roleId], references: [id])
   department            Department?               @relation(fields: [departmentId], references: [id])
   district              District?                 @relation(fields: [districtId], references: [id])
   branch                Branch?                   @relation(fields: [branchId], references: [id])
+  trainingProvider      TrainingProvider?         @relation("ProviderUsers", fields: [trainingProviderId], references: [id])
   completedModules      UserCompletedModule[]
   completedCourses      UserCompletedCourse[]
   badges                UserBadge[]
@@ -59,37 +48,50 @@ model Role {
 }
 
 model Department {
-  id    String   @id @default(cuid())
-  name  String   @unique
-  users User[]
+  id                 String   @id @default(cuid())
+  name               String
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id])
+  users              User[]
+
+  @@unique([name, trainingProviderId])
 }
 
 model District {
-  id       String   @id @default(cuid())
-  name     String   @unique
-  users    User[]
-  branches Branch[]
+  id                 String   @id @default(cuid())
+  name               String
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id])
+  users              User[]
+  branches           Branch[]
+
+  @@unique([name, trainingProviderId])
 }
 
 model Branch {
-  id         String   @id @default(cuid())
-  name       String
-  districtId String
-  district   District @relation(fields: [districtId], references: [id])
-  users      User[]
+  id                 String   @id @default(cuid())
+  name               String
+  districtId         String
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id])
+  district           District @relation(fields: [districtId], references: [id])
+  users              User[]
 
   @@unique([name, districtId])
 }
 
 model Product {
-  id           String   @id @default(cuid())
-  name         String   @unique
-  description  String
-  imageUrl     String
-  imageHint    String?
-  courses      Course[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  description        String
+  imageUrl           String
+  imageHint          String?
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id])
+  courses            Course[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  @@unique([name, trainingProviderId])
 }
 
 model Course {
@@ -103,13 +105,15 @@ model Course {
   price              Float?
   currency           Currency?
   hasCertificate     Boolean               @default(false)
+  status             String                @default("PENDING")
   productId          String?
+  trainingProviderId String
+  trainingProvider   TrainingProvider      @relation(fields: [trainingProviderId], references: [id])
   product            Product?              @relation(fields: [productId], references: [id])
   modules            Module[]
   learningPath       LearningPathCourse[]
   completedBy        UserCompletedCourse[]
   quiz               Quiz?
-  status             String                @default("PENDING")
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 }
@@ -212,13 +216,15 @@ model Answer {
 }
 
 model LearningPath {
-  id             String               @id @default(cuid())
-  title          String
-  description    String
-  hasCertificate Boolean              @default(false)
-  courses        LearningPathCourse[]
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  id                 String               @id @default(cuid())
+  title              String
+  description        String
+  hasCertificate   Boolean              @default(false)
+  trainingProviderId String
+  trainingProvider   TrainingProvider     @relation(fields: [trainingProviderId], references: [id])
+  courses            LearningPathCourse[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 }
 
 model LearningPathCourse {
@@ -241,6 +247,8 @@ model LiveSession {
   platform           LiveSessionPlatform
   joinUrl            String
   recordingUrl       String?
+  trainingProviderId String
+  trainingProvider   TrainingProvider          @relation(fields: [trainingProviderId], references: [id])
   attendees          UserAttendedLiveSession[]
   isRestricted       Boolean                   @default(false)
   allowedAttendees   LiveSessionAllowedUser[]
@@ -286,7 +294,9 @@ model UserBadge {
 }
 
 model CertificateTemplate {
-  id             String  @id
+  id             String  @id @default(cuid())
+  trainingProviderId String
+  trainingProvider TrainingProvider @relation(fields: [trainingProviderId], references: [id])
   title          String
   organization   String
   body           String
@@ -294,17 +304,21 @@ model CertificateTemplate {
   signatoryTitle String
   signatureUrl   String?
   stampUrl       String?
+
+  @@unique([trainingProviderId])
 }
 
 model RegistrationField {
-  id        String   @id @default(cuid())
-  label     String
-  type      FieldType
-  options   String[]
-  enabled   Boolean  @default(false)
-  required  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  label              String
+  type               FieldType
+  options            String[]
+  enabled            Boolean  @default(false)
+  required           Boolean  @default(false)
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model Notification {
@@ -326,6 +340,25 @@ model LoginHistory {
   userAgent  String?
 }
 
+model TrainingProvider {
+  id                  String                @id @default(cuid())
+  name                String                @unique
+  address             String
+  accountNumber       String                @unique
+  adminUser           User?                 @relation("ProviderAdmin")
+  users               User[]                @relation("ProviderUsers")
+  departments         Department[]
+  districts           District[]
+  branches            Branch[]
+  products            Product[]
+  courses             Course[]
+  learningPaths       LearningPath[]
+  liveSessions        LiveSession[]
+  certificateTemplate CertificateTemplate?
+  registrationFields  RegistrationField[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+}
 
 enum ModuleType {
   video

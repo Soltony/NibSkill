@@ -1,4 +1,5 @@
 
+
 import 'server-only';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
@@ -19,6 +20,7 @@ interface CustomJwtPayload extends JWTPayload {
     email: string;
     avatarUrl: string;
     sessionId: string; // The unique ID for this specific session
+    trainingProviderId?: string;
 }
 
 export async function getSession() {
@@ -36,7 +38,7 @@ export async function getSession() {
         // Fetch the user's current active session ID from the database
         const user = await prisma.user.findUnique({
             where: { id: payload.userId },
-            select: { activeSessionId: true }
+            select: { activeSessionId: true, trainingProviderId: true }
         });
 
         // If the user doesn't exist or the session ID in the token doesn't match the one in DB, the session is invalid.
@@ -52,7 +54,8 @@ export async function getSession() {
             role: payload.role,
             name: payload.name,
             email: payload.email,
-            avatarUrl: payload.avatarUrl
+            avatarUrl: payload.avatarUrl,
+            trainingProviderId: user.trainingProviderId
         };
     } catch (error) {
         console.error("Session validation error:", error);

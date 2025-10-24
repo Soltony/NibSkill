@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import bcrypt from 'bcryptjs'
 
 const formSchema = z.object({
   name: z.string().min(2, "Provider name is required."),
@@ -12,6 +13,7 @@ const formSchema = z.object({
   adminFirstName: z.string().min(2, "Admin first name is required."),
   adminLastName: z.string().min(2, "Admin last name is required."),
   adminEmail: z.string().email("A valid email is required."),
+  adminPassword: z.string().min(6, "Password must be at least 6 characters."),
   adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
 })
 
@@ -22,8 +24,41 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
             return { success: false, message: "Invalid data provided." }
         }
 
+        const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPassword, adminPhoneNumber } = validatedFields.data;
+
+        // Check if admin email already exists
+        const existingUser = await prisma.user.findUnique({
+            where: { email: adminEmail }
+        });
+        if (existingUser) {
+            return { success: false, message: "A user with this email already exists." };
+        }
+
+        const providerAdminRole = await prisma.role.findFirst({
+            where: { name: 'Training Provider' }
+        });
+        if (!providerAdminRole) {
+            throw new Error("Training Provider role not found.");
+        }
+
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
         await prisma.trainingProvider.create({
-            data: validatedFields.data
+            data: {
+                name,
+                address,
+                accountNumber,
+                adminUser: {
+                    create: {
+                        name: `${adminFirstName} ${adminLastName}`,
+                        email: adminEmail,
+                        password: hashedPassword,
+                        phoneNumber: adminPhoneNumber,
+                        roleId: providerAdminRole.id,
+                        avatarUrl: `https://picsum.photos/seed/${adminEmail}/100/100`,
+                    }
+                }
+            }
         });
 
         revalidatePath('/super-admin');

@@ -1,4 +1,5 @@
 
+
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         avatarUrl: user.avatarUrl,
         sessionId: newSessionId, // Embed the session ID in the token
+        trainingProviderId: user.trainingProviderId,
      })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
