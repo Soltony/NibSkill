@@ -1,5 +1,6 @@
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType } from '@prisma/client'
+
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -146,12 +147,18 @@ async function main() {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
+        isPaid: courseData.isPaid,
+        price: courseData.price,
+        currency: courseData.currency,
       },
       create: {
         id: courseData.id,
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
+        isPaid: courseData.isPaid,
+        price: courseData.price,
+        currency: courseData.currency,
         imageUrl: image?.imageUrl,
         imageDescription: image?.description,
         imageHint: image?.imageHint,
@@ -193,14 +200,15 @@ async function main() {
   // Seed Live Sessions
   for (const session of initialLiveSessions) {
       const { attendees, ...sessionData } = session;
+      const { allowedAttendees, ...rest } = sessionData as any;
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
-              ...sessionData,
+              ...rest,
               platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           },
           create: {
-              ...sessionData,
+              ...rest,
               platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           }
       });

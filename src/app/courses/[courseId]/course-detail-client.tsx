@@ -19,7 +19,7 @@ import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart } 
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User } from '@prisma/client';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency } from '@prisma/client';
 import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
 import { toggleModuleCompletion } from '@/app/actions/user-actions';
 import { UserContext } from '@/app/layout';
@@ -126,6 +126,12 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   const displayImageUrl = course.imageUrl ?? course.product?.imageUrl;
   const displayImageHint = course.imageHint ?? course.product?.imageHint;
   const displayImageDescription = course.imageDescription ?? course.product?.description;
+  
+  const getCurrencySymbol = (currency: Currency | null | undefined) => {
+    if (currency === 'USD') return '$';
+    if (currency === 'ETB') return 'Br';
+    return '';
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -149,7 +155,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
           </div>
           {course.isPaid && course.price && (
             <Badge variant="secondary" className="text-lg">
-              ${course.price.toFixed(2)}
+              {getCurrencySymbol(course.currency)}{course.price.toFixed(2)}
             </Badge>
           )}
         </div>

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { usePathname } from 'next/navigation';
-import type { Course, Product } from '@prisma/client';
+import type { Course, Product, Currency } from '@prisma/client';
 import { Skeleton } from './ui/skeleton';
 import { Badge } from './ui/badge';
 
@@ -31,6 +31,12 @@ export function CourseCard({ course }: { course: CourseWithProgressAndProduct })
   const displayImageUrl = course.imageUrl ?? course.product?.imageUrl;
   const displayImageHint = course.imageHint ?? course.product?.imageHint;
   const displayImageDescription = course.imageDescription ?? course.product?.description;
+
+  const getCurrencySymbol = (currency: Currency | null | undefined) => {
+    if (currency === 'USD') return '$';
+    if (currency === 'ETB') return 'Br';
+    return '';
+  }
 
   return (
     <Link href={courseLink} className="block h-full transition-transform hover:scale-[1.02]">
@@ -50,7 +56,7 @@ export function CourseCard({ course }: { course: CourseWithProgressAndProduct })
             )}
              {course.isPaid && course.price && (
               <Badge className="absolute top-2 right-2" variant="secondary">
-                ${course.price.toFixed(2)}
+                {getCurrencySymbol(course.currency)}{course.price.toFixed(2)}
               </Badge>
             )}
           </div>

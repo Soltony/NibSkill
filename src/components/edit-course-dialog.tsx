@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast"
 import { updateCourse } from "@/app/actions/course-actions"
 import type { Course, Product } from "@prisma/client"
 import { Switch } from "./ui/switch"
+import { Currency } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -45,9 +46,13 @@ const formSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters long."),
   isPaid: z.boolean().default(false),
   price: z.coerce.number().optional(),
+  currency: z.nativeEnum(Currency).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
+}).refine(data => !data.isPaid || (data.currency !== undefined), {
+    message: "Currency is required for paid courses.",
+    path: ["currency"],
 });
 
 type EditCourseDialogProps = {
@@ -68,6 +73,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
       description: course.description,
       isPaid: course.isPaid,
       price: course.price ?? undefined,
+      currency: course.currency ?? undefined,
     },
   })
   
@@ -81,6 +87,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
         description: course.description,
         isPaid: course.isPaid,
         price: course.price ?? undefined,
+        currency: course.currency ?? undefined,
       })
     }
   }, [open, course, form])
@@ -105,7 +112,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Course</DialogTitle>
           <DialogDescription>
@@ -113,7 +120,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
             <FormField
               control={form.control}
               name="title"
@@ -186,19 +193,42 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
               )}
             />
             {isPaid && (
-               <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price ($)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 49.99" {...field} step="0.01" value={field.value ?? ""} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Price</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="e.g., 49.99" {...field} step="0.01" value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select currency" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="USD">USD ($)</SelectItem>
+                                <SelectItem value="ETB">ETB (Br)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+               </div>
             )}
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>

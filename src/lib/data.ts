@@ -2,7 +2,7 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import type { FieldType, LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType } from '@prisma/client';
+import type { FieldType, LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType, Currency } from '@prisma/client';
 
 export enum QuizType {
   OPEN_LOOP = "OPEN_LOOP",
@@ -63,6 +63,7 @@ export type Course = {
   image: ImagePlaceholder;
   isPaid?: boolean;
   price?: number;
+  currency?: Currency;
 };
 
 export type Question = {
@@ -262,6 +263,7 @@ export const courses: Course[] = [
     image: PlaceHolderImages[1],
     isPaid: true,
     price: 49.99,
+    currency: 'USD',
     modules: [
       { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#' },
       { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },

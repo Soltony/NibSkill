@@ -5,6 +5,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { Currency } from '@prisma/client'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -12,9 +13,13 @@ const formSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters long."),
   isPaid: z.boolean().default(false),
   price: z.coerce.number().optional(),
+  currency: z.nativeEnum(Currency).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
+}).refine(data => !data.isPaid || (data.currency !== undefined), {
+    message: "Currency is required for paid courses.",
+    path: ["currency"],
 });
 
 export async function addCourse(values: z.infer<typeof formSchema>) {
@@ -39,6 +44,7 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
                 productId: validatedFields.data.productId,
                 isPaid: validatedFields.data.isPaid,
                 price: validatedFields.data.isPaid ? validatedFields.data.price : null,
+                currency: validatedFields.data.isPaid ? validatedFields.data.currency : null,
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description, // Use product description as a fallback for image description
@@ -76,6 +82,7 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
                 productId: validatedFields.data.productId,
                 isPaid: validatedFields.data.isPaid,
                 price: validatedFields.data.isPaid ? validatedFields.data.price : null,
+                currency: validatedFields.data.isPaid ? validatedFields.data.currency : null,
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description,
