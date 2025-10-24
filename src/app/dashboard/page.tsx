@@ -1,5 +1,4 @@
 
-import { CourseCard } from '@/components/course-card';
 import {
   Card,
   CardContent,
@@ -11,13 +10,28 @@ import { Button } from '@/components/ui/button';
 import { Radio } from 'lucide-react';
 import Link from 'next/link';
 import prisma from '@/lib/db';
-import type { Course, LiveSession } from '@prisma/client';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { DashboardClient } from './dashboard-client';
+import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse } from '@prisma/client';
 
-async function getDashboardData(userId: string) {
+type CourseWithProgress = Course & {
+  progress: number;
+  product: Product | null;
+  modules: Module[];
+};
+
+async function getDashboardData(userId: string): Promise<{
+  courses: CourseWithProgress[];
+  products: Product[];
+  liveSessions: any[];
+}> {
     const courses = await prisma.course.findMany({
         include: { modules: true, product: true }
+    });
+
+    const products = await prisma.product.findMany({
+        orderBy: { name: 'asc' }
     });
 
     const liveSessions = await prisma.liveSession.findMany({
@@ -65,6 +79,7 @@ async function getDashboardData(userId: string) {
 
     return {
         courses: coursesWithProgress,
+        products,
         liveSessions,
     }
 }
@@ -77,7 +92,7 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const { courses, liveSessions } = await getDashboardData(currentUser.id);
+  const { courses, products, liveSessions } = await getDashboardData(currentUser.id);
 
   return (
     <div className="space-y-8">
@@ -85,16 +100,10 @@ export default async function DashboardPage() {
         <h1 className="text-3xl font-bold font-headline">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
         <p className="text-muted-foreground">
           Continue your learning journey and stay updated with live events.
-        </p>      </div>
+        </p>
+      </div>
 
-      <section>
-        <h2 className="text-2xl font-semibold font-headline mb-4">My Courses</h2>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((course) => (
-            <CourseCard key={course.id} course={course} />
-          ))}
-        </div>
-      </section>
+      <DashboardClient courses={courses} products={products} />
 
       <section>
         <Card>
