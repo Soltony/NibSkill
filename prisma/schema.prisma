@@ -10,6 +10,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model TrainingProvider {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  address          String
+  accountNumber    String   @unique
+  adminFirstName   String
+  adminLastName    String
+  adminEmail       String   @unique
+  adminPhoneNumber String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 model User {
   id                    String                    @id @default(cuid())
   name                  String
@@ -90,13 +103,13 @@ model Course {
   price              Float?
   currency           Currency?
   hasCertificate     Boolean               @default(false)
-  status             CourseStatus          @default(PENDING)
   productId          String?
   product            Product?              @relation(fields: [productId], references: [id])
   modules            Module[]
   learningPath       LearningPathCourse[]
   completedBy        UserCompletedCourse[]
   quiz               Quiz?
+  status             String                @default("PENDING")
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 }
@@ -354,9 +367,4 @@ enum FieldType {
 enum Currency {
   USD
   ETB
-}
-
-enum CourseStatus {
-  PENDING
-  PUBLISHED
 }

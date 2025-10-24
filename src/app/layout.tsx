@@ -38,6 +38,7 @@ import {
   UserCheck,
   Edit,
   Bell,
+  ShieldCheck,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
@@ -136,16 +137,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   // Simple logic to switch between user roles for demonstration
-  const isAdminView = pathname.startsWith('/admin');
+  const isAdminView = pathname.startsWith('/admin') || pathname.startsWith('/super-admin');
   const userRole = currentUser?.role?.name.toLowerCase() || 'staff';
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+    { href: '/courses', icon: BookCopy, label: 'Courses', adminOnly: false },
     { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
     { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
   ];
 
   const adminNavItems = [
+    { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin', adminOnly: true, exact: true },
     { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
     { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
     { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
@@ -165,6 +168,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const isLinkActive = (path: string, exact?: boolean) => {
     if (exact) {
         return pathname === path;
+    }
+    if (path === '/courses' && pathname.startsWith('/courses/')) {
+        return true;
     }
     return pathname.startsWith(path);
   }
@@ -207,6 +213,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <SidebarGroup>
                           <SidebarGroupLabel>Admin</SidebarGroupLabel>
                           {adminNavItems.map((item) => (
+                            item.href === '/super-admin' && userRole !== 'super-admin' ? null :
                             <SidebarMenuItem key={item.href}>
                               <Link href={item.href}>
                                 <SidebarMenuButton
@@ -264,7 +271,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div className="flex items-center gap-3 p-2">
                     <Link href="/profile" className="flex-1 flex items-center gap-3 overflow-hidden group">
                       <Avatar>
-                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                        <AvatarImage src={currentUser.avatarUrl ?? ''} alt={currentUser.name} />
                         <AvatarFallback>
                           {currentUser.name.charAt(0)}
                         </AvatarFallback>
@@ -289,7 +296,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div className="flex-1">
                       <h1 className="text-lg font-semibold md:text-xl font-headline">
                           {
-                              [...navItems, ...adminNavItems].find(item => isLinkActive(item.href, item.exact))?.label
+                              allNavItems.find(item => isLinkActive(item.href, item.exact))?.label
                           }
                       </h1>
                   </div>
