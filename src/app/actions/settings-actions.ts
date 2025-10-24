@@ -7,6 +7,7 @@ import { z } from 'zod'
 import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { FieldType } from '@prisma/client'
+import { getSession } from '@/lib/auth'
 
 const updateUserRoleSchema = z.object({
   userId: z.string(),
@@ -41,6 +42,11 @@ const registerUserSchema = z.object({
 
 export async function registerUser(values: z.infer<typeof registerUserSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized operation." };
+        }
+
         const validatedFields = registerUserSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: 'Invalid data provided.' };
@@ -55,6 +61,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 password: hashedPassword,
                 roleId: validatedFields.data.roleId,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
+                trainingProviderId: session.trainingProviderId,
             }
         });
 
@@ -89,6 +96,11 @@ const roleSchema = z.object({
 
 export async function addRole(values: z.infer<typeof roleSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized" };
+        }
+
         const validatedFields = roleSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: 'Invalid data provided.' };
@@ -97,7 +109,8 @@ export async function addRole(values: z.infer<typeof roleSchema>) {
         await prisma.role.create({
             data: {
                 name: validatedFields.data.name,
-                permissions: validatedFields.data.permissions as any,
+                permissions: validatedFields.data.permissions,
+                trainingProviderId: session.trainingProviderId,
             }
         });
 
@@ -106,6 +119,9 @@ export async function addRole(values: z.infer<typeof roleSchema>) {
 
     } catch (error) {
         console.error("Error creating role:", error);
+        if ((error as any).code === 'P2002') {
+            return { success: false, message: 'A role with this name already exists for your organization.' };
+        }
         return { success: false, message: 'Failed to create role.' };
     }
 }
@@ -121,7 +137,7 @@ export async function updateRole(id: string, values: z.infer<typeof roleSchema>)
             where: { id },
             data: {
                 name: validatedFields.data.name,
-                permissions: validatedFields.data.permissions as any,
+                permissions: validatedFields.data.permissions,
             }
         });
 
@@ -195,6 +211,11 @@ const addFieldSchema = z.object({
 
 export async function addRegistrationField(values: z.infer<typeof addFieldSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized" };
+        }
+
         const validatedFields = addFieldSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
@@ -207,7 +228,8 @@ export async function addRegistrationField(values: z.infer<typeof addFieldSchema
                 type: validatedFields.data.type,
                 options: validatedFields.data.options?.split(',').map(o => o.trim()).filter(o => o),
                 enabled: false,
-                required: false
+                required: false,
+                trainingProviderId: session.trainingProviderId,
             }
         });
         
@@ -233,4 +255,3 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
-

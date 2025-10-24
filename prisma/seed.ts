@@ -66,6 +66,7 @@ async function main() {
   
   // Seed Roles and Permissions
   for (const role of initialRoles) {
+    const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
     await prisma.role.upsert({
       where: { name: role.name },
       update: {
@@ -75,6 +76,7 @@ async function main() {
         id: role.id,
         name: role.name,
         permissions: role.permissions as any,
+        trainingProviderId: isGlobal ? undefined : provider.id,
       },
     });
   }
