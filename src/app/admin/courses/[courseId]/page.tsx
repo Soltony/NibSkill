@@ -30,6 +30,7 @@ async function getCourseData(courseId: string) {
     return null;
   }
   
+  // This data is for the mock progress bar, it is not user-specific
   const completedModules = await prisma.userCompletedModule.findMany({
     where: {
       moduleId: {
