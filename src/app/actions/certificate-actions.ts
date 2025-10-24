@@ -14,6 +14,9 @@ const formSchema = z.object({
   signatoryTitle: z.string().min(3, "Signatory title is required"),
   signatureUrl: z.string().nullable(),
   stampUrl: z.string().nullable(),
+  primaryColor: z.string().optional(),
+  borderStyle: z.string().optional(),
+  templateStyle: z.string().optional(),
 })
 
 export async function updateCertificateTemplate(values: z.infer<typeof formSchema>) {

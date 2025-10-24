@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MoveLeft, Download } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { cn } from "@/lib/utils";
 
 type CertificateClientProps = {
     template: CertificateTemplate;
@@ -21,6 +22,11 @@ export function CertificateClient({ template, path, user, completionDate }: Cert
     // Using a more generic body text for learning paths
     const certificateBody = `This certificate is proudly presented to ${user.name} for successfully completing the ${path.title} learning path on ${completionDate.toLocaleDateString()}.`;
     
+    const certificateStyle = {
+      '--cert-primary': template.primaryColor,
+      borderStyle: template.borderStyle,
+    } as React.CSSProperties;
+
     return (
         <div className="space-y-8">
             <div className="flex items-center justify-between print-hidden">
@@ -42,20 +48,45 @@ export function CertificateClient({ template, path, user, completionDate }: Cert
                 </Button>
             </div>
 
-            <Card className="aspect-[11/8.5] w-full p-8 flex flex-col items-center justify-between text-center bg-white shadow-2xl relative overflow-hidden print:shadow-none print:border">
-                <div className="absolute inset-0 border-4 border-primary/20 m-2 rounded-lg print:border-primary/80"></div>
-                <div className="absolute inset-0 border-8 border-primary/80 m-4 rounded-lg print:border-primary"></div>
+            <Card 
+              className={cn(
+                "aspect-[11/8.5] w-full p-8 flex flex-col items-center justify-between text-center bg-white shadow-2xl relative overflow-hidden print:shadow-none print:border",
+                template.templateStyle === "Classic" && "font-serif",
+                template.templateStyle === "Formal" && "font-sans"
+              )}
+              style={certificateStyle}
+            >
+                <div 
+                  className="absolute inset-0 border-4 m-2 rounded-lg"
+                  style={{ borderColor: template.primaryColor || undefined, opacity: 0.2 }}
+                />
+                <div
+                  className="absolute inset-0 border-8 m-4 rounded-lg"
+                  style={{ borderColor: template.primaryColor || undefined, opacity: 0.8, borderStyle: template.borderStyle || 'solid' }}
+                />
                 
                 <div className="z-10 w-full">
                     <div className="flex justify-center items-center gap-4 mb-4">
-                        <Logo />
+                        <Logo color={template.primaryColor || undefined}/>
                     </div>
                     <p className="text-xl font-semibold text-muted-foreground">{template.organization}</p>
                 </div>
                 
                 <div className="z-10">
-                    <h1 className="text-5xl font-bold font-headline text-primary mb-4">{template.title}</h1>
-                    <p className="text-lg text-foreground/80 max-w-xl mx-auto">
+                   <h1 
+                      className={cn(
+                          "font-bold mb-4",
+                          template.templateStyle === "Classic" ? "text-5xl" : "text-4xl",
+                          template.templateStyle === "Formal" ? "text-6xl tracking-widest uppercase" : "font-headline"
+                      )}
+                      style={{ color: template.primaryColor || undefined }}
+                    >
+                      {template.title}
+                    </h1>
+                    <p className={cn(
+                      "max-w-xl mx-auto",
+                      template.templateStyle === "Formal" ? "text-base" : "text-lg text-foreground/80"
+                    )}>
                         {certificateBody}
                     </p>
                 </div>
@@ -69,7 +100,7 @@ export function CertificateClient({ template, path, user, completionDate }: Cert
                         ) : (
                             <div className="h-16"></div>
                         )}
-                        <p className="font-serif text-xl italic">{template.signatoryName}</p>
+                        <p className={cn("text-xl", template.templateStyle === "Formal" ? "font-sans" : "font-serif italic")}>{template.signatoryName}</p>
                         <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
                         <p className="text-sm text-muted-foreground">{template.signatoryTitle}</p>
                     </div>
@@ -80,7 +111,7 @@ export function CertificateClient({ template, path, user, completionDate }: Cert
                     )}
                         <div className="text-center">
                         <div className="h-16"></div>
-                        <p className="font-serif text-xl italic">{completionDate.toLocaleDateString()}</p>
+                        <p className={cn("text-xl", template.templateStyle === "Formal" ? "font-sans" : "font-serif italic")}>{completionDate.toLocaleDateString()}</p>
                         <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
                         <p className="text-sm text-muted-foreground">Date of Issue</p>
                     </div>

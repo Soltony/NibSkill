@@ -16,6 +16,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -26,9 +27,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/logo";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { X, Palette, Brush, Check } from "lucide-react";
 import { updateCertificateTemplate } from "@/app/actions/certificate-actions";
 import type { CertificateTemplate } from "@prisma/client";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -38,6 +40,9 @@ const formSchema = z.object({
   signatoryTitle: z.string().min(3, "Signatory title is required"),
   signatureUrl: z.string().nullable(),
   stampUrl: z.string().nullable(),
+  primaryColor: z.string().optional(),
+  borderStyle: z.string().optional(),
+  templateStyle: z.string().optional(),
 });
 
 type CertificateTemplateForm = z.infer<typeof formSchema>;
@@ -45,6 +50,10 @@ type CertificateTemplateForm = z.infer<typeof formSchema>;
 type CertificateFormProps = {
   template: CertificateTemplate;
 };
+
+const colorOptions = ["#4a6e3a", "#3b82f6", "#8b5cf6", "#ec4899", "#f97316"];
+const borderStyleOptions = ["solid", "double", "dotted", "dashed"];
+const templateStyleOptions = ["Modern", "Classic", "Formal"];
 
 export function CertificateForm({ template }: CertificateFormProps) {
   const { toast } = useToast();
@@ -55,6 +64,9 @@ export function CertificateForm({ template }: CertificateFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       ...template,
+      primaryColor: template.primaryColor || colorOptions[0],
+      borderStyle: template.borderStyle || borderStyleOptions[0],
+      templateStyle: template.templateStyle || templateStyleOptions[0],
       signatureUrl: template.signatureUrl,
       stampUrl: template.stampUrl,
     },
@@ -109,13 +121,18 @@ export function CertificateForm({ template }: CertificateFormProps) {
     .replace('[Course Name]', 'New Product Launch: FusionX')
     .replace('[Completion Date]', new Date().toLocaleDateString());
 
+  const certificateStyle = {
+    '--cert-primary': watchedValues.primaryColor,
+    borderStyle: watchedValues.borderStyle,
+  } as React.CSSProperties;
+
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div className="lg:col-span-1">
         <Card>
           <CardHeader>
             <CardTitle>Customize Certificate</CardTitle>
-            <CardDescription>Use the form below to edit the certificate content. Placeholders like [Student Name] are supported.</CardDescription>
+            <CardDescription>Use the form below to edit the certificate content and style. Placeholders like [Student Name] are supported.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -175,6 +192,57 @@ export function CertificateForm({ template }: CertificateFormProps) {
                     </FormItem>
                   )}
                 />
+
+                <div className="space-y-4 rounded-lg border p-4">
+                    <h3 className="text-sm font-medium">Styling</h3>
+                    <FormField
+                    control={form.control}
+                    name="primaryColor"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Primary Color</FormLabel>
+                        <div className="flex gap-2">
+                            {colorOptions.map(color => (
+                            <Button
+                                key={color}
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 rounded-full"
+                                style={{ backgroundColor: color }}
+                                onClick={() => field.onChange(color)}
+                            >
+                                {field.value === color && <Check className="h-5 w-5 text-white" />}
+                            </Button>
+                            ))}
+                        </div>
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="templateStyle"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel className="flex items-center gap-2"><Brush className="h-4 w-4" /> Template Style</FormLabel>
+                        <div className="flex gap-2">
+                            {templateStyleOptions.map(style => (
+                            <Button
+                                key={style}
+                                type="button"
+                                variant={field.value === style ? 'default' : 'outline'}
+                                onClick={() => field.onChange(style)}
+                            >
+                                {style}
+                            </Button>
+                            ))}
+                        </div>
+                        </FormItem>
+                    )}
+                    />
+                </div>
+
+
                 <FormItem>
                   <FormLabel>Signatory Signature</FormLabel>
                   {signatureUrl ? (
@@ -218,17 +286,49 @@ export function CertificateForm({ template }: CertificateFormProps) {
 
       <div className="lg:col-span-2">
         <h2 className="text-2xl font-semibold font-headline mb-4">Live Preview</h2>
-        <Card className="aspect-[11/8.5] w-full p-8 flex flex-col items-center justify-between text-center bg-white shadow-2xl relative overflow-hidden">
-          <div className="absolute inset-0 border-4 border-primary/20 m-2 rounded-lg"></div>
-          <div className="absolute inset-0 border-8 border-primary/80 m-4 rounded-lg"></div>
+        <Card
+          className={cn(
+            "aspect-[11/8.5] w-full p-8 flex flex-col items-center justify-between text-center bg-white shadow-2xl relative overflow-hidden",
+            watchedValues.templateStyle === "Classic" && "font-serif",
+            watchedValues.templateStyle === "Formal" && "font-sans"
+          )}
+          style={certificateStyle}
+        >
+          <div 
+            className="absolute inset-0 border-4 m-2 rounded-lg"
+            style={{ borderColor: watchedValues.primaryColor, opacity: 0.2 }}
+          />
+          <div
+            className="absolute inset-0 border-8 m-4 rounded-lg"
+            style={{ borderColor: watchedValues.primaryColor, opacity: 0.8, borderStyle: watchedValues.borderStyle }}
+          />
+
           <div className="z-10 w-full">
-            <div className="flex justify-center items-center gap-4 mb-4"><Logo /></div>
+            <div className="flex justify-center items-center gap-4 mb-4">
+              <Logo color={watchedValues.primaryColor} />
+            </div>
             <p className="text-xl font-semibold text-muted-foreground">{watchedValues.organization}</p>
           </div>
+
           <div className="z-10">
-            <h1 className="text-5xl font-bold font-headline text-primary mb-4">{watchedValues.title}</h1>
-            <p className="text-lg text-foreground/80 max-w-xl mx-auto">{previewBody}</p>
+            <h1
+              className={cn(
+                "font-bold mb-4",
+                watchedValues.templateStyle === "Classic" ? "text-5xl" : "text-4xl",
+                watchedValues.templateStyle === "Formal" ? "text-6xl tracking-widest uppercase" : "font-headline"
+              )}
+              style={{ color: watchedValues.primaryColor }}
+            >
+              {watchedValues.title}
+            </h1>
+            <p className={cn(
+              "max-w-xl mx-auto",
+              watchedValues.templateStyle === "Formal" ? "text-base" : "text-lg text-foreground/80"
+            )}>
+              {previewBody}
+            </p>
           </div>
+          
           <div className="z-10 w-full flex justify-around items-end">
             <div className="text-center">
               {signatureUrl ? (
@@ -236,7 +336,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
                   <Image src={signatureUrl} alt="Signature" layout="fill" objectFit="contain" />
                 </div>
               ) : <div className="h-16"></div>}
-              <p className="font-serif text-xl italic">{watchedValues.signatoryName}</p>
+              <p className={cn("text-xl", watchedValues.templateStyle === "Formal" ? "font-sans" : "font-serif italic")}>{watchedValues.signatoryName}</p>
               <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
               <p className="text-sm text-muted-foreground">{watchedValues.signatoryTitle}</p>
             </div>
@@ -247,7 +347,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
             )}
             <div className="text-center">
               <div className="h-16"></div>
-              <p className="font-serif text-xl italic">{new Date().toLocaleDateString()}</p>
+              <p className={cn("text-xl", watchedValues.templateStyle === "Formal" ? "font-sans" : "font-serif italic")}>{new Date().toLocaleDateString()}</p>
               <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
               <p className="text-sm text-muted-foreground">Date of Issue</p>
             </div>

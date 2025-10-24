@@ -19,6 +19,9 @@ async function getCertificateTemplate(trainingProviderId: string) {
                 signatoryName: "Jane Doe",
                 signatoryTitle: "Head of Training & Development",
                 trainingProviderId: trainingProviderId,
+                primaryColor: "#4a6e3a",
+                borderStyle: "solid",
+                templateStyle: "Modern",
             }
         });
     }
