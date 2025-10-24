@@ -57,6 +57,13 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
   const handleSubmit = useCallback(() => {
+    if (quiz.quizType === 'OPEN_LOOP') {
+        // For non-graded quizzes, we don't calculate score.
+        setScore(100); // Assume 100 to show a "completion" state
+        setShowResult(true);
+        return;
+    }
+
     if (quiz.requiresManualGrading) {
         setIsUnderReview(true);
         startTransition(async () => {
@@ -187,7 +194,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             <CardTitle className="font-headline text-2xl">Knowledge Check</CardTitle>
             <CardDescription>
                 Let's see what you've learned. Answer all questions to complete the course. 
-                The passing score is {quiz.passingScore}%.
+                {quiz.quizType === 'CLOSED_LOOP' && ` The passing score is ${quiz.passingScore}%.`}
                 {quiz.timeLimit && quiz.timeLimit > 0 && ` You have ${quiz.timeLimit} minutes.`}
             </CardDescription>
           </CardHeader>
@@ -284,12 +291,16 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             <AlertDialogTitle className="font-headline text-center text-2xl">
               {isUnderReview 
                 ? "Submission Received" 
+                : quiz.quizType === 'OPEN_LOOP'
+                ? "Practice Complete"
                 : passed ? "Certification Granted!" : "More Study Needed"
               }
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center">
               {isUnderReview
                 ? "Your answers have been submitted for review."
+                : quiz.quizType === 'OPEN_LOOP'
+                ? "You have completed the practice quiz."
                 : "You have completed the quiz. Here is your result."
               }
             </AlertDialogDescription>
@@ -297,6 +308,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
           <div className="py-4 text-center flex flex-col items-center gap-4">
             {isUnderReview ? (
                 <Hourglass className="h-20 w-20 text-primary" />
+            ) : quiz.quizType === 'OPEN_LOOP' ? (
+                <Award className="h-20 w-20 text-green-500" />
             ) : passed ? (
                 <Award className="h-20 w-20 text-green-500" />
              ) : (
@@ -306,6 +319,10 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
               {isUnderReview ? (
                 <p className="text-lg text-muted-foreground mt-2">
                   Some questions require manual grading. You will be notified once your results are ready.
+                </p>
+              ) : quiz.quizType === 'OPEN_LOOP' ? (
+                <p className="text-lg text-muted-foreground mt-2">
+                  Great job on completing the practice quiz! Keep up the good work.
                 </p>
               ) : (
                 <>
@@ -337,7 +354,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
              {!isUnderReview && (
                 <Button variant="outline" onClick={() => onComplete()} disabled={isPending}>
                     {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCopy className="mr-2 h-4 w-4" />}
-                    {passed ? 'Back to Course' : 'Review and Retry'}
+                    {passed || quiz.quizType === 'OPEN_LOOP' ? 'Back to Course' : 'Review and Retry'}
                 </Button>
              )}
           </AlertDialogFooter>

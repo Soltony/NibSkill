@@ -145,7 +145,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                     </CardDescription>
                     </CardHeader>
                     <CardContent>
-                    {completedCourses.length > 0 ? (
+                    {completedCourses.some(c => c.course.hasCertificate) ? (
                         <ul className="space-y-4">
                             {completedCourses.map(cert => (
                                 cert.course.hasCertificate ? (
@@ -166,7 +166,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                         </ul>
                         ) : (
                         <div className="text-center py-12 text-muted-foreground">
-                            <p>No certificates earned yet. Complete a course to earn one!</p>
+                            <p>No certificates earned yet. Complete a course that offers a certificate to see it here!</p>
                         </div>
                         )}
                     </CardContent>

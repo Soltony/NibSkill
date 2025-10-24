@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -149,6 +149,8 @@ async function main() {
         productId: courseData.productId,
         isPaid: courseData.isPaid,
         price: courseData.price,
+        currency: courseData.currency,
+        hasCertificate: courseData.hasCertificate
       },
       create: {
         id: courseData.id,
@@ -157,9 +159,11 @@ async function main() {
         productId: courseData.productId,
         isPaid: courseData.isPaid,
         price: courseData.price,
+        currency: courseData.currency,
         imageUrl: image?.imageUrl,
         imageDescription: image?.description,
         imageHint: image?.imageHint,
+        hasCertificate: courseData.hasCertificate
       }
     });
 
