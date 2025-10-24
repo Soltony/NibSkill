@@ -2,29 +2,23 @@
 import { notFound, redirect } from "next/navigation"
 import prisma from "@/lib/db"
 import { Progress } from "@/components/ui/progress"
-import { CourseCard } from "@/components/course-card"
-import { MoveLeft, CheckCircle, Lock } from "lucide-react"
+import { MoveLeft, CheckCircle, Lock, Award } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { getSession } from "@/lib/auth"
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
 } from "@/components/ui/card"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 
-export default async function LearningPathDetailPage({ params }: { params: Promise<{ pathId: string }> }) {
+export default async function LearningPathDetailPage({ params }: { params: { pathId: string } }) {
   const user = await getSession();
   if (!user) {
     redirect('/login');
   }
 
-  const { pathId } = await params;
+  const { pathId } = params;
   
   const learningPath = await prisma.learningPath.findUnique({
     where: { id: pathId },
@@ -84,7 +78,9 @@ export default async function LearningPathDetailPage({ params }: { params: Promi
       return { ...course, progress, isCompleted };
   });
 
-  const overallProgress = coursesWithProgress.length > 0
+  const allCoursesInPathCompleted = coursesWithProgress.every(c => c.isCompleted);
+
+  const overallProgress = allCoursesInPathCompleted ? 100 : coursesWithProgress.length > 0
     ? Math.round(coursesWithProgress.reduce((sum, course) => sum + (course.isCompleted ? 100 : course.progress), 0) / coursesWithProgress.length)
     : 0;
 
@@ -188,6 +184,17 @@ export default async function LearningPathDetailPage({ params }: { params: Promi
             </div>
         )}
       </div>
+
+      {allCoursesInPathCompleted && learningPath.hasCertificate && (
+        <div className="text-center py-6">
+          <Button size="lg" asChild>
+            <Link href={`/learning-paths/${pathId}/certificate`}>
+              <Award className="mr-2 h-5 w-5" />
+              View Certificate
+            </Link>
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

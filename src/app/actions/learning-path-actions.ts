@@ -11,6 +11,7 @@ const formSchema = z.object({
   courseIds: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one course.",
   }),
+  hasCertificate: z.boolean().default(false),
 })
 
 export async function addLearningPath(values: z.infer<typeof formSchema>) {
@@ -24,6 +25,7 @@ export async function addLearningPath(values: z.infer<typeof formSchema>) {
             data: {
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
+                hasCertificate: validatedFields.data.hasCertificate,
                 courses: {
                     create: validatedFields.data.courseIds.map((courseId, index) => ({
                         order: index + 1,
@@ -55,6 +57,7 @@ export async function updateLearningPath(id: string, values: z.infer<typeof form
             data: {
                 title: validatedFields.data.title,
                 description: validatedFields.data.description,
+                hasCertificate: validatedFields.data.hasCertificate,
                 courses: {
                     deleteMany: {},
                     create: validatedFields.data.courseIds.map((courseId, index) => ({

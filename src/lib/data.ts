@@ -91,6 +91,7 @@ export type LearningPath = {
   title: string;
   description: string;
   courseIds: string[];
+  hasCertificate?: boolean;
 }
 
 export type LiveSession = {
@@ -363,7 +364,8 @@ export const learningPaths: LearningPath[] = [
         id: 'lp-1',
         title: 'New Hire Onboarding',
         description: 'The essential courses for all new hires to get up to speed with company products and culture.',
-        courseIds: ['course-1', 'course-4']
+        courseIds: ['course-1', 'course-4'],
+        hasCertificate: true,
     }
 ];
 

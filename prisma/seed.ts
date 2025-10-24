@@ -186,6 +186,7 @@ async function main() {
         id: path.id,
         title: path.title,
         description: path.description,
+        hasCertificate: path.hasCertificate,
         courses: {
           create: path.courseIds.map((courseId, index) => ({
             order: index + 1,

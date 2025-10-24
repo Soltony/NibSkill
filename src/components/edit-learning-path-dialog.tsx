@@ -18,6 +18,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,6 +30,7 @@ import { useToast } from "@/hooks/use-toast"
 import { updateLearningPath } from "@/app/actions/learning-path-actions"
 import type { LearningPath, Course } from "@prisma/client"
 import { CourseSequenceSelector } from "./course-sequence-selector"
+import { Switch } from "./ui/switch"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
@@ -36,6 +38,7 @@ const formSchema = z.object({
   courseIds: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one course.",
   }),
+  hasCertificate: z.boolean().default(false),
 })
 
 type LearningPathWithCourses = LearningPath & { courses: { course: Course }[] };
@@ -55,6 +58,7 @@ export function EditLearningPathDialog({ learningPath, courses }: EditLearningPa
       title: learningPath.title,
       description: learningPath.description ?? "",
       courseIds: learningPath.courses.map(c => c.course.id),
+      hasCertificate: learningPath.hasCertificate,
     },
   })
 
@@ -64,6 +68,7 @@ export function EditLearningPathDialog({ learningPath, courses }: EditLearningPa
         title: learningPath.title,
         description: learningPath.description ?? "",
         courseIds: learningPath.courses.map(c => c.course.id),
+        hasCertificate: learningPath.hasCertificate,
       })
     }
   }, [open, learningPath, form])
@@ -144,6 +149,26 @@ export function EditLearningPathDialog({ learningPath, courses }: EditLearningPa
                         onSelectedCourseIdsChange={field.onChange}
                     />
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="hasCertificate"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Award a Certificate</FormLabel>
+                    <FormDescription>
+                      Does this path award a certificate upon completion?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />
