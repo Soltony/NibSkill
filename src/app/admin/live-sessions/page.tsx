@@ -1,4 +1,5 @@
 
+
 import prisma from "@/lib/db"
 import {
   Table,
@@ -17,10 +18,12 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AddLiveSessionDialog, EditLiveSessionDialog, ViewAttendeesDialog, DeleteLiveSessionAction } from "./live-session-client"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
 
-export default async function LiveSessionManagementPage() {
-  
+async function getData(trainingProviderId: string) {
   const sessions = await prisma.liveSession.findMany({
+    where: { trainingProviderId },
     orderBy: {
       dateTime: 'desc'
     },
@@ -38,7 +41,23 @@ export default async function LiveSessionManagementPage() {
     }
   });
 
-  const users = await prisma.user.findMany({ where: { role: { name: 'Staff' } } });
+  const users = await prisma.user.findMany({ 
+    where: { 
+      trainingProviderId,
+      role: { name: 'Staff' } 
+    } 
+  });
+
+  return { sessions, users };
+}
+
+export default async function LiveSessionManagementPage() {
+  const sessionData = await getSession();
+  if (!sessionData || !sessionData.trainingProviderId) {
+    notFound();
+  }
+
+  const { sessions, users } = await getData(sessionData.trainingProviderId);
 
   const getStatus = (dateTime: Date): { text: "Upcoming" | "Past" | "Live", variant: "default" | "secondary" | "destructive" | "outline" } => {
     const now = new Date();

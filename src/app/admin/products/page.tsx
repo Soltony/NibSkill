@@ -1,4 +1,5 @@
 
+
 import Image from "next/image"
 import prisma from "@/lib/db"
 import {
@@ -18,13 +19,26 @@ import {
 } from "@/components/ui/card"
 import { AddProductDialog } from "@/components/add-product-dialog"
 import { EditProductDialog } from "@/components/edit-product-dialog"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
 
-export default async function ProductManagementPage() {
+async function getProducts(trainingProviderId: string) {
   const products = await prisma.product.findMany({
+    where: { trainingProviderId },
     orderBy: {
       name: 'asc'
     }
   });
+  return products;
+}
+
+export default async function ProductManagementPage() {
+  const session = await getSession();
+  if (!session || !session.trainingProviderId) {
+    notFound();
+  }
+
+  const products = await getProducts(session.trainingProviderId);
 
   return (
     <div className="space-y-8">
@@ -68,7 +82,7 @@ export default async function ProductManagementPage() {
                       height="64"
                       src={product.imageUrl}
                       width="64"
-                      data-ai-hint={product.imageHint}
+                      data-ai-hint={product.imageHint ?? undefined}
                     />
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>

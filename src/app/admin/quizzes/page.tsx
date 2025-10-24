@@ -1,4 +1,5 @@
 
+
 import prisma from "@/lib/db"
 import {
   Table,
@@ -16,10 +17,17 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { AddQuiz, ManageQuestions } from "./quiz-client"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
 
-export default async function QuizManagementPage() {
-  const courses = await prisma.course.findMany({ orderBy: { title: "asc" } });
+async function getData(trainingProviderId: string) {
+  const courses = await prisma.course.findMany({
+    where: { trainingProviderId },
+    orderBy: { title: "asc" }
+  });
+
   const quizzes = await prisma.quiz.findMany({
+    where: { course: { trainingProviderId } },
     include: {
       questions: {
         include: {
@@ -30,6 +38,17 @@ export default async function QuizManagementPage() {
     },
     orderBy: { course: { title: "asc" } },
   });
+
+  return { courses, quizzes };
+}
+
+export default async function QuizManagementPage() {
+  const session = await getSession();
+  if (!session || !session.trainingProviderId) {
+    notFound();
+  }
+
+  const { courses, quizzes } = await getData(session.trainingProviderId);
   
   return (
     <div className="space-y-8">

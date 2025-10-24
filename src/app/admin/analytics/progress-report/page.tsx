@@ -1,8 +1,12 @@
+
 import prisma from "@/lib/db"
 import { ProgressReportClient } from "./progress-report-client"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
 
-async function getProgressReportData() {
+async function getProgressReportData(trainingProviderId: string) {
   const users = await prisma.user.findMany({
+    where: { trainingProviderId },
     include: {
       department: true,
       district: true,
@@ -12,22 +16,32 @@ async function getProgressReportData() {
   })
 
   const courses = await prisma.course.findMany({
+    where: { trainingProviderId },
     include: {
       modules: true,
     },
     orderBy: { title: "asc" },
   })
 
-  const completions = await prisma.userCompletedCourse.findMany();
+  const completions = await prisma.userCompletedCourse.findMany({
+    where: {
+      user: {
+        trainingProviderId
+      }
+    }
+  });
   const completionMap = new Map(completions.map(c => [`${c.userId}-${c.courseId}`, c.score]));
 
   const departments = await prisma.department.findMany({
+    where: { trainingProviderId },
     orderBy: { name: "asc" },
   })
   const districts = await prisma.district.findMany({
+    where: { trainingProviderId },
     orderBy: { name: "asc" },
   })
   const branches = await prisma.branch.findMany({
+    where: { district: { trainingProviderId } },
     orderBy: { name: "asc" },
   })
 
@@ -59,7 +73,12 @@ async function getProgressReportData() {
 }
 
 export default async function ProgressReportPage() {
-  const { reportData, courses, departments, districts, branches } = await getProgressReportData()
+  const session = await getSession();
+  if (!session || !session.trainingProviderId) {
+    notFound();
+  }
+
+  const { reportData, courses, departments, districts, branches } = await getProgressReportData(session.trainingProviderId)
   
   return (
     <ProgressReportClient

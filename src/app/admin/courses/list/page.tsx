@@ -20,9 +20,12 @@ import {
 import prisma from "@/lib/db"
 import { CourseClient, CourseLink, CourseActions } from "../course-client"
 import { cn } from "@/lib/utils"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
 
-export default async function CourseManagementPage() {
+async function getData(trainingProviderId: string) {
   const courses = await prisma.course.findMany({
+    where: { trainingProviderId },
     orderBy: { createdAt: 'desc' },
     include: {
       modules: true,
@@ -31,8 +34,20 @@ export default async function CourseManagementPage() {
   });
   
   const products = await prisma.product.findMany({
+    where: { trainingProviderId },
     orderBy: { name: 'asc' }
   });
+
+  return { courses, products }
+}
+
+export default async function CourseManagementPage() {
+  const session = await getSession();
+  if (!session || !session.trainingProviderId) {
+    notFound();
+  }
+
+  const { courses, products } = await getData(session.trainingProviderId);
 
   return (
       <div className="space-y-8">
@@ -79,7 +94,7 @@ export default async function CourseManagementPage() {
                           height="64"
                           src={course.product.imageUrl}
                           width="64"
-                          data-ai-hint={course.product.imageHint}
+                          data-ai-hint={course.product.imageHint ?? undefined}
                         />
                       ) : (
                         <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
