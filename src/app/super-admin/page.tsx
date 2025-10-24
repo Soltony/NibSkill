@@ -16,10 +16,19 @@ import {
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
 import { AddProviderDialog } from "./add-provider-dialog"
+import type { TrainingProvider, User } from "@prisma/client"
+
+type ProviderWithAdmin = TrainingProvider & { users: User[] };
 
 export default async function SuperAdminDashboard() {
-  const providers = await prisma.trainingProvider.findMany({
+  const providers: ProviderWithAdmin[] = await prisma.trainingProvider.findMany({
     orderBy: { createdAt: 'desc' },
+    include: {
+      users: {
+        where: { role: { name: 'Training Provider' } },
+        take: 1,
+      }
+    }
   });
 
   return (
@@ -51,16 +60,19 @@ export default async function SuperAdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {providers.map((provider) => (
-                  <TableRow key={provider.id}>
-                    <TableCell className="font-medium">
-                        {provider.name}
-                    </TableCell>
-                    <TableCell>{provider.adminFirstName} {provider.adminLastName}</TableCell>
-                    <TableCell>{provider.adminEmail}</TableCell>
-                    <TableCell>{provider.accountNumber}</TableCell>
-                  </TableRow>
-                ))}
+                {providers.map((provider) => {
+                  const admin = provider.users[0];
+                  return (
+                    <TableRow key={provider.id}>
+                      <TableCell className="font-medium">
+                          {provider.name}
+                      </TableCell>
+                      <TableCell>{admin?.name || 'N/A'}</TableCell>
+                      <TableCell>{admin?.email || 'N/A'}</TableCell>
+                      <TableCell>{provider.accountNumber}</TableCell>
+                    </TableRow>
+                  )
+                })}
                  {providers.length === 0 && (
                     <TableRow>
                         <TableCell colSpan={4} className="h-24 text-center">

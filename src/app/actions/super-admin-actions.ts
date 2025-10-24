@@ -26,7 +26,6 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
 
         const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPassword, adminPhoneNumber } = validatedFields.data;
 
-        // Check if admin email already exists
         const existingUser = await prisma.user.findUnique({
             where: { email: adminEmail }
         });
@@ -48,7 +47,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
                 name,
                 address,
                 accountNumber,
-                adminUser: {
+                users: {
                     create: {
                         name: `${adminFirstName} ${adminLastName}`,
                         email: adminEmail,
@@ -66,7 +65,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
     } catch (error: any) {
         console.error("Error registering training provider:", error);
         if (error.code === 'P2002') {
-            return { success: false, message: "A provider with this name, email, or account number already exists." }
+            return { success: false, message: "A provider with this name or account number already exists." }
         }
         return { success: false, message: "Failed to register training provider." }
     }
