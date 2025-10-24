@@ -137,7 +137,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   // Simple logic to switch between user roles for demonstration
-  const isAdminView = pathname.startsWith('/admin') || pathname.startsWith('/super-admin');
+  const isAdminView = pathname.startsWith('/admin');
+  const isSuperAdminView = pathname.startsWith('/super-admin');
   const userRole = currentUser?.role?.name.toLowerCase() || 'staff';
 
   const navItems = [
@@ -148,7 +149,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   ];
 
   const adminNavItems = [
-    { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin', adminOnly: true, exact: true },
     { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
     { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
     { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
@@ -162,8 +162,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
     { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
   ];
+
+  const superAdminNavItems = [
+    { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin', adminOnly: true, exact: true },
+  ];
   
-  const allNavItems = isAdminView ? adminNavItems : navItems;
+  let allNavItems = navItems;
+  if (isSuperAdminView && userRole === 'super admin') {
+    allNavItems = superAdminNavItems;
+  } else if (isAdminView && (userRole === 'admin' || userRole === 'super admin')) {
+    allNavItems = adminNavItems;
+  }
+  
 
   const isLinkActive = (path: string, exact?: boolean) => {
     if (exact) {
@@ -208,12 +218,41 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </div>
                 ) : (
                   <SidebarMenu>
-                    {isAdminView ? (
+                    {isSuperAdminView ? (
+                      <>
+                        <SidebarGroup>
+                          <SidebarGroupLabel>Super Admin</SidebarGroupLabel>
+                          {superAdminNavItems.map((item) => (
+                            <SidebarMenuItem key={item.href}>
+                              <Link href={item.href}>
+                                <SidebarMenuButton
+                                  isActive={isLinkActive(item.href, item.exact)}
+                                  tooltip={item.label}
+                                >
+                                  <item.icon />
+                                  <span>{item.label}</span>
+                                </SidebarMenuButton>
+                              </Link>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarGroup>
+                        <SidebarMenuItem>
+                            <Link href={'/admin/analytics'}>
+                              <SidebarMenuButton
+                                isActive={isLinkActive('/admin/analytics')}
+                                tooltip={'Admin Dashboard'}
+                              >
+                                <LayoutDashboard />
+                                <span>Admin View</span>
+                              </SidebarMenuButton>
+                            </Link>
+                          </SidebarMenuItem>
+                      </>
+                    ) : isAdminView ? (
                       <>
                         <SidebarGroup>
                           <SidebarGroupLabel>Admin</SidebarGroupLabel>
                           {adminNavItems.map((item) => (
-                            item.href === '/super-admin' && userRole !== 'super-admin' ? null :
                             <SidebarMenuItem key={item.href}>
                               <Link href={item.href}>
                                 <SidebarMenuButton
