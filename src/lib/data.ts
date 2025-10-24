@@ -2,7 +2,8 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import type { FieldType, LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType, Currency } from '@prisma/client';
+import { FieldType } from '@prisma/client';
+import type { LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType, Currency } from '@prisma/client';
 
 export enum QuizType {
   OPEN_LOOP = "OPEN_LOOP",
