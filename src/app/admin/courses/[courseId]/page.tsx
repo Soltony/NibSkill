@@ -42,13 +42,13 @@ async function getCourseData(courseId: string) {
   return { course, completedModules };
 }
 
-export default async function CourseDetailAdminPage({ params }: { params: Promise<{ courseId: string }> }) {
+export default async function CourseDetailAdminPage({ params }: { params: { courseId: string } }) {
   const session = await getSession();
   if (!session || session.role.toLowerCase() !== 'admin') {
     notFound();
   }
   
-  const { courseId } = await params;
+  const { courseId } = params;
   const data = await getCourseData(courseId);
 
   if (!data || !data.course) {
