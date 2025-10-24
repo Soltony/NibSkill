@@ -92,10 +92,10 @@ async function main() {
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id, trainingProviderId: provider.id } });
     
     let roleRecord;
-    if (role === 'admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Admin' } });
+    if (role === 'admin') roleRecord = await prisma.role.findFirst({ where: { name: 'Admin', trainingProviderId: provider.id } });
     else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Super Admin' } });
     else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { name: 'Training Provider' } });
-    else roleRecord = await prisma.role.findUnique({ where: { name: 'Staff' } });
+    else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: provider.id } });
     
     // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -106,7 +106,6 @@ async function main() {
       where: { email: user.email },
       update: {
         password: hashedPassword,
-        trainingProviderId: isSuperAdmin ? null : provider.id,
       },
       create: {
         id: user.id,
@@ -204,10 +203,11 @@ async function main() {
     });
 
     for (const module of modules) {
+      const moduleType = module.type.toUpperCase() as ModuleType;
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
-        create: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
+        update: { ...module, type: moduleType, courseId: createdCourse.id },
+        create: { ...module, type: moduleType, courseId: createdCourse.id },
       });
     }
   }
@@ -243,15 +243,16 @@ async function main() {
   for (const session of initialLiveSessions) {
       const { attendees, ...sessionData } = session;
       const { allowedAttendees, ...rest } = sessionData as any;
+      const platform = session.platform.replace(' ', '_').toUpperCase() as LiveSessionPlatform;
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
               ...rest,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: platform
           },
           create: {
               ...rest,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform,
+              platform: platform,
               trainingProviderId: provider.id,
           }
       });
@@ -271,7 +272,7 @@ async function main() {
 
     for (const question of questions) {
         const { options, ...questionData } = question;
-        const questionType = question.type as QuestionType
+        const questionType = question.type.toUpperCase() as QuestionType;
         const createdQuestion = await prisma.question.upsert({
             where: { id: question.id },
             update: {
@@ -371,3 +372,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
