@@ -243,7 +243,7 @@ async function main() {
   for (const session of initialLiveSessions) {
       const { attendees, ...sessionData } = session;
       const { allowedAttendees, ...rest } = sessionData as any;
-      const platform = session.platform.replace(' ', '_').toUpperCase() as LiveSessionPlatform;
+      const platform = session.platform.replace(' ', '_') as LiveSessionPlatform;
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
@@ -262,12 +262,13 @@ async function main() {
   // Seed Quizzes and Questions
   for (const quiz of initialQuizzes) {
     const { questions, ...quizData } = quiz;
-    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
+    const quizType = quiz.quizType.toUpperCase() as QuizType;
+    const requiresManualGrading = quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
 
     const createdQuiz = await prisma.quiz.upsert({
         where: { id: quiz.id },
-        update: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
-        create: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
+        update: { ...quizData, quizType: quizType, requiresManualGrading },
+        create: { ...quizData, quizType: quizType, requiresManualGrading },
     });
 
     for (const question of questions) {
