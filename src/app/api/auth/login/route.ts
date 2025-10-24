@@ -97,13 +97,13 @@ export async function POST(request: NextRequest) {
 
     // Check permissions for redirection
     const permissions = user.role.permissions as any;
-    const canViewAdmin = permissions?.courses?.r;
     const isSuperAdmin = user.role.name.toLowerCase() === 'super admin';
-
-    let redirectTo = '/dashboard';
+    const canViewAdminDashboard = permissions?.courses?.r === true;
+    
+    let redirectTo = '/dashboard'; // Default to staff dashboard
     if (isSuperAdmin) {
         redirectTo = '/super-admin';
-    } else if (canViewAdmin) {
+    } else if (canViewAdminDashboard) {
         redirectTo = '/admin/analytics';
     }
 

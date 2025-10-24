@@ -1,4 +1,5 @@
 
+
 'use client';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -143,8 +144,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const userRoleName = userRole?.name.toLowerCase() || 'staff';
   
   const canViewAdmin = permissions?.courses?.r === true;
-  const isAdminView = pathname.startsWith('/admin') && canViewAdmin;
-  const isSuperAdminView = pathname.startsWith('/super-admin') && userRoleName === 'super admin';
+  const isAdminPath = pathname.startsWith('/admin');
+  const isSuperAdminPath = pathname.startsWith('/super-admin');
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
@@ -173,15 +174,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   ];
   
   let currentNavItems;
-  if (isSuperAdminView) {
+  if (isSuperAdminPath && userRoleName === 'super admin') {
     currentNavItems = superAdminNavItems;
-  } else if (isAdminView) {
+  } else if (isAdminPath && canViewAdmin) {
     currentNavItems = adminNavItems;
   } else {
     currentNavItems = navItems;
   }
   
-
   const isLinkActive = (path: string, exact?: boolean) => {
     if (exact) {
         return pathname === path;
@@ -228,7 +228,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </div>
                 ) : (
                   <SidebarMenu>
-                    {isSuperAdminView ? (
+                    {isSuperAdminPath && userRoleName === 'super admin' ? (
                       <>
                         <SidebarGroup>
                           <SidebarGroupLabel>Super Admin</SidebarGroupLabel>
@@ -258,7 +258,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </Link>
                           </SidebarMenuItem>
                       </>
-                    ) : isAdminView ? (
+                    ) : isAdminPath && canViewAdmin ? (
                       <>
                         <SidebarGroup>
                           <SidebarGroupLabel>Admin</SidebarGroupLabel>
