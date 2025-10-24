@@ -128,11 +128,12 @@ export function CourseDetailAdminClient({ course: initialCourse, initialProgress
                             <FeatureNotImplementedDialog
                                 title="Bookmark Module"
                                 description="This feature is for users. Admins manage content here."
-                                triggerVariant="ghost"
-                                triggerSize="sm"
-                                triggerText="Bookmark"
-                                triggerIcon={<Bookmark className="mr-2 h-4 w-4" />}
-                            />
+                            >
+                                <Button variant="ghost" size="sm">
+                                  <Bookmark className="mr-2 h-4 w-4" />
+                                  Bookmark
+                                </Button>
+                            </FeatureNotImplementedDialog>
                             {userRole === 'admin' && (
                                 <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
                                     <Button variant="ghost" size="sm">
