@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -13,25 +12,23 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Search } from "lucide-react"
-import type { Course, Product, Module, TrainingProvider } from "@prisma/client"
+import type { Course, TrainingProvider } from "@prisma/client"
 
 type CourseWithRelations = Course & {
   progress: number;
-  product: Product | null;
-  modules: Module[];
+  product: any;
+  modules: any[];
   trainingProvider: TrainingProvider | null;
 };
 
-type DashboardClientProps = {
+type CoursesClientProps = {
   courses: CourseWithRelations[];
-  products: Product[];
   trainingProviders: TrainingProvider[];
 }
 
-export function DashboardClient({ courses, products, trainingProviders }: DashboardClientProps) {
+export function CoursesClient({ courses, trainingProviders }: CoursesClientProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [productFilter, setProductFilter] = useState("all")
   const [providerFilter, setProviderFilter] = useState("all")
 
   const filteredCourses = useMemo(() => {
@@ -42,10 +39,7 @@ export function DashboardClient({ courses, products, trainingProviders }: Dashbo
         (statusFilter === "not-started" && course.progress === 0) ||
         (statusFilter === "in-progress" && course.progress > 0 && course.progress < 100) ||
         (statusFilter === "completed" && course.progress === 100)
-
-      // Product filter
-      const productMatch = productFilter === "all" || course.productId === productFilter
-
+      
       // Provider filter
       const providerMatch = providerFilter === "all" || course.trainingProviderId === providerFilter
 
@@ -55,14 +49,12 @@ export function DashboardClient({ courses, products, trainingProviders }: Dashbo
         course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         course.description.toLowerCase().includes(searchTerm.toLowerCase())
 
-      return statusMatch && productMatch && providerMatch && searchMatch
+      return statusMatch && providerMatch && searchMatch
     })
-  }, [courses, searchTerm, statusFilter, productFilter, providerFilter])
+  }, [courses, searchTerm, statusFilter, providerFilter])
 
   return (
-    <section>
-      <h2 className="text-2xl font-semibold font-headline mb-4">My Courses</h2>
-      
+    <div>
       <div className="mb-6 flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -86,19 +78,6 @@ export function DashboardClient({ courses, products, trainingProviders }: Dashbo
             </SelectContent>
             </Select>
 
-            <Select value={productFilter} onValueChange={setProductFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Filter by product" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">All Products</SelectItem>
-                {products.map(product => (
-                <SelectItem key={product.id} value={product.id}>
-                    {product.name}
-                </SelectItem>
-                ))}
-            </SelectContent>
-            </Select>
             <Select value={providerFilter} onValueChange={setProviderFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by provider" />
@@ -116,7 +95,7 @@ export function DashboardClient({ courses, products, trainingProviders }: Dashbo
       </div>
       
       {filteredCourses.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCourses.map(course => (
             <CourseCard key={course.id} course={course} />
           ))}
@@ -127,6 +106,6 @@ export function DashboardClient({ courses, products, trainingProviders }: Dashbo
             <p>Try adjusting your search or filters.</p>
         </div>
       )}
-    </section>
+    </div>
   )
 }

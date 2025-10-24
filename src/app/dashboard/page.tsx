@@ -1,4 +1,5 @@
 
+
 import {
   Card,
   CardContent,
@@ -13,24 +14,34 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { DashboardClient } from './dashboard-client';
-import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse } from '@prisma/client';
+import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider } from '@prisma/client';
 
 type CourseWithProgress = Course & {
   progress: number;
   product: Product | null;
   modules: Module[];
+  trainingProvider: TrainingProvider | null;
 };
 
 async function getDashboardData(userId: string): Promise<{
   courses: CourseWithProgress[];
   products: Product[];
   liveSessions: any[];
+  trainingProviders: TrainingProvider[];
 }> {
     const courses = await prisma.course.findMany({
-        include: { modules: true, product: true }
+        include: { 
+            modules: true, 
+            product: true,
+            trainingProvider: true
+        }
     });
 
     const products = await prisma.product.findMany({
+        orderBy: { name: 'asc' }
+    });
+
+    const trainingProviders = await prisma.trainingProvider.findMany({
         orderBy: { name: 'asc' }
     });
 
@@ -81,6 +92,7 @@ async function getDashboardData(userId: string): Promise<{
         courses: coursesWithProgress,
         products,
         liveSessions,
+        trainingProviders,
     }
 }
 
@@ -92,7 +104,7 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const { courses, products, liveSessions } = await getDashboardData(currentUser.id);
+  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(currentUser.id);
 
   return (
     <div className="space-y-8">
@@ -103,7 +115,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <DashboardClient courses={courses} products={products} />
+      <DashboardClient courses={courses} products={products} trainingProviders={trainingProviders} />
 
       <section>
         <Card>

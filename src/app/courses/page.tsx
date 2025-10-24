@@ -1,13 +1,23 @@
 
+
 import { CourseCard } from '@/components/course-card';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { CoursesClient } from './courses-client';
 
 async function getCoursesData(userId: string) {
     const courses = await prisma.course.findMany({
         where: { status: 'PUBLISHED' },
-        include: { modules: true, product: true }
+        include: { 
+            modules: true, 
+            product: true,
+            trainingProvider: true,
+        }
+    });
+
+    const trainingProviders = await prisma.trainingProvider.findMany({
+        orderBy: { name: 'asc' }
     });
 
     const userCompletions = await prisma.userCompletedCourse.findMany({
@@ -42,7 +52,7 @@ async function getCoursesData(userId: string) {
         return { ...course, progress };
     });
 
-    return coursesWithProgress;
+    return { coursesWithProgress, trainingProviders };
 }
 
 export default async function CoursesPage() {
@@ -51,7 +61,7 @@ export default async function CoursesPage() {
         redirect('/login');
     }
 
-    const courses = await getCoursesData(session.id);
+    const { coursesWithProgress, trainingProviders } = await getCoursesData(session.id);
 
     return (
         <div className="space-y-8">
@@ -61,11 +71,7 @@ export default async function CoursesPage() {
                     Browse all available courses and continue your learning journey.
                 </p>
             </div>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {courses.map((course) => (
-                    <CourseCard key={course.id} course={course} />
-                ))}
-            </div>
+            <CoursesClient courses={coursesWithProgress} trainingProviders={trainingProviders} />
         </div>
     );
 }
