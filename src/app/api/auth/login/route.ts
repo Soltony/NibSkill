@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     let redirectTo = '/dashboard'; // Default to staff dashboard
     if (isSuperAdmin) {
         redirectTo = '/super-admin';
-    } else if (canViewAdminDashboard) {
+    } else if (canViewAdminDashboard && user.role.name.toLowerCase() !== 'staff') {
         redirectTo = '/admin/analytics';
     }
 

@@ -60,7 +60,7 @@ type CurrentUser = UserType & {
 };
 
 // Create a context to provide the user role and permissions
-export const UserContext = React.createContext<{ roleName: string | null; permissions: any } | null>(null);
+export const UserContext = React.createContext<string | null>(null);
 
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -105,57 +105,48 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const userRole = currentUser?.role;
   const permissions = userRole?.permissions as any;
 
-  const allNavItems = useMemo(() => [
-    // Staff View
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', requiredPermission: null, view: 'staff' },
-    { href: '/courses', icon: BookCopy, label: 'Courses', requiredPermission: null, view: 'staff' },
-    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', requiredPermission: null, view: 'staff' },
-    { href: '/live-sessions', icon: Radio, label: 'Live Sessions', requiredPermission: null, view: 'staff' },
+  const navItems = [
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/courses', icon: BookCopy, label: 'Courses' },
+    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths' },
+    { href: '/live-sessions', icon: Radio, label: 'Live Sessions' },
+  ];
 
-    // Admin View
-    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', requiredPermission: 'analytics.r', view: 'admin' },
-    { href: '/admin/products', icon: Package, label: 'Products', requiredPermission: 'products.r', view: 'admin' },
-    { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt', requiredPermission: 'courses.r', view: 'admin' },
-    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', requiredPermission: 'courses.r', view: 'admin' },
-    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', requiredPermission: 'quizzes.r', view: 'admin' },
-    { href: '/admin/grading', icon: Edit, label: 'Grading', requiredPermission: 'quizzes.u', view: 'admin' },
-    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', requiredPermission: 'liveSessions.r', view: 'admin' },
-    { href: '/admin/staff', icon: Users2, label: 'Staff', requiredPermission: 'staff.r', view: 'admin' },
-    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', requiredPermission: 'analytics.r', view: 'admin' },
-    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report', requiredPermission: 'analytics.r', view: 'admin' },
-    { href: '/admin/certificate', icon: Award, label: 'Certificate', requiredPermission: 'courses.u', view: 'admin' },
-    { href: '/admin/settings', icon: Settings, label: 'Settings', requiredPermission: 'users.r', view: 'admin' },
-    
-    // Super Admin View
-    { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin', requiredPermission: 'super', view: 'super-admin' },
-  ], []);
+  const adminNavItems = [
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/admin/products', icon: Package, label: 'Products' },
+    { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt' },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths' },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt' },
+    { href: '/admin/grading', icon: Edit, label: 'Grading' },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions' },
+    { href: '/admin/staff', icon: Users2, label: 'Staff' },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report' },
+    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report' },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate' },
+    { href: '/admin/settings', icon: Settings, label: 'Settings' },
+  ];
 
-  const visibleNavItems = useMemo(() => {
-    if (!permissions) return [];
-
-    const isSuperAdmin = userRole?.name.toLowerCase() === 'super admin';
-
-    return allNavItems.filter(item => {
-      if (item.requiredPermission === 'super') {
-          return isSuperAdmin;
-      }
-      if (item.requiredPermission === null) {
-          return true; // Staff items are always "available" but shown based on view
-      }
-      const [resource, action] = item.requiredPermission.split('.');
-      return permissions[resource]?.[action] === true;
-    });
-  }, [permissions, userRole, allNavItems]);
+  const superAdminNavItems = [
+    { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin' },
+  ]
   
   const isAdminPath = pathname.startsWith('/admin');
   const isSuperAdminPath = pathname.startsWith('/super-admin');
-  
-  let currentView: 'staff' | 'admin' | 'super-admin' = 'staff';
-  if (isSuperAdminPath) currentView = 'super-admin';
-  else if (isAdminPath) currentView = 'admin';
 
-  const currentNavItems = visibleNavItems.filter(item => item.view === currentView);
-  const currentNavItem = currentNavItems.find(item => pathname.startsWith(item.href));
+  let currentNavItems = navItems;
+  let currentNavItem;
+
+  if (isSuperAdminPath) {
+    currentNavItems = superAdminNavItems;
+    currentNavItem = superAdminNavItems.find(item => pathname.startsWith(item.href));
+  } else if (isAdminPath) {
+    currentNavItems = adminNavItems;
+    currentNavItem = adminNavItems.find(item => pathname.startsWith(item.href));
+  } else {
+    currentNavItem = navItems.find(item => pathname.startsWith(item.href));
+  }
+
 
   if (isPublicPage) {
     return (
@@ -206,6 +197,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   };
   
   const hasAdminReadAccess = permissions?.courses?.r === true;
+  const isStaffView = !isAdminPath && !isSuperAdminPath;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -220,7 +212,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.variable} font-body antialiased`}>
-        <UserContext.Provider value={{ roleName: userRole?.name.toLowerCase() || null, permissions }}>
+        <UserContext.Provider value={userRole?.name.toLowerCase() || null}>
           <SidebarProvider>
             <Sidebar>
               <SidebarHeader>
@@ -237,7 +229,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <SidebarMenu>
                     <SidebarGroup>
                       <SidebarGroupLabel>
-                        {currentView.charAt(0).toUpperCase() + currentView.slice(1)} Menu
+                        {isSuperAdminPath ? 'Super Admin' : isAdminPath ? 'Admin Menu' : 'Menu'}
                       </SidebarGroupLabel>
                       {currentNavItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
@@ -254,26 +246,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       ))}
                     </SidebarGroup>
                     
-                    {currentView !== 'staff' && (
-                        <SidebarMenuItem>
-                          <Link href={'/dashboard'}>
-                            <SidebarMenuButton tooltip={'Staff View'}>
-                              <User />
-                              <span>Staff View</span>
-                            </SidebarMenuButton>
-                          </Link>
-                        </SidebarMenuItem>
+                    {isStaffView && hasAdminReadAccess && (
+                      <SidebarMenuItem>
+                        <Link href="/admin/analytics">
+                          <SidebarMenuButton tooltip="Admin View">
+                            <ShieldCheck />
+                            <span>Admin View</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
                     )}
 
-                    {currentView === 'staff' && hasAdminReadAccess && (
+                    {!isStaffView && !isSuperAdminPath && (
                       <SidebarMenuItem>
-                          <Link href={'/admin/analytics'}>
-                            <SidebarMenuButton tooltip={'Admin View'}>
-                              <ShieldCheck />
-                              <span>Admin View</span>
-                            </SidebarMenuButton>
-                          </Link>
-                        </SidebarMenuItem>
+                        <Link href="/dashboard">
+                          <SidebarMenuButton tooltip="Staff View">
+                            <User />
+                            <span>Staff View</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
                     )}
                   </SidebarMenu>
                 )}
