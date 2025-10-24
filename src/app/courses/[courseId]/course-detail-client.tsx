@@ -241,10 +241,10 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                   <FeatureNotImplementedDialog
                     title="Purchase Course"
                     description="This is a paid course. The payment and enrollment flow has not been implemented yet."
-                    triggerVariant="default"
-                    triggerSize="lg"
                     triggerText="Purchase Course to Continue"
                     triggerIcon={<ShoppingCart className="mr-2 h-5 w-5" />}
+                    triggerVariant="default"
+                    triggerSize="lg"
                   />
                 ) : quiz ? (
                     allModulesCompleted ? (
