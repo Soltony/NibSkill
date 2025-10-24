@@ -153,7 +153,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
             <h1 className="text-4xl font-bold text-white font-headline">{course.title}</h1>
             <p className="text-lg text-white/90 max-w-2xl">{course.description}</p>
           </div>
-          {course.isPaid && course.price && (
+          {course.isPaid && course.price && course.currency && (
             <Badge variant="secondary" className="text-lg">
               {getCurrencySymbol(course.currency)}{course.price.toFixed(2)}
             </Badge>
