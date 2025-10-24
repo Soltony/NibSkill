@@ -17,11 +17,18 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { getSession } from "@/lib/auth";
+import { notFound } from "next/navigation";
 
-async function getPendingSubmissions() {
+async function getPendingSubmissions(trainingProviderId: string) {
     const submissions = await prisma.quizSubmission.findMany({
         where: {
-            status: 'PENDING_REVIEW'
+            status: 'PENDING_REVIEW',
+            quiz: {
+                course: {
+                    trainingProviderId: trainingProviderId,
+                }
+            }
         },
         include: {
             user: true,
@@ -40,7 +47,12 @@ async function getPendingSubmissions() {
 
 
 export default async function GradingPage() {
-    const submissions = await getPendingSubmissions();
+    const session = await getSession();
+    if (!session || !session.trainingProviderId) {
+        notFound();
+    }
+
+    const submissions = await getPendingSubmissions(session.trainingProviderId);
 
     return (
         <div className="space-y-8">
