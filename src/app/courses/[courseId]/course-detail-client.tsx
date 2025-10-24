@@ -239,9 +239,9 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
             <div className="mt-8 text-center">
                 {course.isPaid ? (
                   <FeatureNotImplementedDialog
-                    title="Purchase Course"
+                    title="Buy Course"
                     description="This is a paid course. The payment and enrollment flow has not been implemented yet."
-                    triggerText="Purchase Course to Continue"
+                    triggerText="Buy the course"
                     triggerIcon={<ShoppingCart className="mr-2 h-5 w-5" />}
                     triggerVariant="default"
                     triggerSize="lg"
