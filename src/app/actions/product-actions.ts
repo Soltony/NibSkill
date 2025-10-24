@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { getSession } from '@/lib/auth'
 
 const productSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
@@ -14,6 +15,11 @@ const productSchema = z.object({
 
 export async function addProduct(values: z.infer<typeof productSchema>) {
   try {
+    const session = await getSession();
+    if (!session || !session.trainingProviderId) {
+      return { success: false, message: "Unauthorized operation." };
+    }
+
     const validatedFields = productSchema.safeParse(values)
 
     if (!validatedFields.success) {
@@ -26,6 +32,7 @@ export async function addProduct(values: z.infer<typeof productSchema>) {
         description: validatedFields.data.description,
         imageUrl: validatedFields.data.imageUrl,
         imageHint: validatedFields.data.imageHint || 'custom image',
+        trainingProviderId: session.trainingProviderId,
       },
     })
 
