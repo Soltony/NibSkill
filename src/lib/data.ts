@@ -64,6 +64,7 @@ export type Course = {
   isPaid?: boolean;
   price?: number;
   currency?: Currency;
+  hasCertificate?: boolean;
 };
 
 export type Question = {
@@ -249,6 +250,7 @@ export const courses: Course[] = [
     productId: 'prod-1',
     image: PlaceHolderImages[0],
     isPaid: false,
+    hasCertificate: true,
     modules: [
       { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
       { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -264,6 +266,7 @@ export const courses: Course[] = [
     isPaid: true,
     price: 49.99,
     currency: 'USD',
+    hasCertificate: false,
     modules: [
       { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#' },
       { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -278,6 +281,7 @@ export const courses: Course[] = [
     productId: 'prod-3',
     image: PlaceHolderImages[2],
     isPaid: false,
+    hasCertificate: false,
     modules: [
         { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
         { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, description: 'A deep dive into the rendering pipeline.', content: '#' },
@@ -293,6 +297,7 @@ export const courses: Course[] = [
     productId: 'prod-4',
     image: PlaceHolderImages[3],
     isPaid: false,
+    hasCertificate: true,
     modules: [
         { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, description: 'An overview of the current market landscape.', content: '#' },
         { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },

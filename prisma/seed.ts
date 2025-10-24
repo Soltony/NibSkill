@@ -150,6 +150,7 @@ async function main() {
         isPaid: courseData.isPaid,
         price: courseData.price,
         currency: courseData.currency,
+        hasCertificate: courseData.hasCertificate
       },
       create: {
         id: courseData.id,
@@ -162,6 +163,7 @@ async function main() {
         imageUrl: image?.imageUrl,
         imageDescription: image?.description,
         imageHint: image?.imageHint,
+        hasCertificate: courseData.hasCertificate
       }
     });
 

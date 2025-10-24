@@ -48,6 +48,7 @@ const formSchema = z.object({
   isPaid: z.boolean().default(false),
   price: z.coerce.number().optional(),
   currency: z.nativeEnum(Currency).optional(),
+  hasCertificate: z.boolean().default(false),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -72,6 +73,7 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
       isPaid: false,
       price: undefined,
       currency: undefined,
+      hasCertificate: false,
     },
   })
   
@@ -220,6 +222,26 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
                 />
                </div>
             )}
+             <FormField
+              control={form.control}
+              name="hasCertificate"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Award a Certificate</FormLabel>
+                    <FormDescription>
+                      Does this course award a certificate upon completion?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? 'Creating...' : 'Create Course'}

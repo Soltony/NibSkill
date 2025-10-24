@@ -148,18 +148,20 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                     {completedCourses.length > 0 ? (
                         <ul className="space-y-4">
                             {completedCourses.map(cert => (
-                                <li key={cert.courseId} className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border p-4">
-                                    <div>
-                                        <p className="font-semibold">{cert.course.title}</p>
-                                        <p className="text-sm text-muted-foreground">Completed on: {new Date(cert.completionDate).toLocaleDateString()}</p>
-                                    </div>
-                                    <Button asChild variant="outline" className="mt-2 sm:mt-0">
-                                        <Link href={`/courses/${cert.courseId}/certificate`}>
-                                            <FileText className="mr-2 h-4 w-4" />
-                                            View Certificate
-                                        </Link>
-                                    </Button>
-                                </li>
+                                cert.course.hasCertificate ? (
+                                    <li key={cert.courseId} className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border p-4">
+                                        <div>
+                                            <p className="font-semibold">{cert.course.title}</p>
+                                            <p className="text-sm text-muted-foreground">Completed on: {new Date(cert.completionDate).toLocaleDateString()}</p>
+                                        </div>
+                                        <Button asChild variant="outline" className="mt-2 sm:mt-0">
+                                            <Link href={`/courses/${cert.courseId}/certificate`}>
+                                                <FileText className="mr-2 h-4 w-4" />
+                                                View Certificate
+                                            </Link>
+                                        </Button>
+                                    </li>
+                                ) : null
                             ))}
                         </ul>
                         ) : (

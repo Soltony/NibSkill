@@ -26,14 +26,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from './ui/input';
 import { Award, Frown, BookCopy, AlertTriangle, ChevronLeft, ChevronRight, Loader2, Hourglass } from 'lucide-react';
-import type { Quiz as TQuiz, Question, Option as TOption } from '@prisma/client';
+import type { Quiz as TQuiz, Question, Option as TOption, Course } from '@prisma/client';
 import { Progress } from './ui/progress';
 import { completeCourse } from '@/app/actions/user-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { createSubmission } from '@/app/actions/submission-actions';
 
-type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
+type QuizType = TQuiz & { 
+  questions: (Question & { options: TOption[] })[],
+  course: Course
+};
 
 type Answer = string | string[];
 
@@ -322,7 +325,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                     {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCopy className="mr-2 h-4 w-4" />}
                     Back to Course
                 </Button>
-            ) : passed ? (
+            ) : passed && quiz.course.hasCertificate ? (
                 <Button asChild>
                     <Link href={`/courses/${quiz.courseId}/certificate`}>
                         <Award className="mr-2 h-4 w-4" />

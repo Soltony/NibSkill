@@ -42,8 +42,13 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             }
         });
 
+        const course = await prisma.course.findUnique({ where: { id: courseId } });
+        if (course?.hasCertificate) {
+            revalidatePath(`/courses/${courseId}/certificate`);
+        }
+
         revalidatePath('/profile');
-        revalidatePath(`/courses/${courseId}/certificate`);
+        
         return { success: true, message: 'Course completion recorded.' }
     } catch (error) {
         console.error("Error recording course completion:", error);

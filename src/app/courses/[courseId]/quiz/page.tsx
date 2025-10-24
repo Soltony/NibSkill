@@ -6,25 +6,21 @@ import { getSession } from '@/lib/auth';
 import { Quiz } from '@/components/quiz';
 import type { Quiz as TQuiz, Question, Option as TOption, Course, User } from '@prisma/client';
 
-type QuizType = TQuiz & { questions: (Question & { options: TOption[] })[] };
-
-type CourseWithQuiz = Course & {
-    quiz: QuizType | null;
+type QuizType = TQuiz & { 
+  questions: (Question & { options: TOption[] })[],
+  course: Course 
 };
 
 async function getQuizData(courseId: string, userId: string) {
-    const course = await prisma.course.findUnique({
-        where: { id: courseId },
+    const quiz = await prisma.quiz.findFirst({
+        where: { courseId: courseId },
         include: {
-            quiz: {
+            course: true,
+            questions: {
+                orderBy: { createdAt: 'asc' }, // Ensure consistent question order
                 include: {
-                    questions: {
-                        orderBy: { createdAt: 'asc' }, // Ensure consistent question order
-                        include: {
-                            options: {
-                                orderBy: { createdAt: 'asc' }, // Ensure consistent option order
-                            },
-                        },
+                    options: {
+                        orderBy: { createdAt: 'asc' }, // Ensure consistent option order
                     },
                 },
             },
@@ -33,7 +29,7 @@ async function getQuizData(courseId: string, userId: string) {
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
 
-    return { course, user };
+    return { quiz, user };
 }
 
 
@@ -45,16 +41,16 @@ export default async function QuizPage({ params }: { params: { courseId: string 
     
     const { courseId } = params;
 
-    const { course, user } = await getQuizData(courseId, session.id);
+    const { quiz, user } = await getQuizData(courseId, session.id);
     
-    if (!course || !user || !course.quiz) {
+    if (!quiz || !user) {
         notFound();
     }
     
     // Shuffle questions on the server before passing to the client
-    const shuffledQuestions = [...course.quiz.questions].sort(() => Math.random() - 0.5);
+    const shuffledQuestions = [...quiz.questions].sort(() => Math.random() - 0.5);
     const quizWithShuffled = {
-        ...course.quiz,
+        ...quiz,
         questions: shuffledQuestions,
     }
 
@@ -66,7 +62,7 @@ export default async function QuizPage({ params }: { params: { courseId: string 
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4">
             <Quiz 
-                quiz={quizWithShuffled} 
+                quiz={quizWithShuffled as QuizType} 
                 userId={user.id}
                 onComplete={handleQuizComplete} 
             />
