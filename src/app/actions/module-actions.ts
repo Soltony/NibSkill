@@ -23,11 +23,13 @@ export async function addModule(courseId: string, values: z.infer<typeof formSch
             return { success: false, message: "Invalid data provided." }
         }
 
+        const { type, ...restOfData } = validatedFields.data;
+
         const newModule = await prisma.module.create({
             data: {
                 courseId,
-                ...validatedFields.data,
-                type: validatedFields.data.type.toUpperCase() as ModuleType,
+                ...restOfData,
+                type: type.toUpperCase() as ModuleType,
             }
         });
 
@@ -46,11 +48,13 @@ export async function updateModule(id: string, values: z.infer<typeof formSchema
             return { success: false, message: "Invalid data provided." }
         }
         
+        const { type, ...restOfData } = validatedFields.data;
+
         const updatedModule = await prisma.module.update({
             where: { id },
             data: {
-                ...validatedFields.data,
-                type: validatedFields.data.type.toUpperCase() as ModuleType,
+                ...restOfData,
+                type: type.toUpperCase() as ModuleType,
             }
         });
         
