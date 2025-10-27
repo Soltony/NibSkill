@@ -17,6 +17,7 @@ import {
 import prisma from "@/lib/db"
 import { AddProviderDialog } from "./add-provider-dialog"
 import type { TrainingProvider, User } from "@prisma/client"
+import { EditProviderDialog } from "./edit-provider-dialog"
 
 type ProviderWithAdmin = TrainingProvider & { users: User[] };
 
@@ -57,6 +58,7 @@ export default async function SuperAdminDashboard() {
                   <TableHead>Admin Name</TableHead>
                   <TableHead>Admin Email</TableHead>
                   <TableHead>Account Number</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -70,12 +72,15 @@ export default async function SuperAdminDashboard() {
                       <TableCell>{admin?.name || 'N/A'}</TableCell>
                       <TableCell>{admin?.email || 'N/A'}</TableCell>
                       <TableCell>{provider.accountNumber}</TableCell>
+                      <TableCell className="text-right">
+                        <EditProviderDialog provider={provider} />
+                      </TableCell>
                     </TableRow>
                   )
                 })}
                  {providers.length === 0 && (
                     <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
+                        <TableCell colSpan={5} className="h-24 text-center">
                             No training providers registered yet.
                         </TableCell>
                     </TableRow>
