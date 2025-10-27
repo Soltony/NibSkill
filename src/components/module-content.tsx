@@ -74,38 +74,65 @@ export const ModuleContent = ({ module }: { module: Module }) => {
             return <p className="text-muted-foreground">No content has been assigned to this module yet.</p>
         }
 
-        switch (module.type) {
-            case 'video':
-                if (isYouTubeUrl) return <YouTubeEmbed url={module.content} />;
-                if (isUploadedContent) return <LocalVideoPlayer url={module.content} />;
-                break;
-            case 'audio':
-                if (isUploadedContent) return <LocalAudioPlayer url={module.content} />;
-                break;
-            case 'pdf':
-            case 'slides':
-                 if (isUploadedContent) {
-                    return (
-                        <Button asChild>
-                           <a href={module.content} download={`nibtraining_${module.type}_${module.id}`}>
-                               <Download className="mr-2 h-4 w-4" />
-                               Download Material
-                           </a>
-                       </Button>
-                   );
-                }
-                break;
+        // Handle Video
+        if (module.type === 'video') {
+            if (isYouTubeUrl) {
+                return <YouTubeEmbed url={module.content} />;
+            }
+            if (isUploadedContent) {
+                return <LocalVideoPlayer url={module.content} />;
+            }
+            if(isExternalUrl) {
+                 return (
+                    <Button asChild variant="outline">
+                        <a href={module.content} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Open External Video
+                        </a>
+                    </Button>
+                );
+            }
+        }
+        
+        // Handle Audio
+        if (module.type === 'audio') {
+            if (isUploadedContent) {
+                return <LocalAudioPlayer url={module.content} />;
+            }
+            if (isExternalUrl) {
+                 return (
+                    <Button asChild variant="outline">
+                        <a href={module.content} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Open External Audio
+                        </a>
+                    </Button>
+                );
+            }
         }
 
-        if (isExternalUrl) {
-            return (
-                 <Button asChild variant="outline">
-                    <a href={module.content} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Open External Content
-                    </a>
-                </Button>
-            );
+        // Handle PDF and Slides
+        if (module.type === 'pdf' || module.type === 'slides') {
+            if (isUploadedContent) {
+                return (
+                    <Button asChild>
+                        <a href={module.content} download={`nibtraining_${module.type}_${module.id}`}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download Material
+                        </a>
+                    </Button>
+                );
+            }
+            if (isExternalUrl) {
+                 return (
+                    <Button asChild variant="outline">
+                        <a href={module.content} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Open External Material
+                        </a>
+                    </Button>
+                );
+            }
         }
 
         return <p className="text-muted-foreground">Unsupported or invalid content link for this module.</p>;
