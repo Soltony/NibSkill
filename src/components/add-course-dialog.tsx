@@ -83,8 +83,8 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
     const result = await addCourse(values);
     if (result.success) {
         toast({
-            title: "Course Added",
-            description: `The course "${values.title}" has been successfully created.`,
+            title: "Course Submitted",
+            description: `The course "${values.title}" has been submitted for approval.`,
         })
         setOpen(false)
         form.reset()
@@ -244,7 +244,7 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
             />
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Creating...' : 'Create Course'}
+                {form.formState.isSubmitting ? 'Submitting...' : 'Submit for Approval'}
               </Button>
             </DialogFooter>
           </form>

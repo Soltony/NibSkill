@@ -1,6 +1,4 @@
 
-
-import Image from "next/image"
 import {
   Table,
   TableBody,
@@ -9,7 +7,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -18,57 +15,50 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
-import { CourseClient, CourseLink, CourseActions } from "../course-client"
-import { cn } from "@/lib/utils"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
+import Image from "next/image"
+import { ApprovalActions } from "./approval-client"
+import Link from "next/link"
 
-async function getData(trainingProviderId: string) {
+async function getPendingCourses(trainingProviderId: string) {
   const courses = await prisma.course.findMany({
     where: { 
       trainingProviderId,
-      status: 'PUBLISHED'
+      status: 'PENDING' 
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: 'asc' },
     include: {
       modules: true,
       product: true,
     }
   });
-  
-  const products = await prisma.product.findMany({
-    where: { trainingProviderId },
-    orderBy: { name: 'asc' }
-  });
-
-  return { courses, products }
+  return courses;
 }
 
-export default async function CourseManagementPage() {
+
+export default async function CourseApprovalPage() {
   const session = await getSession();
   if (!session || !session.trainingProviderId) {
     notFound();
   }
 
-  const { courses, products } = await getData(session.trainingProviderId);
+  const courses = await getPendingCourses(session.trainingProviderId);
 
   return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Course Management</h1>
+          <h1 className="text-3xl font-bold font-headline">Course Approvals</h1>
           <p className="text-muted-foreground">
-            Register new products, link training courses, and manage modules.
+            Review and approve newly created courses before they are published.
           </p>
         </div>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Published Courses</CardTitle>
-              <CardDescription>
-                A list of all published training courses in the system.
-              </CardDescription>
-            </div>
-            <CourseClient courses={courses} products={products} />
+          <CardHeader>
+            <CardTitle>Pending Courses</CardTitle>
+            <CardDescription>
+              The following courses are awaiting your approval.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -80,9 +70,8 @@ export default async function CourseManagementPage() {
                   <TableHead>Course Title</TableHead>
                   <TableHead>Associated Product</TableHead>
                   <TableHead className="text-center">Modules</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Actions</span>
+                  <TableHead className="text-right">
+                    Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -106,29 +95,23 @@ export default async function CourseManagementPage() {
                       )}
                     </TableCell>
                     <TableCell className="font-medium">
-                        <CourseLink course={course} />
+                      <Link href={`/admin/courses/${course.id}`} className="hover:underline">
+                        {course.title}
+                      </Link>
                     </TableCell>
                     <TableCell>{course.product?.name}</TableCell>
                     <TableCell className="text-center">
                       {course.modules.length}
                     </TableCell>
-                    <TableCell className="text-center">
-                       <Badge 
-                        variant={course.status === 'PUBLISHED' ? 'secondary' : 'outline'}
-                        className={cn(course.status === 'PUBLISHED' ? 'text-green-600 border-green-600' : 'text-amber-600 border-amber-600')}
-                      >
-                        {course.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <CourseActions course={course} products={products} />
+                    <TableCell className="text-right">
+                      <ApprovalActions course={course} />
                     </TableCell>
                   </TableRow>
                 ))}
-                {courses.length === 0 && (
-                   <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
-                           No courses have been published yet.
+                 {courses.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                            There are no courses pending approval.
                         </TableCell>
                     </TableRow>
                 )}

@@ -39,6 +39,7 @@ import {
   Edit,
   Bell,
   ShieldCheck,
+  CheckCircle,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
@@ -116,6 +117,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/admin/products', icon: Package, label: 'Products' },
     { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt' },
+    { href: '/admin/courses/approvals', icon: CheckCircle, label: 'Approvals'},
     { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths' },
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt' },
     { href: '/admin/grading', icon: Edit, label: 'Grading' },

@@ -60,8 +60,9 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
             }
         });
 
-        revalidatePath('/admin/courses');
-        return { success: true, message: 'Course added successfully.' }
+        revalidatePath('/admin/courses/list');
+        revalidatePath('/admin/courses/approvals');
+        return { success: true, message: 'Course submitted for approval.' }
     } catch (error) {
         console.error("Error adding course:", error);
         return { success: false, message: "Failed to add course." }
@@ -99,7 +100,8 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
             }
         });
 
-        revalidatePath('/admin/courses');
+        revalidatePath('/admin/courses/list');
+        revalidatePath('/admin/courses/approvals');
         revalidatePath(`/admin/courses/${id}`);
         revalidatePath(`/courses/${id}`);
         return { success: true, message: 'Course updated successfully.' }
@@ -115,7 +117,8 @@ export async function deleteCourse(id: string) {
             where: { id }
         });
 
-        revalidatePath('/admin/courses');
+        revalidatePath('/admin/courses/list');
+        revalidatePath('/admin/courses/approvals');
         return { success: true, message: 'Course deleted successfully.' }
     } catch (error) {
         console.error("Error deleting course:", error);
@@ -131,6 +134,7 @@ export async function publishCourse(id: string) {
         });
 
         revalidatePath('/admin/courses/list');
+        revalidatePath('/admin/courses/approvals');
         return { success: true, message: 'Course published successfully.' }
     } catch (error) {
         console.error("Error publishing course:", error);
