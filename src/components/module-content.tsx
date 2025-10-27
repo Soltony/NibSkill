@@ -96,7 +96,7 @@ export const ModuleContent = ({ module }: { module: Module }) => {
                 }
                 break;
         }
-        
+
         if (isExternalUrl) {
             return (
                  <Button asChild variant="outline">
