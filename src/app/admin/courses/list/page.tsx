@@ -27,7 +27,6 @@ async function getData(trainingProviderId: string) {
   const courses = await prisma.course.findMany({
     where: { 
       trainingProviderId,
-      status: 'PUBLISHED'
     },
     orderBy: { createdAt: 'desc' },
     include: {
@@ -63,9 +62,9 @@ export default async function CourseManagementPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Published Courses</CardTitle>
+              <CardTitle>All Courses</CardTitle>
               <CardDescription>
-                A list of all published training courses in the system.
+                A list of all training courses in the system, including pending and published.
               </CardDescription>
             </div>
             <CourseClient courses={courses} products={products} />
@@ -128,7 +127,7 @@ export default async function CourseManagementPage() {
                 {courses.length === 0 && (
                    <TableRow>
                         <TableCell colSpan={6} className="h-24 text-center">
-                           No courses have been published yet.
+                           No courses have been created yet.
                         </TableCell>
                     </TableRow>
                 )}
