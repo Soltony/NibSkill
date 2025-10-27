@@ -1,7 +1,7 @@
 
 'use server'
 
-import { prisma } from '@/lib/db'
+import prisma from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 
 export async function markNotificationsAsRead(notificationIds: string[]) {

@@ -2,7 +2,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
-import { prisma } from './db';
+import prisma from './db';
 import type { Role } from '@prisma/client';
 
 const getJwtSecret = () => {

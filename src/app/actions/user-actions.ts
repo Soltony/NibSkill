@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import prisma from '@/lib/db'
 import { cookies } from 'next/headers'
 import { getSession } from '@/lib/auth'
 
