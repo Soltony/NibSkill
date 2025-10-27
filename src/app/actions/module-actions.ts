@@ -27,7 +27,7 @@ export async function addModule(courseId: string, values: z.infer<typeof formSch
             data: {
                 courseId,
                 ...validatedFields.data,
-                type: validatedFields.data.type as ModuleType,
+                type: validatedFields.data.type.toUpperCase() as ModuleType,
             }
         });
 
@@ -50,7 +50,7 @@ export async function updateModule(id: string, values: z.infer<typeof formSchema
             where: { id },
             data: {
                 ...validatedFields.data,
-                type: validatedFields.data.type as ModuleType,
+                type: validatedFields.data.type.toUpperCase() as ModuleType,
             }
         });
         
