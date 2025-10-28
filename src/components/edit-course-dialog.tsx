@@ -262,17 +262,27 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                    <Select onValueChange={field.onChange} value={field.value ?? undefined} disabled={course.status === 'PENDING'}>
                         <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a status" />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            <SelectItem value="PENDING">Pending</SelectItem>
-                            <SelectItem value="PUBLISHED">Published</SelectItem>
+                            {course.status === 'PENDING' && <SelectItem value="PENDING">Pending</SelectItem>}
+                            {course.status === 'PUBLISHED' && (
+                                <>
+                                    <SelectItem value="PUBLISHED">Published</SelectItem>
+                                    <SelectItem value="PENDING">Pending</SelectItem>
+                                </>
+                            )}
                         </SelectContent>
                     </Select>
+                    {course.status === 'PENDING' && (
+                        <FormDescription>
+                            Approve this course from the "Approvals" page to publish it.
+                        </FormDescription>
+                    )}
                   <FormMessage />
                 </FormItem>
               )}
