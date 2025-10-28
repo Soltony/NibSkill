@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 
 // This is the main function that will handle incoming GET requests to /api/connect
@@ -43,8 +44,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Phone number not found in validation response.' }, { status: 404 });
     }
 
-    // Return the phone number in the response.
-    return NextResponse.json({ phoneNumber: phoneNumber });
+    // Return the phone number AND the original token for the next step
+    return NextResponse.json({ phoneNumber: phoneNumber, token: token });
 
   } catch (error) {
     console.error("Error during token validation:", error);

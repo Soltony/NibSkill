@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useContext } from 'react';
@@ -15,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart } from 'lucide-react';
+import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -53,11 +52,21 @@ type CourseDetailClientProps = {
     courseData: CourseData;
 }
 
+declare global {
+  interface Window {
+    myJsChannel?: {
+      postMessage: (message: { token: string }) => void;
+    };
+  }
+}
+
+
 export function CourseDetailClient({ courseData: initialCourseData }: CourseDetailClientProps) {
   const { toast } = useToast();
   const userRole = useContext(UserContext);
   
   const [courseData, setCourseData] = useState<CourseData>(initialCourseData);
+  const [isPaying, setIsPaying] = useState(false);
   const [localCompletedModules, setLocalCompletedModules] = useState<Set<string>>(
       new Set(initialCourseData.completedModules.map(cm => cm.moduleId))
   );
@@ -120,6 +129,66 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
       setLocalCompletedModules(new Set(courseData?.completedModules.map(cm => cm.moduleId)))
     }
   };
+
+  const handleBuyCourse = async () => {
+    setIsPaying(true);
+    try {
+        // Step 1: Get the authorization token from the header via our own API
+        const connectResponse = await fetch('/api/connect');
+        if (!connectResponse.ok) {
+            throw new Error("Failed to get authorization token.");
+        }
+        const connectData = await connectResponse.json();
+        const authToken = connectData.token;
+
+        if (!authToken) {
+             throw new Error("Authorization token not found.");
+        }
+        
+        // Step 2: Call our secure API to initiate payment
+        const paymentResponse = await fetch('/api/payment/initiate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: course.price, token: authToken })
+        });
+        
+        const paymentData = await paymentResponse.json();
+
+        if (!paymentResponse.ok || !paymentData.success) {
+            throw new Error(paymentData.message || "Failed to initiate payment.");
+        }
+
+        const paymentToken = paymentData.paymentToken;
+
+        // Step 3: Post the payment token back to the super app
+        if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+            window.myJsChannel.postMessage({ token: paymentToken });
+            // Here you would typically start polling for payment status
+            toast({
+                title: "Payment Initiated",
+                description: "Please complete the payment in the NIBtera Super App.",
+            });
+        } else {
+            console.error("NIB Super App channel (window.myJsChannel) not found.");
+            toast({
+                title: "Error",
+                description: "Could not communicate with the payment app. Please ensure you are in the NIBtera app.",
+                variant: "destructive",
+            });
+        }
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        toast({
+            title: "Payment Failed",
+            description: message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsPaying(false);
+    }
+  }
+
 
   const quiz = course.quiz as QuizType | undefined;
   
@@ -239,15 +308,10 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
             <div className="mt-8 text-center">
                 {course.isPaid ? (
-                  <FeatureNotImplementedDialog
-                    title="Buy Course"
-                    description="This is a paid course. The payment and enrollment flow has not been implemented yet."
-                  >
-                    <Button size="lg">
-                        <ShoppingCart className="mr-2 h-5 w-5" />
-                        Buy the course
+                    <Button size="lg" onClick={handleBuyCourse} disabled={isPaying}>
+                        {isPaying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
+                        {isPaying ? 'Processing...' : 'Buy the course'}
                     </Button>
-                  </FeatureNotImplementedDialog>
                 ) : quiz ? (
                     allModulesCompleted ? (
                         <Button size="lg" asChild>
