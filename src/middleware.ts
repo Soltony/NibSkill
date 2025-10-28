@@ -1,93 +1,133 @@
-
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { jwtVerify, type JWTPayload } from 'jose';
+import { jwtVerify, type JWTPayload } from 'jose'
 
 interface CustomJwtPayload extends JWTPayload {
-    userId: string;
-    // Add other properties from your JWT payload if needed
+  userId: string
+  role: {
+    name: string
+    permissions?: Record<string, any>
+  }
 }
 
 const getJwtSecret = () => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-        throw new Error("JWT_SECRET environment variable is not set.");
-    }
-    return new TextEncoder().encode(secret);
+  const secret = process.env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set.')
+  return new TextEncoder().encode(secret)
 }
 
-// List of public paths that don't require authentication
-const publicPaths = ['/login', '/login/register', '/login/super-admin', '/api/auth/login', '/api/auth/register', '/api/connect', '/api/payment/initiate', '/api/registration-data'];
+// Publicly accessible paths
+const publicPaths = [
+  '/login',
+  '/login/register',
+  '/login/super-admin',
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/connect',
+  '/api/payment/initiate',
+  '/api/registration-data',
+]
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname } = request.nextUrl
+  const sessionCookie = request.cookies.get('session')?.value
+  const isPublicPath =
+    publicPaths.some((path) => pathname.startsWith(path)) || pathname === '/'
 
-  // Check if the current path is a public path
-  const isPublicPath = publicPaths.some(path => pathname.startsWith(path)) || pathname === '/';
+  // Generate nonces for inline scripts and styles
+  const scriptNonce = crypto.randomUUID()
+  const styleNonce = crypto.randomUUID()
 
-  const sessionCookie = request.cookies.get('session')?.value;
+  // Strict CSP
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${scriptNonce}' 'strict-dynamic';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    img-src 'self' https://placehold.co https://images.unsplash.com https://picsum.photos;
+    font-src 'self' https://fonts.gstatic.com;
+    connect-src 'self';
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+  `.replace(/\s{2,}/g, ' ').trim()
 
-  if (isPublicPath) {
-    // If the user is on a public page and has a valid session, redirect them to the appropriate dashboard
-    if (sessionCookie) {
-      try {
-        const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret());
-        const roleName = (payload as any).role.name.toLowerCase();
-        
-        let redirectTo = '/dashboard'; // Default staff dashboard
-        if (roleName === 'super admin') {
-          redirectTo = '/super-admin';
-        } else if (roleName !== 'staff') { // Any other admin-like role
-          redirectTo = '/admin/analytics';
-        }
-        
-        return NextResponse.redirect(new URL(redirectTo, request.url));
-      } catch (err) {
-        // Token is invalid, let them stay on the public page
-      }
-    }
-    return NextResponse.next();
+  const setSecurityHeaders = (res: NextResponse) => {
+    res.headers.set('Content-Security-Policy', cspHeader)
+    res.headers.set('x-script-nonce', scriptNonce)
+    res.headers.set('x-style-nonce', styleNonce)
+    res.headers.set('X-Content-Type-Options', 'nosniff')
+    res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
+    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    res.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
+    res.headers.set('X-Frame-Options', 'DENY')
+    return res
   }
 
-  // If it's a protected path, a session must exist
+  // Public pages
+  if (isPublicPath) {
+    if (sessionCookie) {
+      try {
+        const { payload } = await jwtVerify<CustomJwtPayload>(
+          sessionCookie,
+          getJwtSecret()
+        )
+        const roleName = payload.role.name.toLowerCase()
+        let redirectTo = '/dashboard'
+        if (roleName === 'super admin') redirectTo = '/super-admin'
+        else if (roleName !== 'staff') redirectTo = '/admin/analytics'
+
+        const res = NextResponse.redirect(new URL(redirectTo, request.url))
+        return setSecurityHeaders(res)
+      } catch {
+        // Invalid token: continue to public page
+      }
+    }
+    const res = NextResponse.next()
+    return setSecurityHeaders(res)
+  }
+
+  // Protected pages
   if (!sessionCookie) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    const res = NextResponse.redirect(url)
+    return setSecurityHeaders(res)
   }
 
-  // Verify the session for protected routes
   try {
-    const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret());
-    
-    // Add logic to check for specific role access if needed
-    const roleName = (payload as any).role.name.toLowerCase();
-    const isAdminPath = pathname.startsWith('/admin');
-    const isSuperAdminPath = pathname.startsWith('/super-admin');
+    const { payload } = await jwtVerify<CustomJwtPayload>(
+      sessionCookie,
+      getJwtSecret()
+    )
+    const roleName = payload.role.name.toLowerCase()
+    const isAdminPath = pathname.startsWith('/admin')
+    const isSuperAdminPath = pathname.startsWith('/super-admin')
 
     if (isSuperAdminPath && roleName !== 'super admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      const res = NextResponse.redirect(new URL('/dashboard', request.url))
+      return setSecurityHeaders(res)
     }
-    
-    if (isAdminPath && (roleName === 'staff' && !(payload as any).role.permissions.courses.r)) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+
+    if (
+      isAdminPath &&
+      roleName === 'staff' &&
+      !(payload.role.permissions?.courses?.r ?? false)
+    ) {
+      const res = NextResponse.redirect(new URL('/dashboard', request.url))
+      return setSecurityHeaders(res)
     }
-    
-  } catch (err) {
-    // If token verification fails, redirect to login
+  } catch {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
+    const res = NextResponse.redirect(url)
+    return setSecurityHeaders(res)
   }
 
-  return NextResponse.next();
+  // Default: allow request
+  const res = NextResponse.next()
+  return setSecurityHeaders(res)
 }
 
 export const config = {
-  // Match all request paths except for the ones starting with:
-  // - _next/static (static files)
-  // - _next/image (image optimization files)
-  // - favicon.ico (favicon file)
-  // And any other static assets in /public
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
-};
+}

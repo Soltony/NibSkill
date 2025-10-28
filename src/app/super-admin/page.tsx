@@ -20,6 +20,7 @@ import type { TrainingProvider, User } from "@prisma/client"
 import { EditProviderDialog } from "./edit-provider-dialog"
 
 type ProviderWithAdmin = TrainingProvider & { users: User[] };
+export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboard() {
   const providers: ProviderWithAdmin[] = await prisma.trainingProvider.findMany({
