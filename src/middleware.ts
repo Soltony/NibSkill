@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
     default-src 'self';
     script-src 'self' 'nonce-${scriptNonce}' 'strict-dynamic';
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' https://placehold.co https://images.unsplash.com https://picsum.photos;
+    img-src 'self' https://placehold.co https://images.unsplash.com https://picsum.photos data:;
     font-src 'self' https://fonts.gstatic.com;
     connect-src 'self';
     frame-ancestors 'none';
@@ -57,10 +57,6 @@ export async function middleware(request: NextRequest) {
     res.headers.set('x-script-nonce', scriptNonce)
     res.headers.set('x-style-nonce', styleNonce)
     res.headers.set('X-Content-Type-Options', 'nosniff')
-    res.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
-    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-    res.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
-    res.headers.set('X-Frame-Options', 'DENY')
     return res
   }
 

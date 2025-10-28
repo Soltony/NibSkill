@@ -54,7 +54,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       try {
         setIsLoading(true);
         const res = await fetch('/api/auth/session');
-        if (res.ok) setCurrentUser(await res.json());
+        if (res.ok) {
+            const user = await res.json();
+            if (user) {
+                setCurrentUser(user);
+            } else {
+                 router.replace('/login');
+            }
+        }
         else router.replace('/login');
       } catch {
         router.replace('/login');
