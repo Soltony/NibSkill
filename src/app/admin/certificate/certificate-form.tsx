@@ -51,7 +51,6 @@ type CertificateFormProps = {
   template: CertificateTemplate;
 };
 
-const colorOptions = ["#4a6e3a", "#3b82f6", "#8b5cf6", "#ec4899", "#f97316"];
 const borderStyleOptions = ["solid", "double", "dotted", "dashed"];
 const templateStyleOptions = ["Modern", "Classic", "Formal"];
 
@@ -65,7 +64,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       ...template,
-      primaryColor: template.primaryColor || colorOptions[0],
+      primaryColor: template.primaryColor || '#4a6e3a',
       borderStyle: template.borderStyle || borderStyleOptions[0],
       templateStyle: template.templateStyle || templateStyleOptions[0],
       logoUrl: template.logoUrl,
@@ -162,7 +161,6 @@ export function CertificateForm({ template }: CertificateFormProps) {
                     <FormItem>
                       <FormLabel>Organization Name</FormLabel>
                       <FormControl><Input {...field} /></FormControl>
-                      <FormDescription>This will be shown if no logo is uploaded.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -214,29 +212,18 @@ export function CertificateForm({ template }: CertificateFormProps) {
 
                 <div className="space-y-4 rounded-lg border p-4">
                     <h3 className="text-sm font-medium">Styling</h3>
-                    <FormField
-                    control={form.control}
-                    name="primaryColor"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Primary Color</FormLabel>
-                        <div className="flex gap-2">
-                            {colorOptions.map(color => (
-                            <Button
-                                key={color}
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 rounded-full"
-                                style={{ backgroundColor: color }}
-                                onClick={() => field.onChange(color)}
-                            >
-                                {field.value === color && <Check className="h-5 w-5 text-white" />}
-                            </Button>
-                            ))}
-                        </div>
-                        </FormItem>
-                    )}
+                     <FormField
+                        control={form.control}
+                        name="primaryColor"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-2"><Palette className="h-4 w-4" /> Primary Color</FormLabel>
+                                <FormControl>
+                                    <Input type="color" {...field} value={field.value || ''} className="h-10 p-1"/>
+                                </FormControl>
+                                <FormMessage/>
+                            </FormItem>
+                        )}
                     />
                     <FormField
                     control={form.control}
