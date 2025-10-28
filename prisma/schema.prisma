@@ -316,6 +316,7 @@ model CertificateTemplate {
   title            String
   organization     String
   body             String
+  logoUrl          String?
   signatoryName    String
   signatoryTitle   String
   signatureUrl     String?
