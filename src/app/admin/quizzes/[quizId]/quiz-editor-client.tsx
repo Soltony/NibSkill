@@ -87,7 +87,7 @@ export function QuizEditor({ quiz, courseTitle }: QuizEditorProps) {
 
     form.reset({
       passingScore: quiz.passingScore,
-      timeLimit: quiz.timeLimit || 0,
+      timeLimit: quiz.timeLimit ?? 0,
       quizType: quiz.quizType,
       questions: questionsWithCorrectAnswerHandling,
     })
