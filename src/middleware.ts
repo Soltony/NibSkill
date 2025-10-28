@@ -1,4 +1,3 @@
-
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify, type JWTPayload } from 'jose'
@@ -35,28 +34,30 @@ export async function middleware(request: NextRequest) {
   const isPublicPath =
     publicPaths.some((path) => pathname.startsWith(path)) || pathname === '/'
 
-  // Generate nonces for inline scripts and styles
+  // Generate nonce for inline scripts
   const scriptNonce = crypto.randomUUID()
-  const styleNonce = crypto.randomUUID()
 
-  // Strict CSP
-  const cspHeader = `
-    default-src 'self';
-    script-src 'self' 'nonce-${scriptNonce}' 'strict-dynamic';
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    img-src 'self' https://placehold.co https://images.unsplash.com https://picsum.photos data:;
-    font-src 'self' https://fonts.gstatic.com;
-    connect-src 'self';
-    frame-ancestors 'none';
-    base-uri 'self';
-    form-action 'self';
-  `.replace(/\s{2,}/g, ' ').trim()
+  // CSP header
+  const cspHeader = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${scriptNonce}' 'strict-dynamic'`,
+    "style-src 'self' https://fonts.googleapis.com",
+    "media-src 'self'",
+    "object-src 'none'",
+    "frame-src 'none'",
+    "font-src 'self' https://fonts.gstatic.com",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join('; ')
 
   const setSecurityHeaders = (res: NextResponse) => {
     res.headers.set('Content-Security-Policy', cspHeader)
     res.headers.set('x-script-nonce', scriptNonce)
-    res.headers.set('x-style-nonce', styleNonce)
     res.headers.set('X-Content-Type-Options', 'nosniff')
+    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    res.headers.set('X-Frame-Options', 'DENY')
     return res
   }
 
@@ -125,6 +126,7 @@ export async function middleware(request: NextRequest) {
   return setSecurityHeaders(res)
 }
 
+// Apply middleware to all routes, including error pages
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)'],
+  matcher: ['/:path*'],
 }
