@@ -52,7 +52,7 @@ import { logout } from './actions/user-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Notification, User as UserType, Role as RoleType } from '@prisma/client';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+//const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 // This would typically come from a session context
 type CurrentUser = UserType & {
@@ -163,7 +163,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 rel="stylesheet"
               />
             </head>
-            <body className={`${inter.variable} font-body antialiased`}>
+            <body /*className={`${inter.variable} font-body antialiased`}*/>
                 {children}
                 <Toaster />
             </body>
@@ -177,7 +177,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <head>
               <title>NIB Training</title>
             </head>
-            <body className={`${inter.variable} font-body antialiased`}>
+            <body /*className={`${inter.variable} font-body antialiased`}*/>
                 <div className="flex items-center justify-center min-h-screen">
                     <Logo />
                 </div>
@@ -213,7 +213,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className={`${inter.variable} font-body antialiased`}>
+      <body /*className={`${inter.variable} font-body antialiased`}*/>
         <UserContext.Provider value={userRole?.name.toLowerCase() || null}>
           <SidebarProvider>
             <Sidebar>
