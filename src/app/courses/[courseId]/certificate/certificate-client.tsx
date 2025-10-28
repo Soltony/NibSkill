@@ -7,7 +7,6 @@ import type { CertificateTemplate, Course } from "@prisma/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MoveLeft, Download } from "lucide-react";
-import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
 type CertificateClientProps = {
@@ -68,10 +67,12 @@ export function CertificateClient({ template, course, user, completionDate }: Ce
                 />
                 
                 <div className="z-10 w-full">
-                    <div className="flex justify-center items-center gap-4 mb-4">
-                        <Logo color={template.primaryColor || undefined} />
-                    </div>
-                    <p className="text-xl font-semibold text-muted-foreground">{template.organization}</p>
+                     <h2 
+                        className="text-2xl font-bold font-headline"
+                        style={{ color: template.primaryColor || undefined }}
+                    >
+                        {template.organization}
+                    </h2>
                 </div>
                 
                 <div className="z-10">

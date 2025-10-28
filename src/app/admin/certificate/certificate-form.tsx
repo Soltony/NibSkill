@@ -25,7 +25,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Logo } from "@/components/logo";
 import Image from "next/image";
 import { X, Palette, Brush, Check } from "lucide-react";
 import { updateCertificateTemplate } from "@/app/actions/certificate-actions";
@@ -304,10 +303,12 @@ export function CertificateForm({ template }: CertificateFormProps) {
           />
 
           <div className="z-10 w-full">
-            <div className="flex justify-center items-center gap-4 mb-4">
-              <Logo color={watchedValues.primaryColor} />
-            </div>
-            <p className="text-xl font-semibold text-muted-foreground">{watchedValues.organization}</p>
+            <h2 
+                className="text-2xl font-bold font-headline"
+                style={{ color: watchedValues.primaryColor }}
+            >
+                {watchedValues.organization}
+            </h2>
           </div>
 
           <div className="z-10">
