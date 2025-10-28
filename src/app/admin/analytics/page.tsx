@@ -17,6 +17,7 @@ async function getAnalyticsData(trainingProviderId: string) {
         },
     });
 
+    const totalCourses = courses.length;
     const totalCompletions = courses.reduce((acc, course) => acc + course.completedBy.length, 0);
     const totalEnrollments = totalUsers * courses.length; // Simplified: assumes all users are enrolled in all courses
     const avgCompletionRate = totalEnrollments > 0 ? Math.round((totalCompletions / totalEnrollments) * 100) : 0;
@@ -90,6 +91,7 @@ async function getAnalyticsData(trainingProviderId: string) {
     return {
         kpis: {
             totalUsers,
+            totalCourses,
             avgCompletionRate,
             avgScore,
         },
