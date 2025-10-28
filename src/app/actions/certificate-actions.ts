@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { getSession } from '@/lib/auth'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -13,18 +14,30 @@ const formSchema = z.object({
   signatoryTitle: z.string().min(3, "Signatory title is required"),
   signatureUrl: z.string().nullable(),
   stampUrl: z.string().nullable(),
+  primaryColor: z.string().optional(),
+  borderStyle: z.string().optional(),
+  templateStyle: z.string().optional(),
 })
 
 export async function updateCertificateTemplate(values: z.infer<typeof formSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized operation." };
+        }
+
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
         }
 
-        await prisma.certificateTemplate.update({
-            where: { id: "singleton" },
-            data: validatedFields.data,
+        await prisma.certificateTemplate.upsert({
+            where: { trainingProviderId: session.trainingProviderId },
+            update: validatedFields.data,
+            create: {
+                ...validatedFields.data,
+                trainingProviderId: session.trainingProviderId,
+            }
         });
 
         revalidatePath('/admin/certificate');

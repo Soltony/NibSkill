@@ -14,11 +14,16 @@ import { redirect } from "next/navigation";
 async function getLiveSessionsData(userId: string) {
   const sessions = await prisma.liveSession.findMany({
     include: {
-      attendees: {
+      attendedBy: {
         where: {
           userId: userId,
         },
       },
+      allowedAttendees: {
+        select: {
+            userId: true
+        }
+      }
     },
   });
 
@@ -34,15 +39,11 @@ export default async function LiveSessionsPage() {
     const { sessions, userId } = await getLiveSessionsData(user.id);
 
     const now = new Date();
-    const upcomingSessions = sessions.filter((s) => {
-        const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
-        return now < endTime;
-    }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+    const upcomingSessions = sessions.filter((s) => new Date(s.dateTime) >= now)
+        .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
-    const pastSessions = sessions.filter((s) => {
-        const endTime = new Date(new Date(s.dateTime).getTime() + 60 * 60 * 1000); // 1 hour duration
-        return now > endTime;
-    }).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    const pastSessions = sessions.filter((s) => new Date(s.dateTime) < now)
+        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
   return (
     <div className="space-y-8">
@@ -67,14 +68,18 @@ export default async function LiveSessionsPage() {
         <TabsContent value="upcoming">
             {upcomingSessions.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                    {upcomingSessions.map(session => (
-                        <SessionCard 
-                            key={session.id} 
-                            session={session} 
-                            userId={userId}
-                            hasAttended={session.attendees.length > 0}
-                        />
-                    ))}
+                    {upcomingSessions.map(session => {
+                        const isAllowed = !session.isRestricted || session.allowedAttendees.some(attendee => attendee.userId === userId);
+                        return (
+                            <SessionCard 
+                                key={session.id} 
+                                session={session} 
+                                userId={userId}
+                                hasAttended={session.attendedBy.length > 0}
+                                isAllowed={isAllowed}
+                            />
+                        )
+                    })}
                 </div>
             ) : (
                 <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-lg mt-6">
@@ -87,14 +92,18 @@ export default async function LiveSessionsPage() {
         <TabsContent value="past">
              {pastSessions.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                    {pastSessions.map(session => (
-                        <SessionCard 
-                            key={session.id} 
-                            session={session} 
-                            userId={userId}
-                            hasAttended={session.attendees.length > 0}
-                        />
-                    ))}
+                    {pastSessions.map(session => {
+                         const isAllowed = !session.isRestricted || session.allowedAttendees.some(attendee => attendee.userId === userId);
+                         return (
+                            <SessionCard 
+                                key={session.id} 
+                                session={session} 
+                                userId={userId}
+                                hasAttended={session.attendedBy.length > 0}
+                                isAllowed={isAllowed}
+                            />
+                        )
+                    })}
                 </div>
             ) : (
                 <div className="text-center py-20 text-muted-foreground bg-muted/20 rounded-lg mt-6">

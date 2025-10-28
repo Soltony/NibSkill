@@ -71,11 +71,12 @@ export async function POST(request: NextRequest) {
     const expirationTime = '24h';
     const token = await new SignJWT({ 
         userId: user.id, 
-        role: user.role.name,
+        role: user.role, // Pass the entire role object including permissions
         name: user.name,
         email: user.email,
         avatarUrl: user.avatarUrl,
         sessionId: newSessionId, // Embed the session ID in the token
+        trainingProviderId: user.trainingProviderId,
      })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -93,9 +94,22 @@ export async function POST(request: NextRequest) {
     
     const { password: _, ...userWithoutPassword } = user;
 
+    // Check permissions for redirection
+    const permissions = user.role.permissions as any;
+    const isSuperAdmin = user.role.name.toLowerCase() === 'super admin';
+    const canViewAdminDashboard = permissions?.courses?.r === true;
+    
+    let redirectTo = '/dashboard'; // Default to staff dashboard
+    if (isSuperAdmin) {
+        redirectTo = '/super-admin';
+    } else if (canViewAdminDashboard && user.role.name.toLowerCase() !== 'staff') {
+        redirectTo = '/admin/analytics';
+    }
+
     return NextResponse.json({
       isSuccess: true,
       user: userWithoutPassword,
+      redirectTo: redirectTo,
       errors: null,
     });
 

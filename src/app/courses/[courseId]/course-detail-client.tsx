@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useContext } from 'react';
@@ -14,16 +15,17 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Video, FileText, Presentation, Music, Bookmark, Pencil } from 'lucide-react';
+import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User } from '@prisma/client';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency } from '@prisma/client';
 import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
 import { toggleModuleCompletion } from '@/app/actions/user-actions';
 import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
+import { Badge } from '@/components/ui/badge';
 
 
 const iconMap = {
@@ -124,6 +126,12 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   const displayImageUrl = course.imageUrl ?? course.product?.imageUrl;
   const displayImageHint = course.imageHint ?? course.product?.imageHint;
   const displayImageDescription = course.imageDescription ?? course.product?.description;
+  
+  const getCurrencySymbol = (currency: Currency | null | undefined) => {
+    if (currency === 'USD') return '$';
+    if (currency === 'ETB') return 'Br';
+    return '';
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -140,25 +148,38 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
             <Skeleton className="h-full w-full" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-        <div className="absolute bottom-0 p-6">
+        <div className="absolute bottom-0 p-6 w-full flex justify-between items-end">
+          <div>
             <h1 className="text-4xl font-bold text-white font-headline">{course.title}</h1>
             <p className="text-lg text-white/90 max-w-2xl">{course.description}</p>
+          </div>
+          {course.isPaid && course.price && course.currency && (
+            <Badge variant="secondary" className="text-lg">
+              {getCurrencySymbol(course.currency)}{course.price.toFixed(2)}
+            </Badge>
+          )}
         </div>
       </div>
       
-      <div className="mb-6 space-y-2">
-        <div className="flex justify-between text-sm font-medium text-muted-foreground">
-            <span>Overall Progress</span>
-            <span>{progress}%</span>
+      { !course.isPaid && (
+        <div className="mb-6 space-y-2">
+            <div className="flex justify-between text-sm font-medium text-muted-foreground">
+                <span>Overall Progress</span>
+                <span>{progress}%</span>
+            </div>
+            <Progress value={progress} />
         </div>
-        <Progress value={progress} />
-      </div>
+      )}
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold font-headline">Course Modules</h2>
         {userRole === 'admin' && <AddModuleDialog onModuleAdded={handleModuleAdded} courseId={course.id} />}
       </div>
-
+        {course.isPaid ? (
+            <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">
+                <p>This is a paid course. Purchase to access modules and quizzes.</p>
+            </div>
+        ) : (
         <>
             <Accordion type="single" collapsible className="w-full" defaultValue={course.modules.length > 0 ? course.modules[0].id : undefined}>
                 {course.modules.map((module) => (
@@ -186,11 +207,12 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                                 <FeatureNotImplementedDialog
                                     title="Bookmark Module"
                                     description="This feature is not yet implemented. In the future, you will be able to bookmark modules to easily find them later."
-                                    triggerVariant="ghost"
-                                    triggerSize="sm"
-                                    triggerText="Bookmark"
-                                    triggerIcon={<Bookmark className="mr-2 h-4 w-4" />}
-                                />
+                                >
+                                    <Button variant="ghost" size="sm">
+                                        <Bookmark className="mr-2 h-4 w-4" />
+                                        Bookmark
+                                    </Button>
+                                </FeatureNotImplementedDialog>
                             </div>
                             {userRole === 'admin' && (
                                 <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
@@ -212,9 +234,21 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                 {userRole === 'admin' && <p>Click "Add Module" to get started.</p>}
               </div>
             )}
+            </>
+        )}
 
             <div className="mt-8 text-center">
-                {quiz ? (
+                {course.isPaid ? (
+                  <FeatureNotImplementedDialog
+                    title="Buy Course"
+                    description="This is a paid course. The payment and enrollment flow has not been implemented yet."
+                  >
+                    <Button size="lg">
+                        <ShoppingCart className="mr-2 h-5 w-5" />
+                        Buy the course
+                    </Button>
+                  </FeatureNotImplementedDialog>
+                ) : quiz ? (
                     allModulesCompleted ? (
                         <Button size="lg" asChild>
                             <Link href={`/courses/${course.id}/quiz`}>Take Quiz</Link>
@@ -227,9 +261,8 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                 ) : (
                     <p className="text-muted-foreground">Quiz not available for this course.</p>
                 )}
-                {!allModulesCompleted && quiz && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
+                {!allModulesCompleted && quiz && !course.isPaid && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
             </div>
-        </>
     </div>
   );
 }

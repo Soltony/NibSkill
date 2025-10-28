@@ -18,6 +18,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -27,10 +28,10 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { PlusCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { Checkbox } from "./ui/checkbox"
-import { ScrollArea } from "./ui/scroll-area"
 import { addLearningPath } from "@/app/actions/learning-path-actions"
 import type { Course } from "@prisma/client"
+import { CourseSequenceSelector } from "./course-sequence-selector"
+import { Switch } from "./ui/switch"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
@@ -38,6 +39,7 @@ const formSchema = z.object({
   courseIds: z.array(z.string()).refine((value) => value.some((item) => item), {
     message: "You have to select at least one course.",
   }),
+  hasCertificate: z.boolean().default(false),
 })
 
 type AddLearningPathDialogProps = {
@@ -54,6 +56,7 @@ export function AddLearningPathDialog({ courses }: AddLearningPathDialogProps) {
       title: "",
       description: "",
       courseIds: [],
+      hasCertificate: false,
     },
   })
 
@@ -82,7 +85,7 @@ export function AddLearningPathDialog({ courses }: AddLearningPathDialogProps) {
           <PlusCircle className="mr-2 h-4 w-4" /> Add Path
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Create New Learning Path</DialogTitle>
           <DialogDescription>
@@ -123,50 +126,37 @@ export function AddLearningPathDialog({ courses }: AddLearningPathDialogProps) {
             <FormField
               control={form.control}
               name="courseIds"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
-                  <div className="mb-4">
+                  <div className="mb-2">
                     <FormLabel>Courses</FormLabel>
                   </div>
-                  <ScrollArea className="h-48 rounded-md border p-4">
-                  {courses.map((course) => (
-                    <FormField
-                      key={course.id}
-                      control={form.control}
-                      name="courseIds"
-                      render={({ field }) => {
-                        return (
-                          <FormItem
-                            key={course.id}
-                            className="flex flex-row items-start space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value?.includes(course.id)}
-                                onCheckedChange={(checked) => {
-                                  return checked
-                                    ? field.onChange([
-                                        ...(field.value || []),
-                                        course.id,
-                                      ])
-                                    : field.onChange(
-                                        field.value?.filter(
-                                          (value) => value !== course.id
-                                        )
-                                      )
-                                }}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">
-                              {course.title}
-                            </FormLabel>
-                          </FormItem>
-                        )
-                      }}
+                    <CourseSequenceSelector
+                        allCourses={courses}
+                        selectedCourseIds={field.value}
+                        onSelectedCourseIdsChange={field.onChange}
                     />
-                  ))}
-                  </ScrollArea>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="hasCertificate"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Award a Certificate</FormLabel>
+                    <FormDescription>
+                      Does this path award a certificate upon completion?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

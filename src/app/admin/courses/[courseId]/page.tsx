@@ -30,6 +30,7 @@ async function getCourseData(courseId: string) {
     return null;
   }
   
+  // This data is for the mock progress bar, it is not user-specific
   const completedModules = await prisma.userCompletedModule.findMany({
     where: {
       moduleId: {
@@ -42,13 +43,14 @@ async function getCourseData(courseId: string) {
   return { course, completedModules };
 }
 
-export default async function CourseDetailAdminPage({ params }: { params: Promise<{ courseId: string }> }) {
+export default async function CourseDetailAdminPage({ params }: { params: { courseId: string } }) {
   const session = await getSession();
-  if (!session || session.role.toLowerCase() !== 'admin') {
+  const permissions = session?.role.permissions as any;
+  if (!session || !permissions?.courses?.r) {
     notFound();
   }
   
-  const { courseId } = await params;
+  const { courseId } = params;
   const data = await getCourseData(courseId);
 
   if (!data || !data.course) {
@@ -56,13 +58,12 @@ export default async function CourseDetailAdminPage({ params }: { params: Promis
   }
 
   // A simplified progress metric for admin view (e.g., based on one user or average)
-  // For this example, we'll just pass all completion data.
   const totalUsersWithProgress = new Set(data.completedModules.map(cm => cm.userId)).size;
 
 
   return (
     <CourseDetailAdminClient 
-        course={data.course}
+        initialCourse={data.course}
         initialProgress={totalUsersWithProgress > 0 ? 50 : 0} // Mock progress for admin
     />
   );

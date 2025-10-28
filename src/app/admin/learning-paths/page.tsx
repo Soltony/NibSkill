@@ -16,9 +16,12 @@ import {
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
 import { LearningPathClient, LearningPathActions } from "./learning-path-client"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
 
-export default async function LearningPathManagementPage() {
+async function getData(trainingProviderId: string) {
   const learningPaths = await prisma.learningPath.findMany({
+    where: { trainingProviderId },
     orderBy: { title: "asc" },
     include: {
       courses: {
@@ -30,8 +33,20 @@ export default async function LearningPathManagementPage() {
   })
   
   const courses = await prisma.course.findMany({
+    where: { trainingProviderId },
     orderBy: { title: "asc" }
   })
+  
+  return { learningPaths, courses }
+}
+
+export default async function LearningPathManagementPage() {
+  const session = await getSession();
+  if (!session || !session.trainingProviderId) {
+    notFound();
+  }
+  
+  const { learningPaths, courses } = await getData(session.trainingProviderId);
 
   return (
     <div className="space-y-8">

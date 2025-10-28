@@ -1,12 +1,12 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
+import { FieldType, Prisma } from '@prisma/client';
+import type { LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType, Currency } from '@prisma/client';
 
-export enum FieldType {
-    TEXT = "TEXT",
-    NUMBER = "NUMBER",
-    DATE = "DATE",
-    SELECT = "SELECT",
+export enum QuizType {
+  OPEN_LOOP = "OPEN_LOOP",
+  CLOSED_LOOP = "CLOSED_LOOP",
 }
 
 export type District = {
@@ -36,7 +36,7 @@ export type User = {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'staff';
+  role: 'admin' | 'staff' | 'super-admin' | 'provider-admin';
   department: string;
   district: string;
   branch: string;
@@ -44,13 +44,6 @@ export type User = {
   password?: string;
   phoneNumber?: string;
 };
-
-export type Product = {
-  id: string;
-  name: string;
-  description: string;
-  image: ImagePlaceholder;
-}
 
 export type Module = {
   id: string;
@@ -68,6 +61,30 @@ export type Course = {
   productId: string;
   modules: Module[];
   image: ImagePlaceholder;
+  isPaid?: boolean;
+  price?: number;
+  currency?: Currency;
+  hasCertificate?: boolean;
+  status: 'PENDING' | 'PUBLISHED';
+};
+
+export type Question = {
+    id: string;
+    text: string;
+    type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_IN_THE_BLANK' | 'SHORT_ANSWER';
+    options: { id: string; text: string }[];
+    correctAnswerId: string;
+    weight: number;
+};
+
+export type Quiz = {
+    id: string;
+    courseId: string;
+    passingScore: number;
+    timeLimit: number; // in minutes
+    quizType: 'OPEN_LOOP' | 'CLOSED_LOOP';
+    questions: Question[];
+    requiresManualGrading?: boolean;
 };
 
 export type LearningPath = {
@@ -75,6 +92,7 @@ export type LearningPath = {
   title: string;
   description: string;
   courseIds: string[];
+  hasCertificate?: boolean;
 }
 
 export type LiveSession = {
@@ -88,23 +106,10 @@ export type LiveSession = {
   joinUrl: string;
   recordingUrl?: string;
   attendees?: string[]; // Array of user IDs
+  isRestricted?: boolean;
+  allowedAttendees?: { userId: string }[];
 };
 
-export type Question = {
-  id: string;
-  text: string;
-  type: 'multiple-choice' | 'true-false' | 'fill-in-the-blank';
-  options: { id: string; text: string }[];
-  correctAnswerId: string; // Also used for true/false (value will be 'true' or 'false') and fill-in-the-blank (value is the answer)
-};
-
-
-export type Quiz = {
-  id:string;
-  courseId: string;
-  passingScore: number; // Percentage from 0 to 100
-  questions: Question[];
-};
 
 export type Permission = {
   c: boolean;
@@ -114,17 +119,9 @@ export type Permission = {
 }
 
 export type Role = {
-    id: 'admin' | 'staff' | string;
+    id: 'admin' | 'staff' | 'super-admin' | string;
     name: string;
-    permissions: {
-        courses: Permission;
-        users: Permission;
-        analytics: Permission;
-        products: Permission;
-        quizzes: Permission;
-        staff: Permission;
-        liveSessions: Permission;
-    }
+    permissions: Prisma.JsonValue,
 }
 
 export type RegistrationField = {
@@ -148,10 +145,10 @@ export type Notification = {
 // To add more fields to the registration form, add them to this array.
 // The `id` must be a unique string, and it will be used as the key in the form data.
 export const initialRegistrationFields: RegistrationField[] = [
-    { id: 'phoneNumber', label: 'Phone Number', type: FieldType.TEXT, enabled: true, required: false },
-    { id: 'department', label: 'Department', type: FieldType.SELECT, enabled: true, required: true },
-    { id: 'district', label: 'District', type: FieldType.SELECT, enabled: true, required: true },
-    { id: 'branch', label: 'Branch', type: FieldType.SELECT, enabled: true, required: true },
+    { id: 'phoneNumber', label: 'Phone Number', type: 'TEXT', enabled: true, required: false },
+    { id: 'department', label: 'Department', type: 'SELECT', enabled: true, required: true },
+    { id: 'district', label: 'District', type: 'SELECT', enabled: true, required: true },
+    { id: 'branch', label: 'Branch', type: 'SELECT', enabled: true, required: true },
 ]
 
 
@@ -210,6 +207,7 @@ export const users: User[] = [
   { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', department: 'Sales', district: 'South Region', branch: 'Downtown Branch', password: 'skillup123' },
   { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'skillup123' },
   { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', password: 'skillup123' },
+  { id: 'super-admin-user', name: 'Super Admin', email: 'super@nibtraining.com', avatarUrl: 'https://picsum.photos/seed/superadmin/100/100', role: 'super-admin', department: 'Executive', district: 'North Region', branch: 'Main Office', password: 'superadmin123' },
 ];
 
 export const products: Product[] = [
@@ -246,6 +244,9 @@ export const courses: Course[] = [
     description: 'Get up to speed with our latest flagship product, FusionX. This course covers all the new features and selling points.',
     productId: 'prod-1',
     image: PlaceHolderImages[0],
+    isPaid: false,
+    hasCertificate: true,
+    status: 'PUBLISHED',
     modules: [
       { id: 'm1-1', title: 'Introduction to FusionX', type: 'video', duration: 15, description: 'An overview of the new FusionX product.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
       { id: 'm1-2', title: 'Core Features Deep Dive', type: 'video', duration: 45, description: 'A detailed look at the core features of FusionX.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -258,6 +259,11 @@ export const courses: Course[] = [
     description: 'Become a power user of our Centauri platform. This course is for experienced users who want to master advanced functionalities.',
     productId: 'prod-2',
     image: PlaceHolderImages[1],
+    isPaid: true,
+    price: 49.99,
+    currency: 'USD',
+    hasCertificate: false,
+    status: 'PUBLISHED',
     modules: [
       { id: 'm2-1', title: 'Centauri Architecture', type: 'slides', duration: 25, description: 'An overview of the Centauri system architecture.', content: '#' },
       { id: 'm2-2', title: 'Automation and Scripting', type: 'video', duration: 60, description: 'Learn how to automate tasks using Centauri\'s scripting engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -271,6 +277,9 @@ export const courses: Course[] = [
     description: 'For our engineering team, a detailed look into the new Pulsar Engine, its capabilities, and how to build on top of it.',
     productId: 'prod-3',
     image: PlaceHolderImages[2],
+    isPaid: false,
+    hasCertificate: false,
+    status: 'PENDING',
     modules: [
         { id: 'm3-1', title: 'Pulsar Fundamentals', type: 'video', duration: 30, description: 'The basics of the Pulsar Engine.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
         { id: 'm3-2', title: 'The Rendering Pipeline', type: 'slides', duration: 40, description: 'A deep dive into the rendering pipeline.', content: '#' },
@@ -285,6 +294,9 @@ export const courses: Course[] = [
     description: 'Equip your sales team with the knowledge and strategies to effectively sell the Nova Suite to enterprise clients.',
     productId: 'prod-4',
     image: PlaceHolderImages[3],
+    isPaid: false,
+    hasCertificate: true,
+    status: 'PUBLISHED',
     modules: [
         { id: 'm4-1', title: 'Understanding the Market', type: 'slides', duration: 20, description: 'An overview of the current market landscape.', content: '#' },
         { id: 'm4-2', title: 'Identifying Key Personas', type: 'video', duration: 30, description: 'Learn to identify and target key customer personas.', content: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
@@ -293,16 +305,95 @@ export const courses: Course[] = [
   },
 ];
 
+export const initialQuizzes: Quiz[] = [
+    {
+      id: 'quiz-1',
+      courseId: 'course-1',
+      passingScore: 80,
+      timeLimit: 15,
+      quizType: 'CLOSED_LOOP',
+      questions: [
+        {
+          id: 'q1-1',
+          text: 'What is the primary new capability of FusionX?',
+          type: 'MULTIPLE_CHOICE',
+          options: [
+            { id: 'o1-1-1', text: 'AI-powered predictive analytics' },
+            { id: 'o1-1-2', text: 'Enhanced user interface' },
+            { id: 'o1-1-3', text: 'Real-time data streaming' },
+          ],
+          correctAnswerId: 'o1-1-1',
+          weight: 1,
+        },
+        {
+          id: 'q1-2',
+          text: 'FusionX is primarily targeting enterprise clients.',
+          type: 'TRUE_FALSE',
+          options: [
+            { id: 'o1-2-1', text: 'True' },
+            { id: 'o1-2-2', text: 'False' },
+          ],
+          correctAnswerId: 'o1-2-1',
+          weight: 1,
+        },
+      ],
+    },
+    {
+        id: 'quiz-4',
+        courseId: 'course-4',
+        passingScore: 70,
+        timeLimit: 0,
+        quizType: 'CLOSED_LOOP',
+        questions: [
+          {
+            id: 'q4-1',
+            text: 'What is a key part of the Nova Suite sales strategy?',
+            type: 'SHORT_ANSWER',
+            options: [],
+            correctAnswerId: 'Value-based selling',
+            weight: 2,
+          },
+        ],
+    },
+  ];
+
 export const learningPaths: LearningPath[] = [
     {
         id: 'lp-1',
         title: 'New Hire Onboarding',
         description: 'The essential courses for all new hires to get up to speed with company products and culture.',
-        courseIds: ['course-1', 'course-4']
+        courseIds: ['course-1', 'course-4'],
+        hasCertificate: true,
     }
 ];
 
 export const roles: Role[] = [
+  {
+    id: "super-admin",
+    name: "Super Admin",
+    permissions: {
+      courses: { c: true, r: true, u: true, d: true },
+      users: { c: true, r: true, u: true, d: true },
+      analytics: { c: true, r: true, u: true, d: true },
+      products: { c: true, r: true, u: true, d: true },
+      quizzes: { c: true, r: true, u: true, d: true },
+      staff: { c: true, r: true, u: true, d: true },
+      liveSessions: { c: true, r: true, u: true, d: true },
+    }
+  },
+  {
+    id: "provider-admin",
+    name: "Training Provider",
+    permissions: {
+      courses: { c: true, r: true, u: true, d: true },
+      users: { c: true, r: true, u: true, d: true },
+      analytics: { c: true, r: true, u: true, d: true },
+      products: { c: true, r: true, u: true, d: true },
+      quizzes: { c: true, r: true, u: true, d: true },
+      staff: { c: true, r: true, u: true, d: true },
+      liveSessions: { c: true, r: true, u: true, d: true },
+    }
+  },
   {
     id: "admin",
     name: "Admin",
@@ -320,13 +411,13 @@ export const roles: Role[] = [
     id: "staff",
     name: "Staff",
     permissions: {
-      courses: { c: false, r: true, u: false, d: false },
+      courses: { c: false, r: false, u: false, d: false },
       users: { c: false, r: false, u: false, d: false },
       analytics: { c: false, r: false, u: false, d: false },
       products: { c: false, r: false, u: false, d: false },
-      quizzes: { c: false, r: true, u: false, d: false },
+      quizzes: { c: false, r: false, u: false, d: false },
       staff: { c: false, r: false, u: false, d: false },
-      liveSessions: { c: false, r: true, u: false, d: false },
+      liveSessions: { c: false, r: false, u: false, d: false },
     }
   },
 ]
@@ -343,6 +434,8 @@ export const liveSessions: LiveSession[] = [
     joinUrl: 'https://your-company.zoom.us/j/1234567890',
     recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     attendees: [],
+    isRestricted: true,
+    allowedAttendees: [{ userId: 'user-1' }, { userId: 'user-3' }],
   },
   {
     id: 'ls-2',
@@ -355,154 +448,10 @@ export const liveSessions: LiveSession[] = [
     joinUrl: 'https://meet.google.com/abc-defg-hij',
     recordingUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     attendees: ['user-1'],
+    isRestricted: false,
+    allowedAttendees: [],
   },
 ];
-
-export const quizzes: Quiz[] = [
-  {
-    id: 'quiz-1',
-    courseId: 'course-1',
-    passingScore: 80,
-    questions: [
-      {
-        id: 'q1-1',
-        text: 'What is the primary new capability of FusionX?',
-        type: 'multiple-choice',
-        options: [
-          { id: 'o1-1-1', text: 'AI-powered analytics' },
-          { id: 'o1-1-2', text: 'Decentralized storage' },
-          { id: 'o1-1-3', text: 'Real-time collaboration' },
-          { id: 'o1-1-4', text: 'Quantum computing integration' },
-        ],
-        correctAnswerId: 'o1-1-1',
-      },
-      {
-        id: 'q1-2',
-        text: 'FusionX is primarily targeting enterprise clients.',
-        type: 'true-false',
-        options: [
-            { id: 'true', text: 'True' },
-            { id: 'false', text: 'False' },
-        ],
-        correctAnswerId: 'true',
-      },
-       {
-        id: 'q1-3',
-        text: 'What technology powers the new analytics features? ______ Learning.',
-        type: 'fill-in-the-blank',
-        options: [],
-        correctAnswerId: 'Machine',
-      },
-    ],
-  },
-    {
-    id: 'quiz-4',
-    courseId: 'course-4',
-    passingScore: 90,
-    questions: [
-      {
-        id: 'q4-1',
-        text: 'What is a key part of the Nova Suite sales strategy?',
-        type: 'multiple-choice',
-        options: [
-          { id: 'o4-1-1', text: 'Focusing only on technical specs' },
-          { id: 'o4-1-2', text: 'Identifying key decision-maker personas' },
-          { id: 'o4-1-3', text: 'Offering large discounts immediately' },
-          { id: 'o4-1-4', text: 'Avoiding discussion of competitors' },
-        ],
-        correctAnswerId: 'o4-1-2',
-      },
-    ],
-  },
-];
-
-const detailedProgressReport = [
-    ...users.map(user => {
-        return courses.map(course => ({
-            userId: user.id,
-            userName: user.name,
-            userEmail: user.email,
-            department: user.department,
-            district: user.district,
-            branch: user.branch,
-            courseId: course.id,
-            courseTitle: course.title,
-            progress: (user.name.length + course.title.length) % 81, // Modulo 81 to keep it under 80
-        }));
-    }).flat()
-];
-
-
-export const analyticsData = {
-  kpis: {
-    totalUsers: 142,
-    avgCompletionRate: 78,
-    avgScore: 89,
-  },
-  completionByDept: [
-    { department: 'Engineering', completionRate: 92 },
-    { department: 'Sales', completionRate: 85 },
-    { department: 'Marketing', completionRate: 71 },
-    { department: 'HR', completionRate: 65 },
-  ],
-  scoresDistribution: [
-    { range: '0-59%', count: 5 },
-    { range: '60-69%', count: 12 },
-    { range: '70-79%', count: 28 },
-    { range: '80-89%', count: 45 },
-    { range: '90-100%', count: 35 },
-  ],
-  leaderboard: [
-    { id: 'user-3', name: 'Samira Khan', avatarUrl: 'https://picsum.photos/seed/user3/100/100', coursesCompleted: 12, department: 'Engineering' },
-    { id: 'user-4', name: 'David Chen', avatarUrl: 'https://picsum.photos/seed/user4/100/100', coursesCompleted: 10, department: 'Sales' },
-    { id: 'user-5', name: 'Emily White', avatarUrl: 'https://picsum.photos/seed/user5/100/100', coursesCompleted: 9, department: 'Engineering' },
-    { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', coursesCompleted: 8 },
-    { id: 'user-1', name: 'Alex Johnson', avatarUrl: 'https://picsum.photos/seed/user1/100/100', coursesCompleted: 7, department: 'Engineering' },
-  ].map(({ coursesCompleted, ...rest }) => ({...rest, coursesCompleted})),
-  courseEngagement: {
-    mostCompleted: [
-        { id: 'course-4', title: 'Sales Strategy for Nova Suite', completionRate: 98 },
-        { id: 'course-1', title: 'New Product Launch: FusionX', completionRate: 95 },
-        { id: 'course-3', title: 'Technical Deep Dive: Pulsar Engine', completionRate: 91 },
-    ],
-    leastCompleted: [
-        { id: 'course-x', title: 'Legacy Systems 101', completionRate: 45 },
-        { id: 'course-y', title: 'Advanced Compliance Training', completionRate: 52 },
-        { id: 'course-2', title: 'Advanced User Training for Centauri', completionRate: 61 },
-    ]
-  },
-  quizQuestionAnalysis: [
-    {
-      questionId: 'q1-1',
-      courseTitle: 'New Product Launch: FusionX',
-      questionText: 'What is the primary new capability of FusionX?',
-      correctAttempts: 110,
-      incorrectAttempts: 15,
-    },
-    {
-      questionId: 'q1-2',
-      courseTitle: 'New Product Launch: FusionX',
-      questionText: 'FusionX is primarily targeting enterprise clients.',
-      correctAttempts: 120,
-      incorrectAttempts: 5,
-    },
-    {
-      questionId: 'q1-3',
-      courseTitle: 'New Product Launch: FusionX',
-      questionText: 'What technology powers the new analytics features? ...',
-      correctAttempts: 95,
-      incorrectAttempts: 30,
-    },
-     {
-      questionId: 'q4-1',
-      courseTitle: 'Sales Strategy for Nova Suite',
-      questionText: 'What is a key part of the Nova Suite sales strategy?',
-      correctAttempts: 130,
-      incorrectAttempts: 2,
-    },
-  ],
-  detailedProgressReport,
-};
 
 export const notifications: Notification[] = [
     {
@@ -539,5 +488,4 @@ export type UserCompletedCourse = {
     completionDate: Date;
     score: number;
 }
-
-    
+export { FieldType };

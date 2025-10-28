@@ -16,38 +16,21 @@ import { redirect } from "next/navigation"
 
 async function LearningPathCard({ path, userId }: { path: any, userId: string }) {
 
-    const courseIds = path.courses.map((c: any) => c.course.id);
-    const userModuleCompletions = await prisma.userCompletedModule.findMany({
-      where: { 
-        userId: userId,
-        moduleId: {
-          in: path.courses.flatMap((c: any) => c.course.modules.map((m: any) => m.id))
-        }
-      },
-      select: { moduleId: true }
+    const userCourseCompletions = await prisma.userCompletedCourse.findMany({
+        where: {
+            userId: userId,
+            courseId: { in: path.courses.map((c: any) => c.course.id) }
+        },
+        select: { courseId: true }
     });
 
-    const completedModulesByCourse = userModuleCompletions.reduce((acc, completion) => {
-      const module = path.courses.flatMap((c: any) => c.course.modules).find((m: any) => m.id === completion.moduleId);
-      if (module) {
-        if (!acc[module.courseId]) {
-          acc[module.courseId] = new Set();
-        }
-        acc[module.courseId].add(module.id);
-      }
-      return acc;
-    }, {} as Record<string, Set<string>>);
-
-    const coursesWithProgress = path.courses.map(({ course }: any) => {
-        const completedModuleCount = completedModulesByCourse[course.id]?.size || 0;
-        const progress = course.modules.length > 0 ? Math.round((completedModuleCount / course.modules.length) * 100) : 0;
-        return { ...course, progress };
-    });
+    const completedCourseIds = new Set(userCourseCompletions.map(c => c.courseId));
+    const coursesInPath = path.courses.length;
+    const completedCoursesInPath = path.courses.filter((c: any) => completedCourseIds.has(c.course.id)).length;
     
-    const overallProgress = coursesWithProgress.length > 0
-        ? Math.round(coursesWithProgress.reduce((sum: number, course: any) => sum + course.progress, 0) / coursesWithProgress.length)
+    const overallProgress = coursesInPath > 0 
+        ? Math.round((completedCoursesInPath / coursesInPath) * 100)
         : 0;
-
 
     return (
         <Link href={`/learning-paths/${path.id}`} className="block h-full transition-transform hover:scale-[1.02]">
@@ -82,9 +65,7 @@ export default async function LearningPathsPage() {
     include: { 
         courses: { 
             include: { 
-                course: { 
-                    include: { modules: true } 
-                } 
+                course: true
             } 
         } 
     },

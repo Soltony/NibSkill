@@ -5,7 +5,6 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 
 const completeCourseSchema = z.object({
@@ -42,8 +41,13 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             }
         });
 
+        const course = await prisma.course.findUnique({ where: { id: courseId } });
+        if (course?.hasCertificate) {
+            revalidatePath(`/courses/${courseId}/certificate`);
+        }
+
         revalidatePath('/profile');
-        revalidatePath(`/courses/${courseId}/certificate`);
+        
         return { success: true, message: 'Course completion recorded.' }
     } catch (error) {
         console.error("Error recording course completion:", error);
@@ -53,8 +57,7 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
 
 export async function logout() {
-  const cookieStore = await cookies();
-  cookieStore.set('session', '', { expires: new Date(0) })
+  cookies().set('session', '', { expires: new Date(0) })
 }
 
 const profileFormSchema = z.object({
@@ -94,6 +97,13 @@ export async function updateUserProfile(values: z.infer<typeof profileFormSchema
         });
 
         revalidatePath('/profile');
+        
+        // If email has changed, user needs to log in again with new email.
+        // We will clear the session cookie to force re-login.
+        if (email !== session.email) {
+             cookies().set('session', '', { expires: new Date(0) });
+             return { success: true, message: 'Profile updated. Please log in again with your new email.' };
+        }
         
         return { success: true, message: 'Profile updated successfully.' };
 

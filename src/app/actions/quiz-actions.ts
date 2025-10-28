@@ -4,12 +4,13 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
-import type { QuestionType } from '@prisma/client'
+import type { QuestionType, QuizType } from '@prisma/client'
 
 const quizFormSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
   passingScore: z.coerce.number().min(0, "Passing score must be at least 0.").max(100, "Passing score cannot exceed 100."),
   timeLimit: z.coerce.number().min(0, "Time limit must be a positive number or 0 for no limit."),
+  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"]),
 })
 
 export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
@@ -24,6 +25,7 @@ export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
                 courseId: validatedFields.data.courseId,
                 passingScore: validatedFields.data.passingScore,
                 timeLimit: validatedFields.data.timeLimit,
+                quizType: validatedFields.data.quizType as QuizType,
             }
         });
 
@@ -43,16 +45,30 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   id: z.string().optional(),
   text: z.string().min(1, "Question text cannot be empty."),
-  type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
+  type: z.enum(['MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_IN_THE_BLANK', 'SHORT_ANSWER']),
   options: z.array(optionSchema),
   correctAnswerId: z.string().min(1, "A correct answer is required."),
+  weight: z.coerce.number().min(0.1, "Weight must be greater than 0."),
 })
 
 const updateQuizFormSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
   timeLimit: z.coerce.number().min(0),
-  questions: z.array(questionSchema),
-})
+  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"]),
+  questions: z.array(
+    z.object({
+      id: z.string().optional(),
+      text: z.string().min(1, "Question text cannot be empty."),
+      type: z.string(), // Accept string first
+      options: z.array(optionSchema),
+      correctAnswerId: z.string().min(1, "A correct answer is required."),
+      weight: z.coerce.number().min(0.1, "Weight must be greater than 0."),
+    }).transform(data => ({
+      ...data,
+      type: data.type.toUpperCase() as QuestionType, // Then transform to uppercase enum
+    })).pipe(questionSchema) // And finally validate against the schema with the now-uppercase type
+  ),
+});
 
 
 export async function updateQuiz(quizId: string, values: z.infer<typeof updateQuizFormSchema>) {
@@ -63,12 +79,13 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             return { success: false, message: "Invalid data provided. Check question and option fields." }
         }
 
-        const { passingScore, timeLimit, questions: incomingQuestions } = validatedFields.data;
+        const { passingScore, timeLimit, quizType, questions: incomingQuestions } = validatedFields.data;
+        const requiresManualGrading = quizType === 'CLOSED_LOOP' && incomingQuestions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
 
         await prisma.$transaction(async (tx) => {
             await tx.quiz.update({
                 where: { id: quizId },
-                data: { passingScore, timeLimit },
+                data: { passingScore, timeLimit, quizType, requiresManualGrading },
             });
 
             const existingQuestionIds = (await tx.question.findMany({ where: { quizId }, select: { id: true } })).map(q => q.id);
@@ -84,11 +101,12 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                 
                 const questionPayload = {
                     text: qData.text,
-                    type: qData.type as QuestionType,
+                    type: qData.type,
+                    weight: qData.weight,
                 };
 
                 if (isNewQuestion) {
-                    if (qData.type === 'fill_in_the_blank') {
+                    if (qData.type === 'FILL_IN_THE_BLANK' || qData.type === 'SHORT_ANSWER') {
                         await tx.question.create({
                             data: {
                                 ...questionPayload,
@@ -121,7 +139,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                         data: questionPayload,
                     });
 
-                     if (qData.type === 'multiple_choice' || qData.type === 'true_false') {
+                     if (qData.type === 'MULTIPLE_CHOICE' || qData.type === 'TRUE_FALSE') {
                         await tx.option.deleteMany({ where: { questionId: qData.id } });
                         
                         const createdOptions = await Promise.all(qData.options.map(opt => 
@@ -135,7 +153,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                             where: { id: qData.id },
                             data: { correctAnswerId: correctOption.id }
                         });
-                    } else if (qData.type === 'fill_in_the_blank') {
+                    } else if (qData.type === 'FILL_IN_THE_BLANK' || qData.type === 'SHORT_ANSWER') {
                         await tx.option.deleteMany({ where: { questionId: qData.id } });
                         await tx.question.update({
                             where: { id: qData.id },
@@ -153,10 +171,10 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             where: { id: quizId },
             include: {
                 questions: {
-                    orderBy: { text: 'asc' }, // Consistent ordering
+                    orderBy: { createdAt: 'asc' },
                     include: {
                         options: {
-                            orderBy: { text: 'asc' } // Consistent ordering
+                            orderBy: { createdAt: 'asc' }
                         }
                     }
                 }

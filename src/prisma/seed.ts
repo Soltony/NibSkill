@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -12,9 +12,9 @@ import {
     courses as initialCourses,
     learningPaths as initialLearningPaths,
     liveSessions as initialLiveSessions,
-    quizzes as initialQuizzes,
     roles as initialRoles,
-    initialRegistrationFields
+    initialRegistrationFields,
+    initialQuizzes
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -147,15 +147,23 @@ async function main() {
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
+        isPaid: courseData.isPaid,
+        price: courseData.price,
+        currency: courseData.currency,
+        hasCertificate: courseData.hasCertificate
       },
       create: {
         id: courseData.id,
         title: courseData.title,
         description: courseData.description,
         productId: courseData.productId,
+        isPaid: courseData.isPaid,
+        price: courseData.price,
+        currency: courseData.currency,
         imageUrl: image?.imageUrl,
         imageDescription: image?.description,
         imageHint: image?.imageHint,
+        hasCertificate: courseData.hasCertificate
       }
     });
 
@@ -194,14 +202,15 @@ async function main() {
   // Seed Live Sessions
   for (const session of initialLiveSessions) {
       const { attendees, ...sessionData } = session;
+      const { allowedAttendees, ...rest } = sessionData as any;
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
-              ...sessionData,
+              ...rest,
               platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           },
           create: {
-              ...sessionData,
+              ...rest,
               platform: session.platform.replace(' ', '_') as LiveSessionPlatform
           }
       });
@@ -211,36 +220,36 @@ async function main() {
   // Seed Quizzes and Questions
   for (const quiz of initialQuizzes) {
     const { questions, ...quizData } = quiz;
+    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
+
     const createdQuiz = await prisma.quiz.upsert({
         where: { id: quiz.id },
-        update: quizData,
-        create: quizData,
+        update: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
+        create: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
     });
+
     for (const question of questions) {
         const { options, ...questionData } = question;
+        const questionType = question.type as QuestionType
         const createdQuestion = await prisma.question.upsert({
             where: { id: question.id },
             update: {
                 ...questionData,
-                type: question.type.replace(/-/g, '_') as QuestionType,
+                type: questionType,
                 quizId: createdQuiz.id
             },
             create: {
                 ...questionData,
-                type: question.type.replace(/-/g, '_') as QuestionType,
+                type: questionType,
                 quizId: createdQuiz.id
             }
         });
 
-        if (question.type === 'multiple-choice' || question.type === 'true-false') {
+        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'TRUE_FALSE') {
+            await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
             for (const option of options) {
-                await prisma.option.upsert({
-                    where: { id: option.id },
-                    update: {
-                        text: option.text,
-                        questionId: createdQuestion.id,
-                    },
-                    create: {
+                await prisma.option.create({
+                    data: {
                         id: option.id,
                         text: option.text,
                         questionId: createdQuestion.id,
@@ -293,14 +302,14 @@ async function main() {
       where: { id: field.id },
       update: {
         label: field.label,
-        type: field.type,
+        type: field.type as FieldType,
         enabled: field.enabled,
         required: field.required,
       },
       create: {
         id: field.id,
         label: field.label,
-        type: field.type,
+        type: field.type as FieldType,
         enabled: field.enabled,
         required: field.required,
         options: field.options,
@@ -321,5 +330,3 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-    

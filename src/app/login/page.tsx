@@ -42,11 +42,7 @@ export default function LoginPage() {
         title: 'Login Successful',
         description: 'Welcome back!',
       });
-      if (data.user.role.name.toLowerCase() === 'admin') {
-         router.push('/admin/analytics');
-      } else {
-         router.push('/dashboard');
-      }
+      router.push(data.redirectTo || '/dashboard');
     } else {
       toast({
         title: 'Login Failed',

@@ -15,7 +15,15 @@ export async function GET() {
     // Fetch full user details to ensure data is fresh
     const fullUser = await prisma.user.findUnique({
         where: { id: userSession.id },
-        include: { role: true }
+        include: { 
+            role: true,
+            notifications: {
+                orderBy: {
+                    createdAt: 'desc'
+                },
+                take: 50 // Limit to last 50 notifications
+            }
+        }
     });
 
     if (!fullUser) {

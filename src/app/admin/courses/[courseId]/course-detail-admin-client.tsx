@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useContext } from 'react';
+import { useState, useContext } from 'react';
 import Image from 'next/image';
 import {
   Accordion,
@@ -9,12 +9,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Video, FileText, Presentation, Pencil, Bookmark, Music } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
@@ -40,13 +37,12 @@ type CourseWithRelations = Course & {
 };
 
 type CourseDetailAdminClientProps = {
-    course: CourseWithRelations;
+    initialCourse: CourseWithRelations;
     initialProgress: number;
 }
 
-export function CourseDetailAdminClient({ course: initialCourse, initialProgress }: CourseDetailAdminClientProps) {
+export function CourseDetailAdminClient({ initialCourse, initialProgress }: CourseDetailAdminClientProps) {
   const userRole = useContext(UserContext);
-  const { toast } = useToast();
   
   const [course, setCourse] = useState<CourseWithRelations>(initialCourse);
   const [progress, setProgress] = useState(initialProgress);
@@ -128,11 +124,12 @@ export function CourseDetailAdminClient({ course: initialCourse, initialProgress
                             <FeatureNotImplementedDialog
                                 title="Bookmark Module"
                                 description="This feature is for users. Admins manage content here."
-                                triggerVariant="ghost"
-                                triggerSize="sm"
-                                triggerText="Bookmark"
-                                triggerIcon={<Bookmark className="mr-2 h-4 w-4" />}
-                            />
+                            >
+                                <Button variant="ghost" size="sm">
+                                  <Bookmark className="mr-2 h-4 w-4" />
+                                  Bookmark
+                                </Button>
+                            </FeatureNotImplementedDialog>
                             {userRole === 'admin' && (
                                 <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
                                     <Button variant="ghost" size="sm">

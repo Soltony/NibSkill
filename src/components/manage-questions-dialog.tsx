@@ -30,7 +30,7 @@ import { RadioGroup, RadioGroupItem } from "./ui/radio-group"
 import { Label } from "./ui/label"
 import { ScrollArea } from "./ui/scroll-area"
 import { updateQuiz } from "@/app/actions/quiz-actions"
-import type { Quiz, Question, Option as OptionType } from "@prisma/client"
+import type { Quiz, Question, Option as OptionType, QuizType } from "@prisma/client"
 
 type QuizWithRelations = Quiz & {
   questions: (Question & { options: OptionType[] })[]
@@ -44,14 +44,16 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   id: z.string().optional(),
   text: z.string().min(1, "Question text cannot be empty."),
-  type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank']),
+  type: z.enum(['multiple_choice', 'true_false', 'fill_in_the_blank', 'short_answer']),
   options: z.array(optionSchema),
   correctAnswerId: z.string().min(1, "A correct answer is required."),
+  weight: z.coerce.number().min(0.1, "Weight must be greater than 0."),
 })
 
 const formSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
   timeLimit: z.coerce.number().min(0),
+  quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"], { required_error: "Required" }),
   questions: z.array(questionSchema),
 })
 
@@ -77,21 +79,24 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     if (open) {
       const questionsWithCorrectAnswerHandling = quiz.questions.map(q => {
         let correctAnswerValue = '';
-        if (q.type === 'multiple_choice' || q.type === 'true_false') {
+        if (q.type === 'MULTIPLE_CHOICE' || q.type === 'TRUE_FALSE') {
           correctAnswerValue = q.options.find(opt => opt.id === q.correctAnswerId)?.text || '';
         } else {
           correctAnswerValue = q.correctAnswerId || '';
         }
         return {
           ...q,
+          type: q.type.toLowerCase() as 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'short_answer',
           options: q.options || [],
           correctAnswerId: correctAnswerValue,
+          weight: q.weight || 1,
         };
       });
 
       form.reset({
         passingScore: quiz.passingScore,
         timeLimit: quiz.timeLimit || 0,
+        quizType: quiz.quizType,
         questions: questionsWithCorrectAnswerHandling,
       })
     }
@@ -114,7 +119,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
     }
   }
 
-  const addQuestion = (type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank') => {
+  const addQuestion = (type: 'multiple_choice' | 'true_false' | 'fill_in_the_blank' | 'short_answer') => {
     let newQuestion: z.infer<typeof questionSchema>;
 
     switch (type) {
@@ -128,6 +133,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
             { id: undefined, text: "" },
           ],
           correctAnswerId: "",
+          weight: 1,
         };
         break;
       case 'true_false':
@@ -140,15 +146,18 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
             { id: undefined, text: 'False' },
           ],
           correctAnswerId: "True",
+          weight: 1,
         };
         break;
       case 'fill_in_the_blank':
+      case 'short_answer':
         newQuestion = {
           id: undefined,
           text: "",
-          type: 'fill_in_the_blank',
+          type: type,
           options: [],
           correctAnswerId: "",
+          weight: 1,
         };
         break;
     }
@@ -186,53 +195,103 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <FormField
-                control={form.control}
-                name="passingScore"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Passing Score (%)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="0" max="100" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="timeLimit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Time Limit (minutes)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="0" placeholder="0 for none" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="mb-6 space-y-4">
+                 <FormField
+                    control={form.control}
+                    name="quizType"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3">
+                            <FormLabel>Quiz Type</FormLabel>
+                            <FormControl>
+                                <RadioGroup
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                className="flex items-center space-x-4"
+                                >
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                    <RadioGroupItem value="CLOSED_LOOP" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                        Graded (Closed Loop)
+                                    </FormLabel>
+                                </FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                    <FormControl>
+                                    <RadioGroupItem value="OPEN_LOOP" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal">
+                                       Practice (Open Loop)
+                                    </FormLabel>
+                                </FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="passingScore"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Passing Score (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="0" max="100" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="timeLimit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time Limit (minutes)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="0" placeholder="0 for none" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
-            <ScrollArea className="h-[55vh] p-4 border rounded-md">
+            <ScrollArea className="h-[50vh] p-4 border rounded-md">
               <div className="space-y-8">
                 {fields.map((question, qIndex) => (
                   <div key={question.id || qIndex} className="p-4 border rounded-lg space-y-4 relative bg-muted/20 group">
-                     <FormField
-                      control={form.control}
-                      name={`questions.${qIndex}.text`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Question {qIndex + 1} ({question.type?.replace(/_/g, ' ')})</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter question text" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_100px] gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`questions.${qIndex}.text`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Question {qIndex + 1} ({question.type?.replace(/_/g, ' ')})</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter question text" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`questions.${qIndex}.weight`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Weight</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" min="0.1" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     {question.type === 'multiple_choice' && (
                       <Controller
@@ -293,7 +352,7 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                         />
                     )}
 
-                    {question.type === 'fill_in_the_blank' && (
+                    {(question.type === 'fill_in_the_blank' || question.type === 'short_answer') && (
                        <FormField
                           control={form.control}
                           name={`questions.${qIndex}.correctAnswerId`}
@@ -337,6 +396,9 @@ export function ManageQuestionsDialog({ quiz, courseTitle }: ManageQuestionsDial
                   </Button>
                    <Button type="button" variant="outline" onClick={() => addQuestion('fill_in_the_blank')}>
                     <PlusCircle className="mr-2 h-4 w-4" /> Fill in the Blank
+                  </Button>
+                   <Button type="button" variant="outline" onClick={() => addQuestion('short_answer')}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Short Answer
                   </Button>
                 </div>
 

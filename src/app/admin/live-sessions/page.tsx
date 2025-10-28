@@ -1,4 +1,5 @@
 
+
 import prisma from "@/lib/db"
 import {
   Table,
@@ -17,21 +18,46 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AddLiveSessionDialog, EditLiveSessionDialog, ViewAttendeesDialog, DeleteLiveSessionAction } from "./live-session-client"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
 
-export default async function LiveSessionManagementPage() {
-  
+async function getData(trainingProviderId: string) {
   const sessions = await prisma.liveSession.findMany({
+    where: { trainingProviderId },
     orderBy: {
       dateTime: 'desc'
     },
     include: {
-      attendees: {
+      attendedBy: {
         include: {
           user: true
+        }
+      },
+      allowedAttendees: {
+        include: {
+            user: true
         }
       }
     }
   });
+
+  const users = await prisma.user.findMany({ 
+    where: { 
+      trainingProviderId,
+      role: { name: 'Staff' } 
+    } 
+  });
+
+  return { sessions, users };
+}
+
+export default async function LiveSessionManagementPage() {
+  const sessionData = await getSession();
+  if (!sessionData || !sessionData.trainingProviderId) {
+    notFound();
+  }
+
+  const { sessions, users } = await getData(sessionData.trainingProviderId);
 
   const getStatus = (dateTime: Date): { text: "Upcoming" | "Past" | "Live", variant: "default" | "secondary" | "destructive" | "outline" } => {
     const now = new Date();
@@ -59,7 +85,7 @@ export default async function LiveSessionManagementPage() {
               A list of all upcoming and past live sessions.
             </CardDescription>
           </div>
-          <AddLiveSessionDialog />
+          <AddLiveSessionDialog users={users}/>
         </CardHeader>
         <CardContent>
           <Table>
@@ -70,6 +96,7 @@ export default async function LiveSessionManagementPage() {
                 <TableHead>Date & Time</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Attendees</TableHead>
+                <TableHead>Access</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -87,9 +114,16 @@ export default async function LiveSessionManagementPage() {
                   <TableCell>
                       <ViewAttendeesDialog session={session} />
                   </TableCell>
+                   <TableCell>
+                    {session.isRestricted ? (
+                        <Badge variant="destructive">Restricted</Badge>
+                    ) : (
+                        <Badge variant="secondary">Open to All</Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <EditLiveSessionDialog session={session} />
+                      <EditLiveSessionDialog session={session} users={users} />
                       <DeleteLiveSessionAction session={session} />
                     </div>
                   </TableCell>

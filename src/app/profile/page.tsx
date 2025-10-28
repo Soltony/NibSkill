@@ -8,21 +8,12 @@ import {
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText } from "lucide-react"
-import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import prisma from "@/lib/db"
-import type { User, Badge as BadgeType, UserBadge } from "@prisma/client"
 import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { ProfileTabs } from "./profile-tabs"
-
-const badgeIcons: { [key: string]: React.ReactNode } = {
-    Footprints: <Footprints className="h-10 w-10" />,
-    BookOpenCheck: <BookOpenCheck className="h-10 w-10" />,
-    Trophy: <Trophy className="h-10 w-10" />,
-    Target: <Target className="h-10 w-10" />,
-};
 
 async function getProfileData(userId: string) {
     const user = await prisma.user.findFirst({

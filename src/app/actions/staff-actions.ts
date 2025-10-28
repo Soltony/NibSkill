@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { getSession } from '@/lib/auth'
 
 // District Actions
 const districtSchema = z.object({
@@ -12,13 +13,20 @@ const districtSchema = z.object({
 
 export async function addDistrict(values: z.infer<typeof districtSchema>) {
   try {
+    const session = await getSession();
+    if (!session || !session.trainingProviderId) {
+        return { success: false, message: "Unauthorized" };
+    }
     const validatedFields = districtSchema.safeParse(values)
     if (!validatedFields.success) {
       return { success: false, message: "Invalid data provided." }
     }
 
     await prisma.district.create({
-      data: { name: validatedFields.data.name },
+      data: { 
+        name: validatedFields.data.name,
+        trainingProviderId: session.trainingProviderId,
+      },
     })
 
     revalidatePath('/admin/staff')
@@ -68,12 +76,19 @@ const branchSchema = z.object({
 
 export async function addBranch(values: z.infer<typeof branchSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized" };
+        }
         const validatedFields = branchSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data." };
         }
         await prisma.branch.create({
-            data: validatedFields.data,
+            data: {
+              ...validatedFields.data,
+              trainingProviderId: session.trainingProviderId,
+            },
         });
         revalidatePath('/admin/staff');
         return { success: true, message: 'Branch added.' };
@@ -117,12 +132,19 @@ const departmentSchema = z.object({
 
 export async function addDepartment(values: z.infer<typeof departmentSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized" };
+        }
         const validatedFields = departmentSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data." };
         }
         await prisma.department.create({
-            data: validatedFields.data,
+            data: {
+              name: validatedFields.data.name,
+              trainingProviderId: session.trainingProviderId,
+            },
         });
         revalidatePath('/admin/staff');
         return { success: true, message: 'Department added.' };

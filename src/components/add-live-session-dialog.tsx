@@ -35,6 +35,9 @@ import {
 import { PlusCircle, Wand2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { addLiveSession } from "@/app/actions/live-session-actions"
+import { Switch } from "./ui/switch"
+import type { User } from "@prisma/client"
+import { MultiSelect } from "./ui/multi-select"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -45,10 +48,24 @@ const formSchema = z.object({
   platform: z.enum(["Zoom", "Google_Meet"]),
   joinUrl: z.string().url("Must be a valid URL"),
   recordingUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
-})
+  isRestricted: z.boolean().default(false),
+  allowedUserIds: z.array(z.string()).optional(),
+}).refine(data => {
+    if (data.isRestricted && (!data.allowedUserIds || data.allowedUserIds.length === 0)) {
+        return false;
+    }
+    return true;
+}, {
+    message: "You must select at least one staff member for restricted sessions.",
+    path: ["allowedUserIds"],
+});
 
 
-export function AddLiveSessionDialog() {
+type AddLiveSessionDialogProps = {
+    users: User[];
+}
+
+export function AddLiveSessionDialog({ users }: AddLiveSessionDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -63,10 +80,13 @@ export function AddLiveSessionDialog() {
       platform: "Zoom",
       joinUrl: "",
       recordingUrl: "",
+      isRestricted: false,
+      allowedUserIds: [],
     },
   })
 
   const watchedPlatform = form.watch("platform");
+  const isRestricted = form.watch("isRestricted");
 
   const handleGenerateLink = () => {
     let url = "";
@@ -117,12 +137,12 @@ export function AddLiveSessionDialog() {
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-2 gap-4 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
             <FormField
               control={form.control}
               name="title"
               render={({ field }) => (
-                <FormItem className="col-span-2">
+                <FormItem>
                   <FormLabel>Session Title</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., AMA with the CEO" {...field} />
@@ -135,7 +155,7 @@ export function AddLiveSessionDialog() {
               control={form.control}
               name="speaker"
               render={({ field }) => (
-                <FormItem className="col-span-2">
+                <FormItem>
                   <FormLabel>Speaker</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., Jane Doe, CEO" {...field} />
@@ -148,7 +168,7 @@ export function AddLiveSessionDialog() {
               control={form.control}
               name="description"
               render={({ field }) => (
-                <FormItem className="col-span-2">
+                <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea placeholder="What is this session about?" {...field} />
@@ -161,7 +181,7 @@ export function AddLiveSessionDialog() {
               control={form.control}
               name="keyTakeaways"
               render={({ field }) => (
-                <FormItem className="col-span-2">
+                <FormItem>
                   <FormLabel>Key Takeaways</FormLabel>
                   <FormControl>
                     <Textarea placeholder="List what attendees will learn." {...field} />
@@ -170,45 +190,47 @@ export function AddLiveSessionDialog() {
                 </FormItem>
               )}
             />
-             <FormField
-              control={form.control}
-              name="dateTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date and Time</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="platform"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Platform</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+             <div className="grid grid-cols-2 gap-4">
+                <FormField
+                control={form.control}
+                name="dateTime"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Date and Time</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a platform" />
-                      </SelectTrigger>
+                        <Input type="datetime-local" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Zoom">Zoom</SelectItem>
-                      <SelectItem value="Google_Meet">Google Meet</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                <FormField
+                control={form.control}
+                name="platform"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Platform</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a platform" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        <SelectItem value="Zoom">Zoom</SelectItem>
+                        <SelectItem value="Google_Meet">Google Meet</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
             <FormField
               control={form.control}
               name="joinUrl"
               render={({ field }) => (
-                <FormItem className="col-span-2">
+                <FormItem>
                   <FormLabel>Join URL</FormLabel>
                    <div className="flex gap-2">
                         <FormControl>
@@ -227,7 +249,7 @@ export function AddLiveSessionDialog() {
               control={form.control}
               name="recordingUrl"
               render={({ field }) => (
-                <FormItem className="col-span-2">
+                <FormItem>
                   <FormLabel>Recording URL (Optional)</FormLabel>
                   <FormControl>
                     <Input placeholder="https://..." {...field} />
@@ -236,7 +258,44 @@ export function AddLiveSessionDialog() {
                 </FormItem>
               )}
             />
-            <DialogFooter className="col-span-2">
+             <FormField
+                control={form.control}
+                name="isRestricted"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                            <FormLabel>Restrict to specific staff</FormLabel>
+                            <FormMessage />
+                        </div>
+                        <FormControl>
+                            <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                            />
+                        </FormControl>
+                    </FormItem>
+                )}
+            />
+             {isRestricted && (
+                <FormField
+                    control={form.control}
+                    name="allowedUserIds"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Allowed Staff</FormLabel>
+                            <MultiSelect
+                                options={users.map(u => ({ value: u.id, label: u.name }))}
+                                selected={field.value || []}
+                                onChange={field.onChange}
+                                placeholder="Select staff..."
+                                className="w-full"
+                            />
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+            <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "Creating..." : "Create Session"}
               </Button>

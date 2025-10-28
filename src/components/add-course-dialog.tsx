@@ -19,6 +19,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -37,12 +38,24 @@ import { PlusCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { addCourse } from "@/app/actions/course-actions"
 import type { Product } from "@prisma/client"
+import { Switch } from "./ui/switch"
+import { Currency } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
   productId: z.string({ required_error: "Please select a product." }),
   description: z.string().min(10, "Description must be at least 10 characters long."),
-})
+  isPaid: z.boolean().default(false),
+  price: z.coerce.number().optional(),
+  currency: z.nativeEnum(Currency).optional(),
+  hasCertificate: z.boolean().default(false),
+}).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
+    message: "Price must be a positive number for paid courses.",
+    path: ["price"],
+}).refine(data => !data.isPaid || (data.currency !== undefined), {
+    message: "Currency is required for paid courses.",
+    path: ["currency"],
+});
 
 type AddCourseDialogProps = {
   products: Product[]
@@ -57,15 +70,21 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
     defaultValues: {
       title: "",
       description: "",
+      isPaid: false,
+      price: undefined,
+      currency: undefined,
+      hasCertificate: false,
     },
   })
+  
+  const isPaid = form.watch("isPaid");
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const result = await addCourse(values);
     if (result.success) {
         toast({
-            title: "Course Added",
-            description: `The course "${values.title}" has been successfully created.`,
+            title: "Course Submitted",
+            description: `The course "${values.title}" has been submitted for approval.`,
         })
         setOpen(false)
         form.reset()
@@ -85,7 +104,7 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
           <PlusCircle className="mr-2 h-4 w-4" /> Add Course
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add New Course</DialogTitle>
           <DialogDescription>
@@ -93,7 +112,7 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
             <FormField
               control={form.control}
               name="title"
@@ -145,9 +164,87 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="isPaid"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Paid Course</FormLabel>
+                    <FormDescription>
+                      Is this a paid course?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            {isPaid && (
+               <div className="grid grid-cols-2 gap-4">
+                 <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 49.99" {...field} step="0.01" value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                              <SelectTrigger>
+                                  <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                              <SelectItem value="USD">USD ($)</SelectItem>
+                              <SelectItem value="ETB">ETB (Br)</SelectItem>
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+               </div>
+            )}
+             <FormField
+              control={form.control}
+              name="hasCertificate"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Award a Certificate</FormLabel>
+                    <FormDescription>
+                      Does this course award a certificate upon completion?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Creating...' : 'Create Course'}
+                {form.formState.isSubmitting ? 'Submitting...' : 'Submit for Approval'}
               </Button>
             </DialogFooter>
           </form>

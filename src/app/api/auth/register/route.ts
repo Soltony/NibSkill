@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -36,12 +37,17 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Find the staff role
-    const staffRole = await prisma.role.findUnique({
+    const staffRole = await prisma.role.findFirst({
         where: { name: 'Staff' }
     });
 
     if (!staffRole) {
         return NextResponse.json({ isSuccess: false, errors: ['Staff role not found. Please seed the database.'] }, { status: 500 });
+    }
+    
+    const provider = await prisma.trainingProvider.findFirst();
+    if (!provider) {
+        return NextResponse.json({ isSuccess: false, errors: ['Training provider not found. Please seed the database.'] }, { status: 500 });
     }
 
     const user = await prisma.user.create({
@@ -55,20 +61,22 @@ export async function POST(request: Request) {
         branchId: branch,
         phoneNumber: phoneNumber,
         avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
+        trainingProviderId: provider.id,
       },
     });
 
-    // In a real app, you'd generate and return JWT tokens here.
-    // For this prototype, we'll just confirm success.
     return NextResponse.json({
       isSuccess: true,
-      accessToken: 'dummy-access-token', // Placeholder
-      refreshToken: 'dummy-refresh-token', // Placeholder
       errors: null,
     });
 
   } catch (error) {
     console.error('Registration error:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+            return NextResponse.json({ isSuccess: false, errors: ['User with this email already exists.'] }, { status: 409 });
+        }
+    }
     return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });
   }
 }

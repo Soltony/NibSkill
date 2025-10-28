@@ -83,10 +83,8 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
         if (result.success) {
             toast({
                 title: "Profile Updated",
-                description: result.message,
+                description: "Your profile information has been successfully updated.",
             })
-            // After successful update, call the logout server action
-            await logout();
         } else {
             toast({
                 title: "Error",
@@ -141,30 +139,32 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                     <CardHeader>
                     <CardTitle>My Certificates</CardTitle>
                     <CardDescription>
-                        All of the certificates you've earned from completing courses.
+                        All of the certificates you've earned from completing courses or learning paths.
                     </CardDescription>
                     </CardHeader>
                     <CardContent>
-                    {completedCourses.length > 0 ? (
+                    {completedCourses.some(c => c.course.hasCertificate) ? (
                         <ul className="space-y-4">
                             {completedCourses.map(cert => (
-                                <li key={cert.courseId} className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border p-4">
-                                    <div>
-                                        <p className="font-semibold">{cert.course.title}</p>
-                                        <p className="text-sm text-muted-foreground">Completed on: {new Date(cert.completionDate).toLocaleDateString()}</p>
-                                    </div>
-                                    <Button asChild variant="outline" className="mt-2 sm:mt-0">
-                                        <Link href={`/courses/${cert.courseId}/certificate`}>
-                                            <FileText className="mr-2 h-4 w-4" />
-                                            View Certificate
-                                        </Link>
-                                    </Button>
-                                </li>
+                                cert.course.hasCertificate ? (
+                                    <li key={cert.courseId} className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border p-4">
+                                        <div>
+                                            <p className="font-semibold">{cert.course.title}</p>
+                                            <p className="text-sm text-muted-foreground">Completed on: {new Date(cert.completionDate).toLocaleDateString()}</p>
+                                        </div>
+                                        <Button asChild variant="outline" className="mt-2 sm:mt-0">
+                                            <Link href={`/courses/${cert.courseId}/certificate`}>
+                                                <FileText className="mr-2 h-4 w-4" />
+                                                View Certificate
+                                            </Link>
+                                        </Button>
+                                    </li>
+                                ) : null
                             ))}
                         </ul>
                         ) : (
                         <div className="text-center py-12 text-muted-foreground">
-                            <p>No certificates earned yet. Complete a course to earn one!</p>
+                            <p>No certificates earned yet. Complete a course that offers a certificate to see it here!</p>
                         </div>
                         )}
                     </CardContent>
@@ -197,7 +197,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                     <CardHeader>
                         <CardTitle>Edit Your Profile</CardTitle>
                         <CardDescription>
-                            Update your personal information below. After saving, you will be asked to log in again.
+                            Update your personal information below. 
                         </CardDescription>
                     </CardHeader>
                     <CardContent>

@@ -29,7 +29,7 @@ type UserWithRelations = User & {
 }
 
 type Attendee = UserAttendedLiveSession & { user: UserWithRelations };
-type SessionWithAttendees = LiveSession & { attendees: Attendee[] };
+type SessionWithAttendees = LiveSession & { attendedBy: Attendee[] };
 
 
 type ReportDataItem = {
@@ -72,7 +72,7 @@ export function AttendanceReportClient({
   
   const reportData: ReportDataItem[] = useMemo(() => {
     return sessions.flatMap(session => 
-      session.attendees.map(attendee => ({
+      session.attendedBy.map(attendee => ({
         sessionId: session.id,
         sessionTitle: session.title,
         sessionDate: session.dateTime,

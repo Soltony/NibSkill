@@ -45,13 +45,13 @@ async function getCourseData(courseId: string, userId: string) {
   return { course, completedModules, user };
 }
 
-export default async function CourseDetailPage({ params }: { params: Promise<{ courseId: string }> }) {
+export default async function CourseDetailPage({ params }: { params: { courseId: string } }) {
   const session = await getSession();
   if (!session) {
     redirect('/login');
   }
 
-  const { courseId } = await params;
+  const { courseId } = params;
   const { course, completedModules, user } = await getCourseData(courseId, session.id);
 
   if (!course || !user) {

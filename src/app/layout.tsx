@@ -2,7 +2,7 @@
 'use client';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Avatar,
   AvatarFallback,
@@ -36,68 +36,121 @@ import {
   User,
   FilePieChart,
   UserCheck,
+  Edit,
+  Bell,
+  ShieldCheck,
+  CheckCircle,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { NotificationCenter } from '@/components/notification-center';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { logout } from './actions/user-actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Notification, User as UserType, Role as RoleType } from '@prisma/client';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+//const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 // This would typically come from a session context
-type CurrentUser = {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl: string;
-  role: { name: string };
+type CurrentUser = UserType & {
+  role: RoleType;
+  notifications: Notification[];
 };
 
-// Create a context to provide the user role
+// Create a context to provide the user role and permissions
 export const UserContext = React.createContext<string | null>(null);
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const isPublicPage = pathname.startsWith('/login') || pathname === '/';
+  const isSuperAdminLogin = pathname === '/login/super-admin';
+
   useEffect(() => {
-    // This is a stand-in for a proper session management hook
     async function fetchUser() {
-      // Don't fetch user on login/register pages
-      if (!pathname.startsWith('/login') && !pathname.startsWith('/register') && pathname !== '/') {
-        try {
-          setIsLoading(true);
-          const res = await fetch('/api/auth/session'); // This fetches the current session user
-          if (res.ok) {
-            const user = await res.json();
-            if (user) {
-              setCurrentUser(user);
-            } else {
-              window.location.href = '/login';
-            }
+      if (isPublicPage) {
+        setIsLoading(false);
+        return;
+      }
+      
+      try {
+        setIsLoading(true);
+        const res = await fetch('/api/auth/session');
+        if (res.ok) {
+          const user = await res.json();
+          if (user) {
+            setCurrentUser(user);
           } else {
-             window.location.href = '/login';
+            router.replace(isSuperAdminLogin ? '/login/super-admin' : '/login');
           }
-        } catch (error) {
-           console.error("Failed to fetch user", error);
-           window.location.href = '/login';
-        } finally {
-          setIsLoading(false);
+        } else {
+           router.replace(isSuperAdminLogin ? '/login/super-admin' : '/login');
         }
-      } else {
+      } catch (error) {
+         console.error("Failed to fetch user", error);
+         router.replace('/login');
+      } finally {
         setIsLoading(false);
       }
     }
     fetchUser();
-  }, [pathname]);
+  }, [pathname, isPublicPage, router, isSuperAdminLogin]);
 
-  if (pathname.startsWith('/login') || pathname.startsWith('/register') || pathname === '/') {
+  const userRole = currentUser?.role;
+  const permissions = userRole?.permissions as any;
+
+  const navItems = [
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/courses', icon: BookCopy, label: 'Courses' },
+    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths' },
+    { href: '/live-sessions', icon: Radio, label: 'Live Sessions' },
+  ];
+
+  const adminNavItems = [
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/admin/products', icon: Package, label: 'Products' },
+    { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt' },
+    { href: '/admin/courses/approvals', icon: CheckCircle, label: 'Approvals'},
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths' },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt' },
+    { href: '/admin/grading', icon: Edit, label: 'Grading' },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions' },
+    { href: '/admin/staff', icon: Users2, label: 'Staff' },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report' },
+    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report' },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate' },
+    { href: '/admin/settings', icon: Settings, label: 'Settings' },
+  ];
+
+  const superAdminNavItems = [
+    { href: '/super-admin', icon: ShieldCheck, label: 'Super Admin' },
+  ]
+  
+  const isAdminPath = pathname.startsWith('/admin');
+  const isSuperAdminPath = pathname.startsWith('/super-admin');
+
+  let currentNavItems = navItems;
+  let currentNavItem;
+
+  if (isSuperAdminPath) {
+    currentNavItems = superAdminNavItems;
+    currentNavItem = superAdminNavItems.find(item => pathname.startsWith(item.href));
+  } else if (isAdminPath) {
+    currentNavItems = adminNavItems;
+    currentNavItem = adminNavItems.find(item => pathname.startsWith(item.href));
+  } else {
+    currentNavItem = navItems.find(item => pathname.startsWith(item.href));
+  }
+
+
+  if (isPublicPage) {
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
@@ -110,7 +163,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 rel="stylesheet"
               />
             </head>
-            <body className={`${inter.variable} font-body antialiased`}>
+            <body /*className={`${inter.variable} font-body antialiased`}*/>
                 {children}
                 <Toaster />
             </body>
@@ -118,43 +171,35 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // Simple logic to switch between user roles for demonstration
-  const isAdminView = pathname.startsWith('/admin');
-  const userRole = currentUser?.role?.name.toLowerCase() || 'staff';
+  if (isLoading) {
+      return (
+        <html lang="en" suppressHydrationWarning>
+            <head>
+              <title>NIB Training</title>
+            </head>
+            <body /*className={`${inter.variable} font-body antialiased`}*/>
+                <div className="flex items-center justify-center min-h-screen">
+                    <Logo />
+                </div>
+            </body>
+        </html>
+      )
+  }
 
-  const navItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
-    { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: false },
-    { href: '/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: false },
-  ];
-
-  const adminNavItems = [
-    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true, exact: true },
-    { href: '/admin/products', icon: Package, label: 'Products', adminOnly: true },
-    { href: '/admin/courses', icon: BookCopy, label: 'Course Mgmt', adminOnly: true },
-    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', adminOnly: true },
-    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', adminOnly: true },
-    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', adminOnly: true },
-    { href: '/admin/staff', icon: Users2, label: 'Staff', adminOnly: true },
-    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', adminOnly: true },
-    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report', adminOnly: true },
-    { href: '/admin/certificate', icon: Award, label: 'Certificate', adminOnly: true },
-    { href: '/admin/settings', icon: Settings, label: 'Settings', adminOnly: true },
-  ];
-  
-  const allNavItems = isAdminView ? adminNavItems : navItems;
-
-  const isLinkActive = (path: string, exact?: boolean) => {
-    if (exact) {
-        return pathname === path;
-    }
-    return pathname.startsWith(path);
+  const isLinkActive = (path: string) => {
+    if (path === '/admin/analytics' && pathname === '/admin/analytics') return true;
+    if (path !== '/admin/analytics' && pathname.startsWith(path)) return true;
+    if (path === '/courses' && pathname.startsWith('/courses/')) return true;
+    return false;
   }
 
   const handleLogout = async () => {
     await logout();
     window.location.href = '/login';
   };
+  
+  const hasAdminReadAccess = permissions?.courses?.r === true;
+  const isStaffView = !isAdminPath && !isSuperAdminPath;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -168,15 +213,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className={`${inter.variable} font-body antialiased`}>
-        <UserContext.Provider value={userRole}>
+      <body /*className={`${inter.variable} font-body antialiased`}*/>
+        <UserContext.Provider value={userRole?.name.toLowerCase() || null}>
           <SidebarProvider>
             <Sidebar>
               <SidebarHeader>
                 <Logo className="text-primary-foreground" />
               </SidebarHeader>
               <SidebarContent>
-                 {isLoading ? (
+                 {isLoading || !currentUser ? (
                     <div className="space-y-2 p-2">
                         <Skeleton className="h-8 w-full" />
                         <Skeleton className="h-8 w-full" />
@@ -184,38 +229,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </div>
                 ) : (
                   <SidebarMenu>
-                    {isAdminView ? (
-                      <>
-                        <SidebarGroup>
-                          <SidebarGroupLabel>Admin</SidebarGroupLabel>
-                          {adminNavItems.map((item) => (
-                            <SidebarMenuItem key={item.href}>
-                              <Link href={item.href}>
-                                <SidebarMenuButton
-                                  isActive={isLinkActive(item.href, item.exact)}
-                                  tooltip={item.label}
-                                >
-                                  <item.icon />
-                                  <span>{item.label}</span>
-                                </SidebarMenuButton>
-                              </Link>
-                            </SidebarMenuItem>
-                          ))}
-                        </SidebarGroup>
-                        <SidebarMenuItem>
-                            <Link href={'/dashboard'}>
-                              <SidebarMenuButton
-                                isActive={isLinkActive('/dashboard')}
-                                tooltip={'Staff Dashboard'}
-                              >
-                                <LayoutDashboard />
-                                <span>Staff View</span>
-                              </SidebarMenuButton>
-                            </Link>
-                          </SidebarMenuItem>
-                      </>
-                    ) : (
-                      navItems.map((item) => (
+                    <SidebarGroup>
+                      <SidebarGroupLabel>
+                        {isSuperAdminPath ? 'Super Admin' : isAdminPath ? 'Admin Menu' : 'Menu'}
+                      </SidebarGroupLabel>
+                      {currentNavItems.map((item) => (
                         <SidebarMenuItem key={item.href}>
                           <Link href={item.href}>
                             <SidebarMenuButton
@@ -227,7 +245,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </SidebarMenuButton>
                           </Link>
                         </SidebarMenuItem>
-                      ))
+                      ))}
+                    </SidebarGroup>
+                    
+                    {isStaffView && hasAdminReadAccess && (
+                      <SidebarMenuItem>
+                        <Link href="/admin/analytics">
+                          <SidebarMenuButton tooltip="Admin View">
+                            <ShieldCheck />
+                            <span>Admin View</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    )}
+
+                    {!isStaffView && !isSuperAdminPath && (
+                      <SidebarMenuItem>
+                        <Link href="/dashboard">
+                          <SidebarMenuButton tooltip="Staff View">
+                            <User />
+                            <span>Staff View</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
                     )}
                   </SidebarMenu>
                 )}
@@ -246,7 +286,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div className="flex items-center gap-3 p-2">
                     <Link href="/profile" className="flex-1 flex items-center gap-3 overflow-hidden group">
                       <Avatar>
-                        <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+                        <AvatarImage src={currentUser.avatarUrl ?? ''} alt={currentUser.name} />
                         <AvatarFallback>
                           {currentUser.name.charAt(0)}
                         </AvatarFallback>
@@ -270,12 +310,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <SidebarTrigger className="md:hidden"/>
                   <div className="flex-1">
                       <h1 className="text-lg font-semibold md:text-xl font-headline">
-                          {
-                              [...navItems, ...adminNavItems].find(item => isLinkActive(item.href, item.exact))?.label
-                          }
+                          {currentNavItem?.label}
                       </h1>
                   </div>
-                  <NotificationCenter />
+                  {currentUser && <NotificationCenter initialNotifications={currentUser.notifications} />}
               </header>
               <main className="flex-1 p-4 lg:p-6">{children}</main>
             </SidebarInset>

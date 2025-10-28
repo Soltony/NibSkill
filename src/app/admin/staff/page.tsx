@@ -1,4 +1,5 @@
 
+
 import {
   Table,
   TableBody,
@@ -22,11 +23,33 @@ import { EditBranchDialog, DeleteBranchButton } from "@/components/edit-branch-d
 import { AddDepartmentDialog } from "@/components/add-department-dialog"
 import { EditDepartmentDialog, DeleteDepartmentButton } from "@/components/edit-department-dialog"
 import prisma from "@/lib/db"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
+
+async function getData(trainingProviderId: string) {
+  const districts = await prisma.district.findMany({ 
+    where: { trainingProviderId },
+    orderBy: { name: 'asc' }
+  });
+  const branches = await prisma.branch.findMany({ 
+    where: { district: { trainingProviderId } },
+    include: { district: true }, 
+    orderBy: { name: 'asc' }
+  });
+  const departments = await prisma.department.findMany({ 
+    where: { trainingProviderId },
+    orderBy: { name: 'asc' }
+  });
+
+  return { districts, branches, departments };
+}
 
 export default async function StaffManagementPage() {
-  const districts = await prisma.district.findMany({ orderBy: { name: 'asc' }});
-  const branches = await prisma.branch.findMany({ include: { district: true }, orderBy: { name: 'asc' }});
-  const departments = await prisma.department.findMany({ orderBy: { name: 'asc' }});
+  const session = await getSession();
+  if (!session || !session.trainingProviderId) {
+    notFound();
+  }
+  const { districts, branches, departments } = await getData(session.trainingProviderId);
 
   return (
     <div className="space-y-8">

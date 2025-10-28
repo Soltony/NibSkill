@@ -1,11 +1,14 @@
 
 import prisma from "@/lib/db"
 import { AttendanceReportClient } from "./attendance-report-client"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
 
-async function getAttendanceReportData() {
+async function getAttendanceReportData(trainingProviderId: string) {
   const sessions = await prisma.liveSession.findMany({
+    where: { trainingProviderId },
     include: {
-      attendees: {
+      attendedBy: {
         include: {
           user: {
             include: {
@@ -23,10 +26,22 @@ async function getAttendanceReportData() {
     orderBy: { dateTime: "desc" },
   });
 
-  const users = await prisma.user.findMany({ orderBy: { name: 'asc' }});
-  const departments = await prisma.department.findMany({ orderBy: { name: 'asc' }});
-  const districts = await prisma.district.findMany({ orderBy: { name: 'asc' }});
-  const branches = await prisma.branch.findMany({ orderBy: { name: 'asc' }});
+  const users = await prisma.user.findMany({ 
+    where: { trainingProviderId },
+    orderBy: { name: 'asc' }
+  });
+  const departments = await prisma.department.findMany({ 
+    where: { trainingProviderId },
+    orderBy: { name: 'asc' }
+  });
+  const districts = await prisma.district.findMany({ 
+    where: { trainingProviderId },
+    orderBy: { name: 'asc' }
+  });
+  const branches = await prisma.branch.findMany({ 
+    where: { district: { trainingProviderId } },
+    orderBy: { name: 'asc' }
+  });
 
   return { 
     sessions,
@@ -38,7 +53,12 @@ async function getAttendanceReportData() {
 }
 
 export default async function AttendanceReportPage() {
-  const { sessions, users, departments, districts, branches } = await getAttendanceReportData()
+  const session = await getSession();
+  if (!session || !session.trainingProviderId) {
+    notFound();
+  }
+
+  const { sessions, users, departments, districts, branches } = await getAttendanceReportData(session.trainingProviderId)
   
   return (
     <AttendanceReportClient
@@ -50,4 +70,3 @@ export default async function AttendanceReportPage() {
     />
   )
 }
-

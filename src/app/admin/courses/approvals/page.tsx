@@ -1,6 +1,4 @@
 
-
-import Image from "next/image"
 import {
   Table,
   TableBody,
@@ -9,7 +7,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -18,38 +15,50 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
-import { CourseClient, CourseLink, CourseActions } from "./course-client"
+import { getSession } from "@/lib/auth"
+import { notFound } from "next/navigation"
+import Image from "next/image"
+import { ApprovalActions } from "./approval-client"
+import Link from "next/link"
 
-export default async function CourseManagementPage() {
+async function getPendingCourses(trainingProviderId: string) {
   const courses = await prisma.course.findMany({
-    orderBy: { title: 'asc' },
+    where: { 
+      trainingProviderId,
+      status: 'PENDING' 
+    },
+    orderBy: { createdAt: 'asc' },
     include: {
       modules: true,
       product: true,
     }
   });
-  
-  const products = await prisma.product.findMany({
-    orderBy: { name: 'asc' }
-  });
+  return courses;
+}
+
+
+export default async function CourseApprovalPage() {
+  const session = await getSession();
+  if (!session || !session.trainingProviderId) {
+    notFound();
+  }
+
+  const courses = await getPendingCourses(session.trainingProviderId);
 
   return (
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Course Management</h1>
+          <h1 className="text-3xl font-bold font-headline">Course Approvals</h1>
           <p className="text-muted-foreground">
-            Register new products, link training courses, and manage modules.
+            Review and approve newly created courses before they are published.
           </p>
         </div>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>All Courses</CardTitle>
-              <CardDescription>
-                A list of all training courses in the system.
-              </CardDescription>
-            </div>
-            <CourseClient courses={courses} products={products} />
+          <CardHeader>
+            <CardTitle>Pending Courses</CardTitle>
+            <CardDescription>
+              The following courses are awaiting your approval.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -61,9 +70,8 @@ export default async function CourseManagementPage() {
                   <TableHead>Course Title</TableHead>
                   <TableHead>Associated Product</TableHead>
                   <TableHead className="text-center">Modules</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Actions</span>
+                  <TableHead className="text-right">
+                    Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -78,7 +86,7 @@ export default async function CourseManagementPage() {
                           height="64"
                           src={course.product.imageUrl}
                           width="64"
-                          data-ai-hint={course.product.imageHint}
+                          data-ai-hint={course.product.imageHint ?? undefined}
                         />
                       ) : (
                         <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
@@ -87,20 +95,26 @@ export default async function CourseManagementPage() {
                       )}
                     </TableCell>
                     <TableCell className="font-medium">
-                        <CourseLink course={course} />
+                      <Link href={`/admin/courses/${course.id}`} className="hover:underline">
+                        {course.title}
+                      </Link>
                     </TableCell>
                     <TableCell>{course.product?.name}</TableCell>
                     <TableCell className="text-center">
                       {course.modules.length}
                     </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline">Published</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <CourseActions course={course} products={products} />
+                    <TableCell className="text-right">
+                      <ApprovalActions course={course} />
                     </TableCell>
                   </TableRow>
                 ))}
+                 {courses.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                            There are no courses pending approval.
+                        </TableCell>
+                    </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>

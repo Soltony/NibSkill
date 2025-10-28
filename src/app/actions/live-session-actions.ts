@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
+import { getSession } from '@/lib/auth'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -14,19 +15,35 @@ const formSchema = z.object({
   platform: z.enum(["Zoom", "Google_Meet"]),
   joinUrl: z.string().url("Must be a valid URL"),
   recordingUrl: z.string().url("Must be a valid URL").optional().or(z.literal('')),
+  isRestricted: z.boolean().default(false),
+  allowedUserIds: z.array(z.string()).optional(),
 })
 
 export async function addLiveSession(values: z.infer<typeof formSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized operation." };
+        }
+
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
         }
         
+        const { isRestricted, allowedUserIds, ...sessionData } = validatedFields.data;
+
         await prisma.liveSession.create({
             data: {
-                ...validatedFields.data,
-                dateTime: new Date(validatedFields.data.dateTime),
+                ...sessionData,
+                dateTime: new Date(sessionData.dateTime),
+                isRestricted,
+                trainingProviderId: session.trainingProviderId,
+                allowedAttendees: isRestricted && allowedUserIds ? {
+                    create: allowedUserIds.map(userId => ({
+                        user: { connect: { id: userId } }
+                    }))
+                } : undefined,
             }
         });
 
@@ -45,11 +62,41 @@ export async function updateLiveSession(id: string, values: z.infer<typeof formS
             return { success: false, message: "Invalid data provided." }
         }
 
+        const existingSession = await prisma.liveSession.findUnique({
+            where: { id },
+        });
+
+        if (!existingSession) {
+            return { success: false, message: "Session not found." };
+        }
+
+        const { isRestricted, allowedUserIds, ...sessionData } = validatedFields.data;
+        const newDateTime = new Date(sessionData.dateTime);
+
+        if (newDateTime.getTime() !== new Date(existingSession.dateTime).getTime()) {
+            const allUsers = await prisma.user.findMany({ select: { id: true } });
+            
+            await prisma.notification.createMany({
+                data: allUsers.map(user => ({
+                    userId: user.id,
+                    title: "Session Rescheduled",
+                    description: `The session "${existingSession.title}" has been rescheduled to ${newDateTime.toLocaleString()}.`,
+                }))
+            });
+        }
+
         await prisma.liveSession.update({
             where: { id },
             data: {
-                ...validatedFields.data,
-                dateTime: new Date(validatedFields.data.dateTime),
+                ...sessionData,
+                dateTime: newDateTime,
+                isRestricted,
+                allowedAttendees: {
+                    deleteMany: {},
+                    create: isRestricted && allowedUserIds ? allowedUserIds.map(userId => ({
+                        user: { connect: { id: userId } }
+                    })) : undefined,
+                }
             }
         });
 

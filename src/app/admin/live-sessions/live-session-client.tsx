@@ -22,7 +22,7 @@ import { deleteLiveSession } from "@/app/actions/live-session-actions"
 export { AddLiveSessionDialog } from "@/components/add-live-session-dialog"
 export { EditLiveSessionDialog } from "@/components/edit-live-session-dialog"
 
-type SessionWithAttendees = LiveSession & { attendees: (UserAttendedLiveSession & { user: User })[] };
+type SessionWithAttendees = LiveSession & { attendedBy: (UserAttendedLiveSession & { user: User })[] };
 
 export const ViewAttendeesDialog = ({ session }: { session: SessionWithAttendees }) => {
 
@@ -30,7 +30,7 @@ export const ViewAttendeesDialog = ({ session }: { session: SessionWithAttendees
         <Dialog>
             <DialogTrigger asChild>
                 <Button variant="link" className="p-0 h-auto">
-                    {session.attendees?.length || 0}
+                    {session.attendedBy?.length || 0}
                 </Button>
             </DialogTrigger>
             <DialogContent>
@@ -38,12 +38,12 @@ export const ViewAttendeesDialog = ({ session }: { session: SessionWithAttendees
                     <DialogTitle>Attendees for "{session.title}"</DialogTitle>
                 </DialogHeader>
                 <div className="py-4 max-h-96 overflow-y-auto">
-                    {session.attendees.length > 0 ? (
+                    {session.attendedBy.length > 0 ? (
                         <ul className="space-y-3">
-                            {session.attendees.map(item => (
+                            {session.attendedBy.map(item => (
                                 <li key={item.userId} className="flex items-center gap-3">
                                     <Avatar>
-                                        <AvatarImage src={item.user.avatarUrl} alt={item.user.name} />
+                                        <AvatarImage src={item.user.avatarUrl ?? undefined} alt={item.user.name} />
                                         <AvatarFallback>{item.user.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div>

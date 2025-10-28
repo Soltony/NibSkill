@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import type { Module } from '@/lib/data';
+import type { Module } from '@prisma/client';
 import { Button } from './ui/button';
 import { ExternalLink, Download } from 'lucide-react';
 
@@ -75,37 +75,64 @@ export const ModuleContent = ({ module }: { module: Module }) => {
         }
 
         switch (module.type) {
-            case 'video':
-                if (isYouTubeUrl) return <YouTubeEmbed url={module.content} />;
-                if (isUploadedContent) return <LocalVideoPlayer url={module.content} />;
-                break;
-            case 'audio':
-                if (isUploadedContent) return <LocalAudioPlayer url={module.content} />;
-                break;
-            case 'pdf':
-            case 'slides':
-                 if (isUploadedContent) {
+            case 'VIDEO':
+                if (isYouTubeUrl) {
+                    return <YouTubeEmbed url={module.content} />;
+                }
+                if (isUploadedContent) {
+                    return <LocalVideoPlayer url={module.content} />;
+                }
+                if (isExternalUrl) {
                     return (
-                        <Button asChild>
-                           <a href={module.content} download={`nibtraining_${module.type}_${module.id}`}>
-                               <Download className="mr-2 h-4 w-4" />
-                               Download Material
-                           </a>
-                       </Button>
-                   );
+                        <Button asChild variant="outline">
+                            <a href={module.content} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Open External Video
+                            </a>
+                        </Button>
+                    );
                 }
                 break;
-        }
-        
-        if (isExternalUrl) {
-            return (
-                 <Button asChild variant="outline">
-                    <a href={module.content} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Open External Content
-                    </a>
-                </Button>
-            );
+
+            case 'AUDIO':
+                if (isUploadedContent) {
+                    return <LocalAudioPlayer url={module.content} />;
+                }
+                if (isExternalUrl) {
+                    return (
+                        <Button asChild variant="outline">
+                            <a href={module.content} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Open External Audio
+                            </a>
+                        </Button>
+                    );
+                }
+                break;
+
+            case 'PDF':
+            case 'SLIDES':
+                if (isUploadedContent) {
+                    return (
+                        <Button asChild>
+                            <a href={module.content} download={`nibtraining_${module.type.toLowerCase()}_${module.id}`}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download Material
+                            </a>
+                        </Button>
+                    );
+                }
+                if (isExternalUrl) {
+                    return (
+                        <Button asChild variant="outline">
+                            <a href={module.content} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Open External Material
+                            </a>
+                        </Button>
+                    );
+                }
+                break;
         }
 
         return <p className="text-muted-foreground">Unsupported or invalid content link for this module.</p>;
