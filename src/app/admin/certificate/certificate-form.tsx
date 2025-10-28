@@ -322,17 +322,18 @@ export function CertificateForm({ template }: CertificateFormProps) {
             style={{ borderColor: watchedValues.primaryColor, opacity: 0.8, borderStyle: watchedValues.borderStyle }}
           />
 
-          <div className="z-10 w-full h-16 relative">
-            {watchedValues.logoUrl ? (
+          <div className="z-10 flex items-center justify-center gap-4 h-16">
+            {watchedValues.logoUrl && (
+              <div className="relative h-16 w-16">
                 <Image src={watchedValues.logoUrl} alt="Organization Logo" layout="fill" objectFit="contain" />
-            ) : (
-                <h2 
-                    className="text-2xl font-bold font-headline"
-                    style={{ color: watchedValues.primaryColor }}
-                >
-                    {watchedValues.organization}
-                </h2>
+              </div>
             )}
+            <h2 
+                className="text-2xl font-bold font-headline"
+                style={{ color: watchedValues.primaryColor }}
+            >
+                {watchedValues.organization}
+            </h2>
           </div>
 
           <div className="z-10">
