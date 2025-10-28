@@ -228,13 +228,11 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
   return (
     <>
       <Tabs defaultValue="user-management">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="user-management">User Management</TabsTrigger>
           <TabsTrigger value="role-management">Role Management</TabsTrigger>
           <TabsTrigger value="user-registration">User Registration</TabsTrigger>
-          <TabsTrigger value="districts">Districts</TabsTrigger>
-          <TabsTrigger value="branches">Branches</TabsTrigger>
-          <TabsTrigger value="departments">Departments</TabsTrigger>
+          <TabsTrigger value="organization">Organization</TabsTrigger>
           <TabsTrigger value="login-history">Login History</TabsTrigger>
         </TabsList>
 
@@ -425,7 +423,8 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
           </Card>
         </TabsContent>
         
-        <TabsContent value="districts">
+        <TabsContent value="organization">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
@@ -458,77 +457,77 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     </Table>
                 </CardContent>
             </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>All Departments</CardTitle>
+                        <CardDescription>A list of all registered departments.</CardDescription>
+                    </div>
+                    <AddDepartmentDialog />
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Department Name</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {departments.map((department) => (
+                            <TableRow key={department.id}>
+                                <TableCell className="font-medium">{department.name}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <EditDepartmentDialog department={department} />
+                                    <DeleteDepartmentButton department={department} />
+                                  </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>All Branches</CardTitle>
+                        <CardDescription>A list of all registered branches.</CardDescription>
+                    </div>
+                    <AddBranchDialog districts={districts} />
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Branch Name</TableHead>
+                                <TableHead>District</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {branches.map((branch) => (
+                            <TableRow key={branch.id}>
+                                <TableCell className="font-medium">{branch.name}</TableCell>
+                                <TableCell>{branch.district.name}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <EditBranchDialog branch={branch} districts={districts} />
+                                    <DeleteBranchButton branch={branch} />
+                                  </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
-        <TabsContent value="branches">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>All Branches</CardTitle>
-                    <CardDescription>A list of all registered branches.</CardDescription>
-                </div>
-                <AddBranchDialog districts={districts} />
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Branch Name</TableHead>
-                            <TableHead>District</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {branches.map((branch) => (
-                        <TableRow key={branch.id}>
-                            <TableCell className="font-medium">{branch.name}</TableCell>
-                            <TableCell>{branch.district.name}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <EditBranchDialog branch={branch} districts={districts} />
-                                <DeleteBranchButton branch={branch} />
-                              </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="departments">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>All Departments</CardTitle>
-                    <CardDescription>A list of all registered departments.</CardDescription>
-                </div>
-                <AddDepartmentDialog />
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Department Name</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {departments.map((department) => (
-                        <TableRow key={department.id}>
-                            <TableCell className="font-medium">{department.name}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <EditDepartmentDialog department={department} />
-                                <DeleteDepartmentButton department={department} />
-                              </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        
 
         <TabsContent value="login-history">
           <Card>
