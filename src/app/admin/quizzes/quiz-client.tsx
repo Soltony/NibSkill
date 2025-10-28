@@ -3,7 +3,8 @@
 
 import type { Course, Quiz, Question, Option as OptionType } from "@prisma/client"
 import { AddQuizDialog } from "@/components/add-quiz-dialog"
-import { ManageQuestionsDialog } from "@/components/manage-questions-dialog"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 type QuizWithRelations = Quiz & {
   questions: (Question & { options: OptionType[] })[]
@@ -25,9 +26,10 @@ type ManageQuestionsProps = {
 
 export function ManageQuestions({ quiz, courseTitle }: ManageQuestionsProps) {
   return (
-    <ManageQuestionsDialog
-      quiz={quiz}
-      courseTitle={courseTitle}
-    />
+    <Button asChild variant="outline" size="sm">
+      <Link href={`/admin/quizzes/${quiz.id}`}>
+        Manage
+      </Link>
+    </Button>
   )
 }
