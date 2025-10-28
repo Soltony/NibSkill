@@ -126,6 +126,125 @@ export function CertificateForm({ template }: CertificateFormProps) {
     '--cert-primary': watchedValues.primaryColor,
     borderStyle: watchedValues.borderStyle,
   } as React.CSSProperties;
+  
+  const renderPreview = () => {
+    switch (watchedValues.templateStyle) {
+      case "Classic":
+        return (
+          <Card
+            className="aspect-[11/8.5] w-full p-8 flex flex-col items-center justify-center text-center bg-white shadow-2xl relative overflow-hidden font-serif"
+            style={certificateStyle}
+          >
+            <div 
+              className="absolute inset-0 border m-2 rounded-lg"
+              style={{ borderColor: watchedValues.primaryColor, opacity: 0.3 }}
+            />
+            <div
+              className="absolute inset-0 border-2 m-4 rounded-lg"
+              style={{ borderColor: watchedValues.primaryColor, opacity: 0.8, borderStyle: 'double', borderWidth: '4px' }}
+            />
+            <div className="z-10 flex flex-col items-center justify-center gap-2 mb-8">
+              {watchedValues.logoUrl && (
+                <div className="relative h-20 w-20">
+                  <Image src={watchedValues.logoUrl} alt="Organization Logo" layout="fill" objectFit="contain" />
+                </div>
+              )}
+              <h2 className="text-3xl font-bold" style={{ color: watchedValues.primaryColor }}>{watchedValues.organization}</h2>
+            </div>
+            <div className="z-10 text-center">
+              <p className="text-lg text-foreground/80 mb-2">This certifies that</p>
+              <h1 className="text-5xl font-bold font-headline mb-4" style={{ color: watchedValues.primaryColor }}>Alex Johnson</h1>
+              <p className="text-lg text-foreground/80 mb-2">has successfully completed the</p>
+              <h3 className="text-2xl font-bold mb-6">{watchedValues.title}</h3>
+              <p className="max-w-xl mx-auto text-base text-foreground/70">{previewBody}</p>
+            </div>
+            <div className="z-10 w-full flex justify-around items-end mt-12 gap-8">
+              <div className="text-center">
+                {signatureUrl && <div className="relative h-16 w-48 mx-auto mb-2"><Image src={signatureUrl} alt="Signature" layout="fill" objectFit="contain" /></div>}
+                <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
+                <p className="text-sm text-muted-foreground mt-1">{watchedValues.signatoryName}, {watchedValues.signatoryTitle}</p>
+              </div>
+              <div className="text-center">
+                {stampUrl && <div className="relative h-24 w-24 mx-auto"><Image src={stampUrl} alt="Stamp" layout="fill" objectFit="contain" /></div>}
+              </div>
+              <div className="text-center">
+                <div className="h-16"></div>
+                <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
+                <p className="text-sm text-muted-foreground mt-1">Date of Issue: {new Date().toLocaleDateString()}</p>
+              </div>
+            </div>
+          </Card>
+        );
+      case "Formal":
+        return (
+          <Card
+            className="aspect-[11/8.5] w-full p-4 flex flex-col items-center justify-center text-center bg-white shadow-2xl relative overflow-hidden"
+            style={certificateStyle}
+          >
+            <div 
+              className="absolute inset-0 border-8"
+              style={{ borderColor: watchedValues.primaryColor, borderImage: `url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' ry='8' stroke='%23${watchedValues.primaryColor?.substring(1)}' stroke-width='16' stroke-dasharray='30%2c 10' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e") 10`}}
+            />
+             <div className="z-10 flex items-center justify-center gap-4 mb-4">
+              {watchedValues.logoUrl && <div className="relative h-16 w-16"><Image src={watchedValues.logoUrl} alt="Organization Logo" layout="fill" objectFit="contain" /></div>}
+              <h2 className="text-4xl font-extrabold tracking-widest uppercase" style={{ color: watchedValues.primaryColor }}>{watchedValues.organization}</h2>
+            </div>
+            <div className="z-10 my-4">
+              <p className="text-xl uppercase tracking-wider">Certificate Of Completion</p>
+              <h1 className="text-6xl font-bold my-4" style={{ color: watchedValues.primaryColor }}>{watchedValues.title}</h1>
+              <p className="text-lg">This certificate is awarded to</p>
+              <p className="text-3xl font-serif italic my-4">Alex Johnson</p>
+              <p className="max-w-xl mx-auto text-base">{previewBody}</p>
+            </div>
+            <div className="z-10 w-full flex justify-between items-end px-16 mt-8">
+              <div className="text-center">
+                {signatureUrl && <div className="relative h-16 w-48 mx-auto mb-2"><Image src={signatureUrl} alt="Signature" layout="fill" objectFit="contain" /></div>}
+                <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
+                <p className="text-sm font-semibold mt-1">{watchedValues.signatoryName}</p>
+                <p className="text-xs text-muted-foreground">{watchedValues.signatoryTitle}</p>
+              </div>
+              <div className="relative h-28 w-28">
+                {stampUrl && <Image src={stampUrl} alt="Stamp" layout="fill" objectFit="contain" />}
+              </div>
+            </div>
+          </Card>
+        )
+      case "Modern":
+      default:
+        return (
+          <Card
+            className="aspect-[11/8.5] w-full p-0 flex text-left bg-white shadow-2xl relative overflow-hidden"
+            style={certificateStyle}
+          >
+            <div className="w-1/4 h-full" style={{ backgroundColor: watchedValues.primaryColor, opacity: 0.8 }} />
+            <div className="w-3/4 h-full p-12 flex flex-col justify-between">
+                <div>
+                    <div className="flex items-center gap-4 mb-8">
+                        {watchedValues.logoUrl && <div className="relative h-16 w-16"><Image src={watchedValues.logoUrl} alt="Organization Logo" layout="fill" objectFit="contain" /></div>}
+                        <h2 className="text-3xl font-bold font-headline">{watchedValues.organization}</h2>
+                    </div>
+                    <p className="text-muted-foreground text-sm uppercase tracking-widest">Certificate Of Completion</p>
+                    <h1 className="text-5xl font-bold my-2" style={{ color: watchedValues.primaryColor }}>{watchedValues.title}</h1>
+                    <p className="text-lg text-muted-foreground">Awarded to</p>
+                    <p className="text-3xl font-bold">Alex Johnson</p>
+                </div>
+                 <div className="mt-8">
+                    <p className="max-w-md text-sm">{previewBody}</p>
+                 </div>
+                 <div className="flex justify-between items-end mt-8">
+                    <div className="text-left">
+                        {signatureUrl && <div className="relative h-12 w-32 mb-1"><Image src={signatureUrl} alt="Signature" layout="fill" objectFit="contain" /></div>}
+                        <p className="text-lg font-bold">{watchedValues.signatoryName}</p>
+                        <p className="text-sm text-muted-foreground">{watchedValues.signatoryTitle}</p>
+                    </div>
+                     {stampUrl && <div className="relative h-20 w-20"><Image src={stampUrl} alt="Stamp" layout="fill" objectFit="contain" /></div>}
+                 </div>
+            </div>
+          </Card>
+        );
+    }
+  }
+
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -292,80 +411,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
 
       <div className="lg:col-span-2">
         <h2 className="text-2xl font-semibold font-headline mb-4">Live Preview</h2>
-        <Card
-          className={cn(
-            "aspect-[11/8.5] w-full p-8 flex flex-col items-center justify-between text-center bg-white shadow-2xl relative overflow-hidden",
-            watchedValues.templateStyle === "Classic" && "font-serif",
-            watchedValues.templateStyle === "Formal" && "font-sans"
-          )}
-          style={certificateStyle}
-        >
-          <div 
-            className="absolute inset-0 border-4 m-2 rounded-lg"
-            style={{ borderColor: watchedValues.primaryColor, opacity: 0.2 }}
-          />
-          <div
-            className="absolute inset-0 border-8 m-4 rounded-lg"
-            style={{ borderColor: watchedValues.primaryColor, opacity: 0.8, borderStyle: watchedValues.borderStyle }}
-          />
-
-          <div className="z-10 flex items-center justify-center gap-4 h-16">
-            {watchedValues.logoUrl && (
-              <div className="relative h-16 w-16">
-                <Image src={watchedValues.logoUrl} alt="Organization Logo" layout="fill" objectFit="contain" />
-              </div>
-            )}
-            <h2 
-                className="text-2xl font-bold font-headline"
-                style={{ color: watchedValues.primaryColor }}
-            >
-                {watchedValues.organization}
-            </h2>
-          </div>
-
-          <div className="z-10">
-            <h1
-              className={cn(
-                "font-bold mb-4",
-                watchedValues.templateStyle === "Classic" ? "text-5xl" : "text-4xl",
-                watchedValues.templateStyle === "Formal" ? "text-6xl tracking-widest uppercase" : "font-headline"
-              )}
-              style={{ color: watchedValues.primaryColor }}
-            >
-              {watchedValues.title}
-            </h1>
-            <p className={cn(
-              "max-w-xl mx-auto",
-              watchedValues.templateStyle === "Formal" ? "text-base" : "text-lg text-foreground/80"
-            )}>
-              {previewBody}
-            </p>
-          </div>
-          
-          <div className="z-10 w-full flex justify-around items-end">
-            <div className="text-center">
-              {signatureUrl ? (
-                <div className="relative h-16 w-48 mx-auto mb-2">
-                  <Image src={signatureUrl} alt="Signature" layout="fill" objectFit="contain" />
-                </div>
-              ) : <div className="h-16"></div>}
-              <p className={cn("text-xl", watchedValues.templateStyle === "Formal" ? "font-sans" : "font-serif italic")}>{watchedValues.signatoryName}</p>
-              <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
-              <p className="text-sm text-muted-foreground">{watchedValues.signatoryTitle}</p>
-            </div>
-            {stampUrl && (
-              <div className="relative h-24 w-24">
-                <Image src={stampUrl} alt="Organization Stamp" layout="fill" objectFit="contain" />
-              </div>
-            )}
-            <div className="text-center">
-              <div className="h-16"></div>
-              <p className={cn("text-xl", watchedValues.templateStyle === "Formal" ? "font-sans" : "font-serif italic")}>{new Date().toLocaleDateString()}</p>
-              <div className="w-48 h-px bg-foreground/50 mx-auto mt-1"></div>
-              <p className="text-sm text-muted-foreground">Date of Issue</p>
-            </div>
-          </div>
-        </Card>
+        {renderPreview()}
       </div>
     </div>
   );
