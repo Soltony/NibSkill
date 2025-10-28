@@ -15,6 +15,7 @@ const formSchema = z.object({
   price: z.coerce.number().optional(),
   currency: z.nativeEnum(Currency).optional(),
   hasCertificate: z.boolean().default(false),
+  status: z.enum(['PENDING', 'PUBLISHED']).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -97,6 +98,7 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description,
+                status: validatedFields.data.status,
             }
         });
 

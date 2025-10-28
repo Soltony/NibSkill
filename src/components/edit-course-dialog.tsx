@@ -48,6 +48,7 @@ const formSchema = z.object({
   price: z.coerce.number().optional(),
   currency: z.nativeEnum(Currency).optional(),
   hasCertificate: z.boolean().default(false),
+  status: z.enum(['PENDING', 'PUBLISHED']).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -76,6 +77,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
       price: course.price ?? undefined,
       currency: course.currency ?? undefined,
       hasCertificate: course.hasCertificate,
+      status: course.status as 'PENDING' | 'PUBLISHED' | undefined,
     },
   })
   
@@ -91,6 +93,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
         price: course.price ?? undefined,
         currency: course.currency ?? undefined,
         hasCertificate: course.hasCertificate,
+        status: course.status as 'PENDING' | 'PUBLISHED' | undefined,
       })
     }
   }, [open, course, form])
@@ -250,6 +253,27 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? undefined}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a status" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="PENDING">Pending</SelectItem>
+                            <SelectItem value="PUBLISHED">Published</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  <FormMessage />
                 </FormItem>
               )}
             />
