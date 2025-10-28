@@ -70,8 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isPublicPage = pathname.startsWith('/login') || pathname === '/';
-  const isSuperAdminLogin = pathname === '/login/super-admin';
+  const isPublicPage = pathname === '/login' || pathname.startsWith('/login/');
 
   useEffect(() => {
     async function fetchUser() {
@@ -85,13 +84,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         const res = await fetch('/api/auth/session');
         if (res.ok) {
           const user = await res.json();
-          if (user) {
-            setCurrentUser(user);
-          } else {
-            router.replace(isSuperAdminLogin ? '/login/super-admin' : '/login');
-          }
+          setCurrentUser(user);
         } else {
-           router.replace(isSuperAdminLogin ? '/login/super-admin' : '/login');
+           router.replace('/login');
         }
       } catch (error) {
          console.error("Failed to fetch user", error);
@@ -101,7 +96,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       }
     }
     fetchUser();
-  }, [pathname, isPublicPage, router, isSuperAdminLogin]);
+  }, [pathname, router, isPublicPage]);
 
   const userRole = currentUser?.role;
   const permissions = userRole?.permissions as any;
@@ -170,7 +165,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (isLoading) {
+  if (isLoading || !currentUser) {
       return (
         <html lang="en" suppressHydrationWarning>
             <head>
