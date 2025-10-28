@@ -22,6 +22,7 @@ async function getCertificateTemplate(trainingProviderId: string) {
                 primaryColor: "#4a6e3a",
                 borderStyle: "solid",
                 templateStyle: "Modern",
+                logoUrl: null,
             }
         });
     }

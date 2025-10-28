@@ -66,13 +66,17 @@ export function CertificateClient({ template, course, user, completionDate }: Ce
                   style={{ borderColor: template.primaryColor || undefined, opacity: 0.8, borderStyle: template.borderStyle || 'solid' }}
                 />
                 
-                <div className="z-10 w-full">
-                     <h2 
-                        className="text-2xl font-bold font-headline"
-                        style={{ color: template.primaryColor || undefined }}
-                    >
-                        {template.organization}
-                    </h2>
+                <div className="z-10 w-full h-16 relative">
+                    {template.logoUrl ? (
+                        <Image src={template.logoUrl} alt="Organization Logo" layout="fill" objectFit="contain" />
+                    ) : (
+                        <h2 
+                            className="text-2xl font-bold font-headline"
+                            style={{ color: template.primaryColor || undefined }}
+                        >
+                            {template.organization}
+                        </h2>
+                    )}
                 </div>
                 
                 <div className="z-10">

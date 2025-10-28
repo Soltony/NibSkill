@@ -37,6 +37,7 @@ const formSchema = z.object({
   body: z.string().min(10, "Body text is required"),
   signatoryName: z.string().min(3, "Signatory name is required"),
   signatoryTitle: z.string().min(3, "Signatory title is required"),
+  logoUrl: z.string().nullable(),
   signatureUrl: z.string().nullable(),
   stampUrl: z.string().nullable(),
   primaryColor: z.string().optional(),
@@ -56,6 +57,7 @@ const templateStyleOptions = ["Modern", "Classic", "Formal"];
 
 export function CertificateForm({ template }: CertificateFormProps) {
   const { toast } = useToast();
+  const [logoUrl, setLogoUrl] = useState<string | null>(template.logoUrl);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(template.signatureUrl);
   const [stampUrl, setStampUrl] = useState<string | null>(template.stampUrl);
 
@@ -66,6 +68,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
       primaryColor: template.primaryColor || colorOptions[0],
       borderStyle: template.borderStyle || borderStyleOptions[0],
       templateStyle: template.templateStyle || templateStyleOptions[0],
+      logoUrl: template.logoUrl,
       signatureUrl: template.signatureUrl,
       stampUrl: template.stampUrl,
     },
@@ -73,7 +76,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
 
   const watchedValues = form.watch();
 
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, setter: (url: string | null) => void, fieldName: "signatureUrl" | "stampUrl") => {
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>, setter: (url: string | null) => void, fieldName: "logoUrl" | "signatureUrl" | "stampUrl") => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -90,12 +93,12 @@ export function CertificateForm({ template }: CertificateFormProps) {
     }
   };
 
-  const handleImageRemove = (setter: (url: string | null) => void, fieldName: "signatureUrl" | "stampUrl") => {
+  const handleImageRemove = (setter: (url: string | null) => void, fieldName: "logoUrl" | "signatureUrl" | "stampUrl") => {
     setter(null);
     form.setValue(fieldName, null);
     toast({
       title: "Image Removed",
-      description: `The ${fieldName === 'signatureUrl' ? 'signature' : 'stamp'} image has been removed locally. Save to confirm.`,
+      description: `The ${fieldName === 'logoUrl' ? 'logo' : (fieldName === 'signatureUrl' ? 'signature' : 'stamp')} image has been removed locally. Save to confirm.`,
     });
   };
 
@@ -136,23 +139,40 @@ export function CertificateForm({ template }: CertificateFormProps) {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Certificate Title</FormLabel>
-                      <FormControl><Input {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
+                <FormItem>
+                  <FormLabel>Organization Logo</FormLabel>
+                  {logoUrl ? (
+                    <div className="flex items-center gap-2">
+                      <Image src={logoUrl} alt="Logo preview" width={100} height={40} className="border rounded-md bg-muted p-1" />
+                      <Button variant="ghost" size="sm" onClick={() => handleImageRemove(setLogoUrl, 'logoUrl')}>
+                        <X className="mr-2 h-4 w-4" /> Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <FormControl>
+                      <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setLogoUrl, 'logoUrl')} />
+                    </FormControl>
                   )}
-                />
+                  <FormMessage />
+                </FormItem>
                 <FormField
                   control={form.control}
                   name="organization"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Organization Name</FormLabel>
+                      <FormControl><Input {...field} /></FormControl>
+                      <FormDescription>This will be shown if no logo is uploaded.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Certificate Title</FormLabel>
                       <FormControl><Input {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -302,13 +322,17 @@ export function CertificateForm({ template }: CertificateFormProps) {
             style={{ borderColor: watchedValues.primaryColor, opacity: 0.8, borderStyle: watchedValues.borderStyle }}
           />
 
-          <div className="z-10 w-full">
-            <h2 
-                className="text-2xl font-bold font-headline"
-                style={{ color: watchedValues.primaryColor }}
-            >
-                {watchedValues.organization}
-            </h2>
+          <div className="z-10 w-full h-16 relative">
+            {watchedValues.logoUrl ? (
+                <Image src={watchedValues.logoUrl} alt="Organization Logo" layout="fill" objectFit="contain" />
+            ) : (
+                <h2 
+                    className="text-2xl font-bold font-headline"
+                    style={{ color: watchedValues.primaryColor }}
+                >
+                    {watchedValues.organization}
+                </h2>
+            )}
           </div>
 
           <div className="z-10">

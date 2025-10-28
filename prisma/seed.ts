@@ -295,6 +295,7 @@ async function main() {
         body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
         signatoryName: "Jane Doe",
         signatoryTitle: "Head of Training & Development",
+        logoUrl: null,
         trainingProviderId: provider.id,
     }
   });

@@ -12,6 +12,7 @@ const formSchema = z.object({
   body: z.string().min(10, "Body text is required"),
   signatoryName: z.string().min(3, "Signatory name is required"),
   signatoryTitle: z.string().min(3, "Signatory title is required"),
+  logoUrl: z.string().nullable(),
   signatureUrl: z.string().nullable(),
   stampUrl: z.string().nullable(),
   primaryColor: z.string().optional(),
