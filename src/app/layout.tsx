@@ -122,7 +122,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt' },
     { href: '/admin/grading', icon: Edit, label: 'Grading' },
     { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions' },
-    { href: '/admin/staff', icon: Users2, label: 'Staff' },
     { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report' },
     { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report' },
     { href: '/admin/certificate', icon: Award, label: 'Certificate' },

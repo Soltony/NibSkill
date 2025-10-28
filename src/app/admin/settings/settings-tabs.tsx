@@ -6,7 +6,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType, LoginHistory } from "@prisma/client"
+import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType, LoginHistory, District, Branch, Department } from "@prisma/client"
 import {
   Table,
   TableBody,
@@ -61,9 +61,16 @@ import { AddRoleDialog } from "@/components/add-role-dialog"
 import { EditRoleDialog } from "@/components/edit-role-dialog"
 import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
 import { Badge } from "@/components/ui/badge"
+import { AddDistrictDialog } from "@/components/add-district-dialog"
+import { EditDistrictDialog, DeleteDistrictButton } from "@/components/edit-district-dialog"
+import { AddBranchDialog } from "@/components/add-branch-dialog"
+import { EditBranchDialog, DeleteBranchButton } from "@/components/edit-branch-dialog"
+import { AddDepartmentDialog } from "@/components/add-department-dialog"
+import { EditDepartmentDialog, DeleteDepartmentButton } from "@/components/edit-department-dialog"
 
 type UserWithRole = User & { role: RoleType };
 type LoginHistoryWithUser = LoginHistory & { user: User };
+type BranchWithDistrict = Branch & { district: District };
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -108,9 +115,12 @@ type SettingsTabsProps = {
     roles: RoleType[];
     registrationFields: RegistrationField[];
     loginHistory: LoginHistoryWithUser[];
+    districts: District[];
+    branches: BranchWithDistrict[];
+    departments: Department[];
 }
 
-export function SettingsTabs({ users, roles, registrationFields, loginHistory }: SettingsTabsProps) {
+export function SettingsTabs({ users, roles, registrationFields, loginHistory, districts, branches, departments }: SettingsTabsProps) {
   const [roleToDelete, setRoleToDelete] = useState<RoleType | null>(null);
   const { toast } = useToast()
 
@@ -218,11 +228,13 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory }:
   return (
     <>
       <Tabs defaultValue="user-management">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="user-management">User Management</TabsTrigger>
           <TabsTrigger value="role-management">Role Management</TabsTrigger>
           <TabsTrigger value="user-registration">User Registration</TabsTrigger>
-          <TabsTrigger value="registration-settings">Registration</TabsTrigger>
+          <TabsTrigger value="districts">Districts</TabsTrigger>
+          <TabsTrigger value="branches">Branches</TabsTrigger>
+          <TabsTrigger value="departments">Departments</TabsTrigger>
           <TabsTrigger value="login-history">Login History</TabsTrigger>
         </TabsList>
 
@@ -412,126 +424,110 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory }:
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="registration-settings">
-           <Tabs defaultValue="fields">
-              <TabsList>
-                  <TabsTrigger value="fields">Form Settings</TabsTrigger>
-                  <TabsTrigger value="manage-fields">Manage Fields</TabsTrigger>
-              </TabsList>
-              <TabsContent value="fields">
-                  <Card>
-                  <Form {...registrationFieldsForm}>
-                      <form onSubmit={registrationFieldsForm.handleSubmit(onRegistrationFieldsSubmit)}>
-                      <CardHeader>
-                          <CardTitle>Registration Form Settings</CardTitle>
-                          <CardDescription>
-                            Choose which fields to include in the staff self-registration form.
-                          </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <Table>
-                          <TableHeader>
-                              <TableRow>
-                              <TableHead>Field</TableHead>
-                              <TableHead className="text-center">Show on Form</TableHead>
-                              <TableHead className="text-center">Make Required</TableHead>
-                              </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                              {registrationFieldsForm.getValues('fields').map((field, index) => (
-                                  <TableRow key={field.id}>
-                                      <TableCell className="font-medium">
-                                        <label htmlFor={`enabled-checkbox-${field.id}`}>{field.label}</label>
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                          <FormField
-                                              control={registrationFieldsForm.control}
-                                              name={`fields.${index}.enabled`}
-                                              render={({ field: switchField }) => (
-                                                  <FormItem>
-                                                      <FormControl>
-                                                          <Switch
-                                                              id={`enabled-checkbox-${field.id}`}
-                                                              checked={switchField.value}
-                                                              onCheckedChange={switchField.onChange}
-                                                          />
-                                                      </FormControl>
-                                                  </FormItem>
-                                              )}
-                                          />
-                                      </TableCell>
-                                      <TableCell className="text-center">
-                                          <FormField
-                                              control={registrationFieldsForm.control}
-                                              name={`fields.${index}.required`}
-                                              render={({ field: switchField }) => (
-                                                  <FormItem>
-                                                      <FormControl>
-                                                          <Switch
-                                                              checked={switchField.value}
-                                                              onCheckedChange={switchField.onChange}
-                                                              disabled={!registrationFieldsForm.watch(`fields.${index}.enabled`)}
-                                                          />
-                                                      </FormControl>
-                                                  </FormItem>
-                                              )}
-                                          />
-                                      </TableCell>
-                                  </TableRow>
-                              ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                      <CardFooter>
-                          <Button type="submit" disabled={registrationFieldsForm.formState.isSubmitting}>
-                            {registrationFieldsForm.formState.isSubmitting ? "Saving..." : "Save Settings"}
-                          </Button>
-                      </CardFooter>
-                      </form>
-                  </Form>
-                  </Card>
-              </TabsContent>
-              <TabsContent value="manage-fields">
-                  <Card>
-                      <CardHeader className="flex flex-row items-center justify-between">
-                         <div>
-                           <CardTitle>Manage Custom Fields</CardTitle>
-                           <CardDescription>Add or remove fields available to the registration form.</CardDescription>
-                         </div>
-                         <AddFieldDialog />
-                      </CardHeader>
-                      <CardContent>
-                          <Table>
-                              <TableHeader>
-                                  <TableRow>
-                                      <TableHead>Field Label</TableHead>
-                                      <TableHead>Field ID</TableHead>
-                                      <TableHead>Field Type</TableHead>
-                                      <TableHead className="text-right">Action</TableHead>
-                                  </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                  {registrationFields.map(field => (
-                                      <TableRow key={field.id}>
-                                          <TableCell>{field.label}</TableCell>
-                                          <TableCell><code className="text-xs bg-muted p-1 rounded">{field.id}</code></TableCell>
-                                          <TableCell>
-                                            <Badge variant="outline">{(field as any).type}</Badge>
-                                          </TableCell>
-                                          <TableCell className="text-right">
-                                              <Button variant="ghost" size="icon" onClick={() => setFieldToDelete(field as RegistrationField)}>
-                                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                              </Button>
-                                          </TableCell>
-                                      </TableRow>
-                                  ))}
-                              </TableBody>
-                          </Table>
-                      </CardContent>
-                  </Card>
-              </TabsContent>
-           </Tabs>
+        
+        <TabsContent value="districts">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>All Districts</CardTitle>
+                        <CardDescription>A list of all registered districts.</CardDescription>
+                    </div>
+                    <AddDistrictDialog />
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>District Name</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {districts.map((district) => (
+                            <TableRow key={district.id}>
+                              <TableCell className="font-medium">{district.name}</TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <EditDistrictDialog district={district} />
+                                  <DeleteDistrictButton district={district} />
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </TabsContent>
+        <TabsContent value="branches">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>All Branches</CardTitle>
+                    <CardDescription>A list of all registered branches.</CardDescription>
+                </div>
+                <AddBranchDialog districts={districts} />
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Branch Name</TableHead>
+                            <TableHead>District</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {branches.map((branch) => (
+                        <TableRow key={branch.id}>
+                            <TableCell className="font-medium">{branch.name}</TableCell>
+                            <TableCell>{branch.district.name}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <EditBranchDialog branch={branch} districts={districts} />
+                                <DeleteBranchButton branch={branch} />
+                              </div>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="departments">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>All Departments</CardTitle>
+                    <CardDescription>A list of all registered departments.</CardDescription>
+                </div>
+                <AddDepartmentDialog />
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Department Name</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {departments.map((department) => (
+                        <TableRow key={department.id}>
+                            <TableCell className="font-medium">{department.name}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <EditDepartmentDialog department={department} />
+                                <DeleteDepartmentButton department={department} />
+                              </div>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="login-history">
