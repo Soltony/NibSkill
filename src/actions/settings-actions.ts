@@ -38,6 +38,7 @@ const registerUserSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
+  phoneNumber: z.string().optional(),
 })
 
 export async function registerUser(values: z.infer<typeof registerUserSchema>) {
@@ -60,6 +61,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 email: validatedFields.data.email,
                 password: hashedPassword,
                 roleId: validatedFields.data.roleId,
+                phoneNumber: validatedFields.data.phoneNumber,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
                 trainingProviderId: session.trainingProviderId,
             }
@@ -70,7 +72,15 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
     } catch (error) {
         console.error("Error registering user:", error);
-        return { success: false, message: 'Failed to register user. Email might already be in use.' };
+        if ((error as any).code === 'P2002') {
+             if ((error as any).meta?.target.includes('email')) {
+                return { success: false, message: 'Failed to register user. Email might already be in use.' };
+             }
+             if ((error as any).meta?.target.includes('phoneNumber')) {
+                 return { success: false, message: 'Failed to register user. Phone number might already be in use.' };
+             }
+        }
+        return { success: false, message: 'Failed to register user.' };
     }
 }
 

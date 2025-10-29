@@ -8,8 +8,9 @@ import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
 
 const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
+  email: z.string().email().optional(),
+  password: z.string().optional(),
+  phoneNumber: z.string().optional(),
 });
 
 const getJwtSecret = () => {
@@ -29,21 +30,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ isSuccess: false, errors: ['Invalid login data format.'] }, { status: 400 });
     }
 
-    const { email, password } = validation.data;
+    const { email, password, phoneNumber } = validation.data;
+    let user;
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: { role: true },
-    });
+    if (phoneNumber) {
+        user = await prisma.user.findUnique({
+            where: { phoneNumber },
+            include: { role: true },
+        });
+        if (!user) {
+            return NextResponse.json({ isSuccess: false, errors: [`User with phone number ${phoneNumber} not found.`] }, { status: 404 });
+        }
+    } else if (email && password) {
+        user = await prisma.user.findUnique({
+          where: { email },
+          include: { role: true },
+        });
 
-    if (!user || !user.password) {
-      return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
-    }
+        if (!user || !user.password) {
+          return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+        }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+        const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if (!isPasswordValid) {
-        return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+        if (!isPasswordValid) {
+            return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+        }
+    } else {
+        return NextResponse.json({ isSuccess: false, errors: ['Either phone number or email/password must be provided.'] }, { status: 400 });
     }
 
     const ipAddress = request.ip || request.headers.get('x-forwarded-for');

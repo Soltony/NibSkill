@@ -77,6 +77,7 @@ const registrationSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
+  phoneNumber: z.string().optional(),
 })
 
 const registrationFieldsSchema = z.object({
@@ -373,6 +374,19 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input placeholder="user@company.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. 2519..." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

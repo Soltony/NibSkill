@@ -26,35 +26,77 @@ const publicPaths = [
   '/api/auth/register',
   '/api/connect',
   '/api/payment/initiate',
+  '/api/payment/callback',
   '/api/registration-data',
 ]
 
+async function autoLoginFromMiniApp(request: NextRequest): Promise<NextResponse | null> {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+
+    try {
+        const connectUrl = new URL('/api/connect', request.url);
+        const connectResponse = await fetch(connectUrl, {
+            headers: { 'authorization': authHeader }
+        });
+
+        if (!connectResponse.ok) return null;
+
+        const { phoneNumber } = await connectResponse.json();
+        if (!phoneNumber) return null;
+        
+        const loginUrl = new URL('/api/auth/login', request.url);
+        const loginResponse = await fetch(loginUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumber })
+        });
+        
+        if (loginResponse.ok) {
+            const { redirectTo } = await loginResponse.json();
+            const res = NextResponse.redirect(new URL(redirectTo, request.url));
+            
+            // Transfer cookies from the API response to the new redirect response
+            const setCookie = loginResponse.headers.get('set-cookie');
+            if (setCookie) {
+                res.headers.set('set-cookie', setCookie);
+            }
+            return res;
+        }
+
+        return null;
+
+    } catch (error) {
+        console.error("Mini-app auto-login error:", error);
+        return null;
+    }
+}
+
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const sessionCookie = request.cookies.get('session')?.value
-
-  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path))
+  let sessionCookie = request.cookies.get('session')?.value
 
   // Generate nonce for inline scripts
   const scriptNonce = crypto.randomUUID()
 
-  // CSP header
-  const cspHeader = [
-    "default-src 'self' https://picsum.photos",
-    `script-src 'self' 'nonce-${scriptNonce}' 'strict-dynamic'`,
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: https://picsum.photos https://images.unsplash.com",
-    "media-src 'self'",
-    "object-src 'none'",
-    "frame-src 'self' https://www.youtube.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
-  ].join('; ')
-
   const setSecurityHeaders = (res: NextResponse) => {
+    const cspHeader = [
+        "default-src 'self' https://picsum.photos",
+        `script-src 'self' 'nonce-${scriptNonce}' 'strict-dynamic'`,
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "img-src 'self' data: https://picsum.photos https://images.unsplash.com",
+        "media-src 'self'",
+        "object-src 'none'",
+        "frame-src 'self' https://www.youtube.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "upgrade-insecure-requests",
+    ].join('; ');
     res.headers.set('Content-Security-Policy', cspHeader)
     res.headers.set('x-script-nonce', scriptNonce)
     res.headers.set('X-Content-Type-Options', 'nosniff')
@@ -62,6 +104,17 @@ export async function middleware(request: NextRequest) {
     res.headers.set('X-Frame-Options', 'DENY')
     return res
   }
+
+  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path))
+
+  // Attempt auto-login if no session cookie and auth header exists
+  if (!sessionCookie && request.headers.has('authorization')) {
+      const autoLoginResponse = await autoLoginFromMiniApp(request);
+      if (autoLoginResponse) {
+          return setSecurityHeaders(autoLoginResponse);
+      }
+  }
+
 
   // If the user has a session, handle redirects from public pages
   if (sessionCookie) {
