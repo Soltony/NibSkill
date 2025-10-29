@@ -32,19 +32,12 @@ type CurrentUser = UserType & { role: RoleType; notifications: Notification[] };
 export const UserContext = React.createContext<string | null>(null);
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [nonce, setNonce] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const isPublicPage = pathname === '/login' || pathname.startsWith('/login/');
-
-  // ✅ Get the nonce from meta tag (set by middleware or server layout)
-  useEffect(() => {
-    const meta = document.querySelector('meta[name="csp-nonce"]');
-    if (meta) setNonce(meta.getAttribute('content'));
-  }, []);
 
   useEffect(() => {
     async function fetchUser() {
@@ -60,12 +53,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             if (user) {
                 setCurrentUser(user);
             } else {
-                 router.replace('/login');
+                 // This should be handled by middleware, but as a fallback
+                 if (!isPublicPage) router.replace('/login');
             }
         }
-        else router.replace('/login');
+        else {
+             if (!isPublicPage) router.replace('/login');
+        }
       } catch {
-        router.replace('/login');
+         if (!isPublicPage) router.replace('/login');
       } finally {
         setIsLoading(false);
       }
@@ -119,7 +115,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return (
       <html lang="en" suppressHydrationWarning>
         <head>
-          <meta name="csp-nonce" content={nonce ?? ''} />
           <title>NIB Training</title>
           <meta name="description" content="Corporate Training and Digital Product Management" />
           <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -163,7 +158,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="csp-nonce" content={nonce ?? ''} />
         <title>NIB Training</title>
         <meta name="description" content="Corporate Training and Digital Product Management" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
