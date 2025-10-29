@@ -32,9 +32,11 @@ async function autoLoginFromMiniApp(request: NextRequest) {
 
   try {
     // 1. Call /api/connect to get phone number
-    const connectUrl = new URL('/api/connect', request.url);
+    const connectUrl = request.nextUrl.clone();
+    connectUrl.pathname = '/api/connect';
     console.log('[Middleware] Calling /api/connect at:', connectUrl.href);
-    const connectResponse = await fetch(connectUrl.href, {
+
+    const connectResponse = await fetch(connectUrl, {
       headers: {
         'Authorization': miniAppAuthToken,
       }
@@ -56,9 +58,11 @@ async function autoLoginFromMiniApp(request: NextRequest) {
     console.log('[Middleware] Phone number received:', phoneNumber);
 
     // 2. Call /api/auth/login with phone number
-    const loginUrl = new URL('/api/auth/login', request.url);
-     console.log('[Middleware] Calling /api/auth/login at:', loginUrl.href);
-    const loginResponse = await fetch(loginUrl.href, {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/api/auth/login';
+    console.log('[Middleware] Calling /api/auth/login at:', loginUrl.href);
+
+    const loginResponse = await fetch(loginUrl, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -68,8 +72,9 @@ async function autoLoginFromMiniApp(request: NextRequest) {
     });
 
     console.log('[Middleware] /api/auth/login response status:', loginResponse.status);
-     if (!loginResponse.ok) {
-        const errorData = await loginResponse.json();
+    const loginData = await loginResponse.json();
+
+     if (!loginResponse.ok || !loginData.isSuccess) {
         if (loginResponse.status === 404) {
             const url = request.nextUrl.clone();
             url.pathname = '/login';
@@ -77,12 +82,11 @@ async function autoLoginFromMiniApp(request: NextRequest) {
             console.log('[Middleware] User not found, redirecting to login page with error.');
             return NextResponse.redirect(url);
         }
-        console.error('[Middleware] /api/auth/login failed:', errorData);
-        return null;
+        console.error('[Middleware] /api/auth/login failed:', loginData);
+        return null; // Let it fall through to normal login page
     }
     
-    const loginData = await loginResponse.json();
-    console.log('[Middleware] /api/auth/login successful:', loginData.redirectTo);
+    console.log('[Middleware] /api/auth/login successful. Preparing redirect to:', loginData.redirectTo);
 
     // 3. Create redirect response and set cookies
     const redirectUrl = request.nextUrl.clone();
@@ -96,7 +100,7 @@ async function autoLoginFromMiniApp(request: NextRequest) {
       sameSite: 'lax',
       path: '/',
     });
-     console.log('[Middleware] Set session cookie.');
+    console.log('[Middleware] Set session cookie.');
 
     // Set the mini-app token cookie for payments
     const miniAppTokenValue = miniAppAuthToken.replace('Bearer ', '');
