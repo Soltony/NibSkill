@@ -32,7 +32,9 @@ async function handleMiniAppLogin(request: NextRequest) {
   loginUrl.pathname = '/api/auth/login';
   console.log('[Middleware] Login URL:', loginUrl.href);
   
-  const miniAppAuthToken = request.headers.get('Authorization');
+  const miniAppAuthToken = request.headers.get('authorization');
+  console.log('[Middleware] Mini-app auth token from header:', miniAppAuthToken);
+
 
   try {
     // 1. Call /api/connect to get phone number from mini-app token
@@ -110,6 +112,7 @@ async function handleMiniAppLogin(request: NextRequest) {
             sameSite: 'lax',
             path: '/',
         });
+        console.log('[Middleware] Set miniapp-auth-token cookie.');
     }
 
     console.log('[Middleware] Session cookie and mini-app token cookie set. Completing auto-login.');
@@ -125,6 +128,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('session')?.value;
   const isMiniApp = request.headers.get('authorization')?.startsWith('Bearer ');
+  
+  console.log(`[Middleware] Path: ${pathname}, HasSession: ${!!sessionCookie}, IsMiniApp: ${!!isMiniApp}`);
   
   // 1. Handle Mini-App Auto-Login
   if (isMiniApp && !sessionCookie && !pathname.startsWith('/api/')) {
@@ -148,14 +153,17 @@ export async function middleware(request: NextRequest) {
         let redirectTo = '/dashboard';
         if (roleName === 'super admin') redirectTo = '/super-admin';
         else if (roleName && roleName !== 'staff') redirectTo = '/admin/analytics';
+        console.log(`[Middleware] User logged in, redirecting from public path ${pathname} to ${redirectTo}`);
         return NextResponse.redirect(new URL(redirectTo, request.url));
       }
       
       // Allow the request to proceed
+      console.log(`[Middleware] User session valid for ${pathname}, allowing.`);
       return NextResponse.next();
 
     } catch (err) {
       // Invalid token, clear cookie and redirect to login
+      console.log('[Middleware] Invalid session token, clearing cookie and redirecting to login.');
       const response = NextResponse.redirect(new URL('/login', request.url));
       response.cookies.delete('session');
       return response;
@@ -165,10 +173,12 @@ export async function middleware(request: NextRequest) {
   // 3. Handle users without a session cookie
   if (!isPublicPath) {
     // If it's not a public path and there's no session, redirect to login
+    console.log(`[Middleware] No session, redirecting from protected path ${pathname} to /login`);
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // Allow the request for public paths to proceed
+  console.log(`[Middleware] Public path ${pathname} allowed without session.`);
   return NextResponse.next();
 }
 
