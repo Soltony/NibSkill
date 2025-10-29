@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
     
     console.log('[/api/connect] Successfully retrieved phone number:', phoneNumber);
-    return NextResponse.json({ phoneNumber: phoneNumber, token: token });
+    return NextResponse.json({ success: true, data: { phoneNumber: phoneNumber, token: token }});
 
   } catch (error) {
     console.error("[/api/connect] Error during token validation:", error);

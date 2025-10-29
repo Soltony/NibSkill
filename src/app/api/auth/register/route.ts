@@ -12,7 +12,7 @@ const registerSchema = z.object({
   department: z.string().optional(),
   district: z.string().optional(),
   branch: z.string().optional(),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().min(1, "Phone number is required"),
 });
 
 export async function POST(request: Request) {
@@ -26,13 +26,24 @@ export async function POST(request: Request) {
 
     const { name, email, password, department, district, branch, phoneNumber } = validation.data;
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const existingUser = await prisma.user.findFirst({
+        where: {
+            OR: [
+                { email },
+                { phoneNumber }
+            ]
+        }
     });
 
     if (existingUser) {
-      return NextResponse.json({ isSuccess: false, errors: ['User with this email already exists.'] }, { status: 409 });
+        if (existingUser.email === email) {
+            return NextResponse.json({ isSuccess: false, errors: ['User with this email already exists.'] }, { status: 409 });
+        }
+        if (existingUser.phoneNumber === phoneNumber) {
+            return NextResponse.json({ isSuccess: false, errors: ['User with this phone number already exists.'] }, { status: 409 });
+        }
     }
+
 
     const hashedPassword = await bcrypt.hash(password, 10);
     
@@ -74,7 +85,12 @@ export async function POST(request: Request) {
     console.error('Registration error:', error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
-            return NextResponse.json({ isSuccess: false, errors: ['User with this email already exists.'] }, { status: 409 });
+             if ((error.meta?.target as string[])?.includes('email')) {
+                return NextResponse.json({ isSuccess: false, errors: ['User with this email already exists.'] }, { status: 409 });
+             }
+             if ((error.meta?.target as string[])?.includes('phoneNumber')) {
+                return NextResponse.json({ isSuccess: false, errors: ['User with this phone number already exists.'] }, { status: 409 });
+             }
         }
     }
     return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });

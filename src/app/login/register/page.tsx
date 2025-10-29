@@ -38,6 +38,7 @@ const baseSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  phoneNumber: z.string().min(1, "Phone number is required"),
 });
 
 // Create initial default values from both static and dynamic fields
@@ -45,6 +46,7 @@ const allDefaultValues = {
   name: "",
   email: "",
   password: "",
+  phoneNumber: "",
   ...initialRegistrationFields.reduce((acc, field) => {
     acc[field.id] = "";
     return acc;
@@ -82,13 +84,14 @@ export default function RegisterPage() {
         }
         const { fields, districtsData, branchesData, departmentsData } = await response.json();
 
-        setRegistrationFields(fields);
+        setRegistrationFields(fields.filter((f: TRegistrationField) => f.id !== 'phoneNumber')); // Exclude phoneNumber from dynamic fields
         setDistricts(districtsData);
         setBranches(branchesData);
         setDepartments(departmentsData);
 
         let schema = baseSchema as z.ZodObject<any>;
         fields.forEach((field: TRegistrationField) => {
+          if (field.id === 'phoneNumber') return;
           if (field.required) {
             schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
           } else {
@@ -281,6 +284,19 @@ export default function RegisterPage() {
                     <FormLabel>Password</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. 2519..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
