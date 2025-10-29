@@ -31,12 +31,14 @@ async function handleMiniAppLogin(request: NextRequest) {
   const loginUrl = request.nextUrl.clone();
   loginUrl.pathname = '/api/auth/login';
   console.log('[Middleware] Login URL:', loginUrl.href);
+  
+  const miniAppAuthToken = request.headers.get('Authorization');
 
   try {
     // 1. Call /api/connect to get phone number from mini-app token
     const connectResponse = await fetch(connectUrl, {
       headers: {
-        'Authorization': request.headers.get('Authorization')!,
+        'Authorization': miniAppAuthToken!,
         'Content-Type': 'application/json'
       }
     });
@@ -50,7 +52,7 @@ async function handleMiniAppLogin(request: NextRequest) {
     }
     const connectData = await connectResponse.json();
     console.log('[Middleware] /api/connect response data:', connectData);
-    const phoneNumber = connectData.phoneNumber;
+    const phoneNumber = connectData.data.phoneNumber;
 
     if (!phoneNumber) {
         console.error('[Middleware] MiniApp auto-login: Phone number not returned from /api/connect');
@@ -99,7 +101,18 @@ async function handleMiniAppLogin(request: NextRequest) {
       sameSite: 'lax',
       path: '/',
     });
-    console.log('[Middleware] Session cookie set. Completing auto-login.');
+    
+    // Store the original mini-app token for payment initiation
+    if (miniAppAuthToken) {
+        response.cookies.set('miniapp-auth-token', miniAppAuthToken.replace('Bearer ', ''), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+        });
+    }
+
+    console.log('[Middleware] Session cookie and mini-app token cookie set. Completing auto-login.');
     return response;
 
   } catch (error) {
