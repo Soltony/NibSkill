@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
         const signatureString = [
             `accountNo=${ACCOUNT_NO}`,
             `amount=${amount}`,
-            `callBackURL=${CALLBACK_URL}`,
-            `companyName=${COMPANY_NAME}`,
+            `callBackUrl=${CALLBACK_URL}`,
+            `companyname=${COMPANY_NAME}`,
             `Key=${NIB_PAYMENT_KEY}`,
             `token=${miniAppToken}`,
             `transactionId=${transactionId}`,
