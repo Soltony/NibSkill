@@ -40,7 +40,10 @@ async function getCourseData(courseId: string, userId: string) {
     select: { moduleId: true },
   });
 
-  const user = await prisma.user.findUnique({ where: { id: userId }});
+  const user = await prisma.user.findUnique({ 
+    where: { id: userId },
+    include: { role: true }
+  });
 
   return { course, completedModules, user };
 }

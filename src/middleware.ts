@@ -1,6 +1,7 @@
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { jwtVerify, SignJWT } from 'jose';
+import { jwtVerify } from 'jose';
 import prisma from '@/lib/db';
 
 const getJwtSecret = () => {
@@ -21,129 +22,127 @@ const publicPaths = [
   '/api/registration-data',
 ];
 
-async function validateMiniAppToken(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
+async function handleMiniAppLogin(request: NextRequest) {
+  const connectUrl = request.nextUrl.clone();
+  connectUrl.pathname = '/api/connect';
+
+  const loginUrl = request.nextUrl.clone();
+  loginUrl.pathname = '/api/auth/login';
 
   try {
-    const connectUrl = new URL('/api/connect', request.url);
-    const res = await fetch(connectUrl.toString(), {
-      headers: { authorization: authHeader },
+    // 1. Call /api/connect to get phone number from mini-app token
+    const connectResponse = await fetch(connectUrl, {
+      headers: {
+        'Authorization': request.headers.get('Authorization')!,
+        'Content-Type': 'application/json'
+      }
     });
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.phoneNumber || null;
-  } catch (e) {
-    console.error('MiniApp validation error:', e);
-    return null;
-  }
-}
-
-async function autoLoginFromMiniApp(request: NextRequest, phoneNumber: string) {
-  try {
-    const user = await prisma.user.findFirst({
-      where: { phoneNumber },
-      include: { role: true },
-    });
-
-    if (!user) {
-      // Return a special JSON response for unregistered users
-      return NextResponse.json({
-        isSuccess: false,
-        message: 'User is not registered. Please contact support or sign up.',
-      }, { status: 404 });
+    if (!connectResponse.ok) {
+        console.error('MiniApp auto-login: /api/connect failed');
+        return null;
     }
+    const connectData = await connectResponse.json();
+    const phoneNumber = connectData.phoneNumber;
 
-    const newSessionId = crypto.randomUUID();
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { activeSessionId: newSessionId },
+    if (!phoneNumber) {
+        console.error('MiniApp auto-login: Phone number not returned from /api/connect');
+        return null;
+    }
+    
+    // 2. Call /api/auth/login with phone number to get session cookie
+    const loginResponse = await fetch(loginUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-MiniApp-Auth': 'true' // Internal header to signal auto-login
+      },
+      body: JSON.stringify({ phoneNumber })
     });
-
-    const token = await new SignJWT({
-      userId: user.id,
-      role: user.role,
-      name: user.name,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-      sessionId: newSessionId,
-      trainingProviderId: user.trainingProviderId,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('24h')
-      .sign(getJwtSecret());
-
-    const roleName = user.role.name.toLowerCase();
-    let redirectTo = '/dashboard';
-    if (roleName === 'super admin') redirectTo = '/super-admin';
-    else if (roleName !== 'staff') redirectTo = '/admin/analytics';
-
-    const response = NextResponse.redirect(new URL(redirectTo, request.url));
-    response.cookies.set('session', token, {
+    
+    if (!loginResponse.ok) {
+        const errorData = await loginResponse.json();
+        // If user not registered, redirect to login with a message
+        if (loginResponse.status === 404) {
+            const url = request.nextUrl.clone();
+            url.pathname = '/login';
+            url.searchParams.set('error', 'miniapp_user_not_found');
+            return NextResponse.redirect(url);
+        }
+        console.error('MiniApp auto-login: /api/auth/login failed', errorData);
+        return null;
+    }
+    
+    const loginData = await loginResponse.json();
+    
+    // 3. Create redirect response and set the cookie
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = loginData.redirectTo || '/dashboard';
+    const response = NextResponse.redirect(redirectUrl);
+    
+    response.cookies.set('session', loginData.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
     });
+
     return response;
-  } catch (e) {
-    console.error('Auto-login error:', e);
+
+  } catch (error) {
+    console.error("Mini-app auto-login error:", error);
     return null;
   }
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
   const sessionCookie = request.cookies.get('session')?.value;
-
-  // ✅ 1. MiniApp auto-login if no session but has Authorization
- if (!sessionCookie && request.headers.has('authorization') && !pathname.startsWith('/api/')) {
-  const phoneNumber = await validateMiniAppToken(request);
-  if (phoneNumber) {
-    const miniAppLoginResponse = await autoLoginFromMiniApp(request, phoneNumber);
-    
-    if (miniAppLoginResponse) {
-      // If user not registered (JSON response)
-      if (miniAppLoginResponse.headers.get('content-type')?.includes('application/json')) {
-        return miniAppLoginResponse;
-      }
-      // Otherwise proceed with redirect (logged in)
-      return miniAppLoginResponse;
+  const isMiniApp = request.headers.get('authorization')?.startsWith('Bearer ');
+  
+  // 1. Handle Mini-App Auto-Login
+  if (isMiniApp && !sessionCookie && !pathname.startsWith('/api/')) {
+    const miniAppResponse = await handleMiniAppLogin(request);
+    if (miniAppResponse) {
+      return miniAppResponse;
     }
+    // If auto-login fails, fall through to default behavior (redirect to /login)
   }
-}
 
-  // ✅ 2. Validate existing session
+  const isPublicPath = publicPaths.some(p => pathname === p || (p.endsWith('/') && pathname.startsWith(p)));
+
+  // 2. Handle users with a session cookie
   if (sessionCookie) {
     try {
       const { payload } = await jwtVerify(sessionCookie, getJwtSecret());
-      const roleName = payload.role?.name?.toLowerCase();
+      const roleName = (payload as any).role?.name?.toLowerCase();
 
-      if ((isPublicPath && !pathname.startsWith('/api/')) || pathname === '/') {
+      // If user is logged in and tries to access a public page, redirect them away
+      if (isPublicPath && !pathname.startsWith('/api')) {
         let redirectTo = '/dashboard';
         if (roleName === 'super admin') redirectTo = '/super-admin';
-        else if (roleName !== 'staff') redirectTo = '/admin/analytics';
+        else if (roleName && roleName !== 'staff') redirectTo = '/admin/analytics';
         return NextResponse.redirect(new URL(redirectTo, request.url));
       }
+      
+      // Allow the request to proceed
       return NextResponse.next();
-    } catch (e) {
-      console.warn('Invalid JWT:', e);
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      const res = NextResponse.redirect(url);
-      res.cookies.delete('session');
-      return res;
+
+    } catch (err) {
+      // Invalid token, clear cookie and redirect to login
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('session');
+      return response;
     }
   }
 
-  // ✅ 3. No session → force login (web users)
+  // 3. Handle users without a session cookie
   if (!isPublicPath) {
+    // If it's not a public path and there's no session, redirect to login
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
+  // Allow the request for public paths to proceed
   return NextResponse.next();
 }
 

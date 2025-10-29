@@ -45,7 +45,7 @@ type CourseWithRelations = Course & {
 type CourseData = {
     course: CourseWithRelations;
     completedModules: { moduleId: string }[];
-    user: User;
+    user: User & { role?: any };
 }
 
 type CourseDetailClientProps = {
@@ -133,23 +133,18 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   const handleBuyCourse = async () => {
     setIsPaying(true);
     try {
-        // Step 1: Get the authorization token from the header via our own API
-        const connectResponse = await fetch('/api/connect');
-        if (!connectResponse.ok) {
-            throw new Error("Failed to get authorization token.");
-        }
-        const connectData = await connectResponse.json();
-        const authToken = connectData.token;
-
-        if (!authToken) {
-             throw new Error("Authorization token not found.");
+        // The middleware handles getting the session cookie which contains the JWT
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+        if (!session) {
+          throw new Error("You must be logged in to make a purchase.");
         }
         
-        // Step 2: Call our secure API to initiate payment
+        // The JWT from the session is automatically sent in the cookies
         const paymentResponse = await fetch('/api/payment/initiate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount: course.price, token: authToken })
+            body: JSON.stringify({ amount: course.price })
         });
         
         const paymentData = await paymentResponse.json();
@@ -160,10 +155,8 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
         const paymentToken = paymentData.paymentToken;
 
-        // Step 3: Post the payment token back to the super app
         if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
             window.myJsChannel.postMessage({ token: paymentToken });
-            // Here you would typically start polling for payment status
             toast({
                 title: "Payment Initiated",
                 description: "Please complete the payment in the NIBtera Super App.",
@@ -172,7 +165,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
             console.error("NIB Super App channel (window.myJsChannel) not found.");
             toast({
                 title: "Error",
-                description: "Could not communicate with the payment app. Please ensure you are in the NIBtera app.",
+                description: "Could not communicate with the payment app. This feature is only available within the NIBtera app.",
                 variant: "destructive",
             });
         }

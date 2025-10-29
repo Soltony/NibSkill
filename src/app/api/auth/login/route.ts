@@ -1,3 +1,4 @@
+
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -41,12 +42,11 @@ export async function POST(request: NextRequest) {
 
       if (!user) {
         return NextResponse.json(
-          { isSuccess: false, errors: [`User with phone number ${phoneNumber} not found.`] },
+          { isSuccess: false, message: `User with phone number ${phoneNumber} not found.` },
           { status: 404 }
         );
       }
     }
-
     // --- 🔹 Case 2: Login via email/password (web users)
     else if (email && password) {
       user = await prisma.user.findUnique({
@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
       }
     }
-
     // --- ❌ Missing required credentials
     else {
       return NextResponse.json(
@@ -114,7 +113,7 @@ export async function POST(request: NextRequest) {
     if (isSuperAdmin) redirectTo = '/super-admin';
     else if (canViewAdminDashboard && roleName !== 'staff') redirectTo = '/admin/analytics';
 
-    // --- 🔹 If from Mini-App → return JSON only (middleware sets cookie)
+    // --- 🔹 If from Mini-App (internal call) -> return JSON with token
     const isFromMiniApp = request.headers.get('x-miniapp-auth') === 'true';
     if (isFromMiniApp) {
       return NextResponse.json({
@@ -125,9 +124,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // --- 🔹 For web → set cookie
-    const cookieStore = await cookies();
-    cookieStore.set('session', token, {
+    // --- 🔹 For web -> set cookie and return JSON
+    cookies().set('session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
