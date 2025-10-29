@@ -1,6 +1,7 @@
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { jwtVerify, type JWTPayload, SignJWT } from 'jose'
+import { jwtVerify, type JWTPayload } from 'jose'
 
 interface CustomJwtPayload extends JWTPayload {
   userId: string
@@ -16,7 +17,7 @@ const getJwtSecret = () => {
   return new TextEncoder().encode(secret)
 }
 
-// Publicly accessible paths
+// Publicly accessible paths that do not require authentication
 const publicPaths = [
   '/login',
   '/login/register',
@@ -30,11 +31,9 @@ const publicPaths = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  let sessionCookie = request.cookies.get('session')?.value
-  const authHeader = request.headers.get('authorization');
-  
-  const isPublicPath =
-    publicPaths.some((path) => pathname.startsWith(path)) || pathname === '/'
+  const sessionCookie = request.cookies.get('session')?.value
+
+  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path))
 
   // Generate nonce for inline scripts
   const scriptNonce = crypto.randomUUID()
@@ -64,94 +63,58 @@ export async function middleware(request: NextRequest) {
     return res
   }
 
-  // If there's an auth header from the mini-app, create a session cookie.
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7)
-    // Here we'd ideally validate this token against a user service
-    // For now, we'll create a session cookie if the token exists.
-    // This is a simplified example. In a real app, you would
-    // fetch user details based on the token and create a JWT.
-    
-    // For demonstration, let's assume the token is the user ID and we create a JWT for them.
-    // In a real scenario, you'd decode the token or call an API to get user info.
-    
-    // This part is simplified. If the auth header exists, we let it pass through
-    // and assume the client-side will handle it. A better approach would be
-    // to convert it to a standard session cookie here if possible.
-    if (!sessionCookie) {
-        // Since we can't fully verify the token here without more info,
-        // we'll let the request proceed. The client side logic might need to handle this.
-        // Or if we *could* verify it, we'd create and set a session cookie here.
-    }
-  }
-
-
-  // Public pages
-  if (isPublicPath) {
-    if (sessionCookie) {
-      try {
-        const { payload } = await jwtVerify<CustomJwtPayload>(
-          sessionCookie,
-          getJwtSecret()
-        )
+  // If the user has a session, handle redirects from public pages
+  if (sessionCookie) {
+    try {
+      await jwtVerify(sessionCookie, getJwtSecret())
+      // If token is valid and user is on a public path or root, redirect to dashboard
+      if (isPublicPath || pathname === '/') {
+        const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret())
         const roleName = payload.role.name.toLowerCase()
         let redirectTo = '/dashboard'
-        if (roleName === 'super admin') redirectTo = '/super-admin'
-        else if (roleName !== 'staff') redirectTo = '/admin/analytics'
-
+        if (roleName === 'super admin') {
+            redirectTo = '/super-admin'
+        } else if (roleName !== 'staff') {
+            redirectTo = '/admin/analytics'
+        }
         const res = NextResponse.redirect(new URL(redirectTo, request.url))
         return setSecurityHeaders(res)
-      } catch {
-        // Invalid token: continue to public page
+      }
+    } catch (err) {
+      // Invalid token, treat as unauthenticated
+      // If on a protected path, redirect to login
+      if (!isPublicPath) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        const res = NextResponse.redirect(url)
+        res.cookies.delete('session'); // Clear invalid cookie
+        return setSecurityHeaders(res)
       }
     }
-    const res = NextResponse.next()
-    return setSecurityHeaders(res)
   }
 
-  // Protected pages
-  if (!sessionCookie) {
+  // If the user has no session and is trying to access a protected page
+  if (!sessionCookie && !isPublicPath && pathname !== '/') {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     const res = NextResponse.redirect(url)
     return setSecurityHeaders(res)
   }
 
-  try {
-    const { payload } = await jwtVerify<CustomJwtPayload>(
-      sessionCookie,
-      getJwtSecret()
-    )
-    const roleName = payload.role.name.toLowerCase()
-    const isAdminPath = pathname.startsWith('/admin')
-    const isSuperAdminPath = pathname.startsWith('/super-admin')
-
-    if (isSuperAdminPath && roleName !== 'super admin') {
-      const res = NextResponse.redirect(new URL('/dashboard', request.url))
-      return setSecurityHeaders(res)
-    }
-
-    if (
-      isAdminPath &&
-      roleName === 'staff' &&
-      !(payload.role.permissions?.courses?.r ?? false)
-    ) {
-      const res = NextResponse.redirect(new URL('/dashboard', request.url))
-      return setSecurityHeaders(res)
-    }
-  } catch {
+  // If the user has no session and is on the root page, redirect to login
+  if (!sessionCookie && pathname === '/') {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     const res = NextResponse.redirect(url)
     return setSecurityHeaders(res)
   }
 
-  // Default: allow request
+  // Otherwise, allow the request to proceed
   const res = NextResponse.next()
   return setSecurityHeaders(res)
 }
 
 // Apply middleware to all routes, including error pages
 export const config = {
-  matcher: ['/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
