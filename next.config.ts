@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // This is required to enable the Content Security Policy headers.
+    // It allows Next.js to read the nonce from the x-script-nonce header
+    // and apply it to all generated scripts.
+    csp: true,
+  },
   images: {
     remotePatterns: [
       {
