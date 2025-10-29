@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const validationApiUrl = process.env.TOKEN_VALIDATION_API_URL;
   if (!validationApiUrl) {
     console.error("TOKEN_VALIDATION_API_URL is not set in environment variables.");
-    return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
+    return NextResponse.json({ error: 'Server configuration error: Token validation URL is not configured.' }, { status: 500 });
   }
   
   try {
@@ -49,6 +49,10 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error("Error during token validation:", error);
-    return NextResponse.json({ error: 'An unexpected error occurred during token validation.' }, { status: 500 });
+    const errorMessage = (error instanceof Error && error.message.includes('fetch failed'))
+      ? `Could not connect to the token validation server at ${validationApiUrl}. Please check if the TOKEN_VALIDATION_API_URL environment variable is set correctly and the server is reachable.`
+      : 'An unexpected error occurred during token validation.';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
+
