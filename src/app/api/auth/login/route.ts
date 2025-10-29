@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     let user;
 
     if (phoneNumber) {
-        user = await prisma.user.findUnique({
+        user = await prisma.user.findFirst({
             where: { phoneNumber },
             include: { role: true },
         });
