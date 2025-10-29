@@ -17,7 +17,6 @@ const getJwtSecret = () => {
   return new TextEncoder().encode(secret)
 }
 
-// Publicly accessible paths that do not require authentication
 const publicPaths = [
   '/login',
   '/login/register',
@@ -56,7 +55,7 @@ async function autoLoginFromMiniApp(request: NextRequest): Promise<NextResponse 
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'authorization': authHeader // Forward the auth header
+              'authorization': authHeader // Forward the auth header for security
             },
             body: JSON.stringify({ phoneNumber })
         });
@@ -65,7 +64,6 @@ async function autoLoginFromMiniApp(request: NextRequest): Promise<NextResponse 
             const { redirectTo } = await loginResponse.json();
             const res = NextResponse.redirect(new URL(redirectTo, request.url));
             
-            // Transfer cookies from the API response to the new redirect response
             const setCookie = loginResponse.headers.get('set-cookie');
             if (setCookie) {
                 res.headers.set('set-cookie', setCookie);
@@ -86,10 +84,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   let sessionCookie = request.cookies.get('session')?.value
 
-  // Check if the current path is a public path
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path))
 
-  // Attempt auto-login if no session cookie and auth header exists, and it's not an API call already part of the flow
   if (!sessionCookie && request.headers.has('authorization') && !pathname.startsWith('/api/')) {
       const autoLoginResponse = await autoLoginFromMiniApp(request);
       if (autoLoginResponse) {
@@ -97,25 +93,13 @@ export async function middleware(request: NextRequest) {
       }
   }
 
-
-  // If the user has a session, handle redirects from public pages
   if (sessionCookie) {
     try {
       const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret())
       
-      // If token is valid and user is on a public path (not an API route) or root, redirect to dashboard
-      if (isPublicPath && !pathname.startsWith('/api/')) {
-        const roleName = payload.role.name.toLowerCase()
-        let redirectTo = '/dashboard'
-        if (roleName === 'super admin') {
-            redirectTo = '/super-admin'
-        } else if (roleName !== 'staff') {
-            redirectTo = '/admin/analytics'
-        }
-        return NextResponse.redirect(new URL(redirectTo, request.url))
-      }
+      const isPublicButNotApi = isPublicPath && !pathname.startsWith('/api/');
       
-      if (pathname === '/') {
+      if (isPublicButNotApi || pathname === '/') {
         const roleName = payload.role.name.toLowerCase()
         let redirectTo = '/dashboard'
         if (roleName === 'super admin') {
@@ -127,29 +111,23 @@ export async function middleware(request: NextRequest) {
       }
 
     } catch (err) {
-      // Invalid token, treat as unauthenticated
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      const res = NextResponse.redirect(url)
-      res.cookies.delete('session'); // Clear invalid cookie
-      
-      // If we are on a protected path with an invalid cookie, redirect to login
       if (!isPublicPath) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        const res = NextResponse.redirect(url)
+        res.cookies.delete('session');
         return res
       }
     }
   }
 
-  // If the user has no session and is trying to access a protected page
-  if (!sessionCookie && !isPublicPath && pathname !== '/') {
+  if (!sessionCookie && !isPublicPath) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
   
-  // Otherwise, allow the request to proceed
   return NextResponse.next()
 }
 
-// Apply middleware to all routes, including error pages
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

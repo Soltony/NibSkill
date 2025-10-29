@@ -63,10 +63,8 @@ export async function POST(request: NextRequest) {
     const ipAddress = request.ip || request.headers.get('x-forwarded-for');
     const userAgent = request.headers.get('user-agent');
 
-    // Generate a new unique session ID
     const newSessionId = randomUUID();
     
-    // Update the user record with the new session ID and log the login event
     await prisma.$transaction([
         prisma.user.update({
             where: { id: user.id },
@@ -81,15 +79,14 @@ export async function POST(request: NextRequest) {
         })
     ]);
     
-    // Create JWT with the new session ID
     const expirationTime = '24h';
     const token = await new SignJWT({ 
         userId: user.id, 
-        role: user.role, // Pass the entire role object including permissions
+        role: user.role,
         name: user.name,
         email: user.email,
         avatarUrl: user.avatarUrl,
-        sessionId: newSessionId, // Embed the session ID in the token
+        sessionId: newSessionId,
         trainingProviderId: user.trainingProviderId,
      })
       .setProtectedHeader({ alg: 'HS256' })
@@ -97,7 +94,6 @@ export async function POST(request: NextRequest) {
       .setExpirationTime(expirationTime)
       .sign(getJwtSecret());
       
-    // Set cookie
     const cookieStore = await cookies();
     cookieStore.set('session', token, {
         httpOnly: true,
@@ -108,12 +104,11 @@ export async function POST(request: NextRequest) {
     
     const { password: _, ...userWithoutPassword } = user;
 
-    // Check permissions for redirection
     const permissions = user.role.permissions as any;
     const isSuperAdmin = user.role.name.toLowerCase() === 'super admin';
     const canViewAdminDashboard = permissions?.courses?.r === true;
     
-    let redirectTo = '/dashboard'; // Default to staff dashboard
+    let redirectTo = '/dashboard';
     if (isSuperAdmin) {
         redirectTo = '/super-admin';
     } else if (canViewAdminDashboard && user.role.name.toLowerCase() !== 'staff') {
