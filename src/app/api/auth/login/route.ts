@@ -1,4 +1,3 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -14,12 +13,12 @@ const loginSchema = z.object({
 });
 
 const getJwtSecret = () => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-        throw new Error("JWT_SECRET environment variable is not set.");
-    }
-    return new TextEncoder().encode(secret);
-}
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set.');
+  }
+  return new TextEncoder().encode(secret);
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,95 +32,114 @@ export async function POST(request: NextRequest) {
     const { email, password, phoneNumber } = validation.data;
     let user;
 
+    // --- 🔹 Case 1: Login via phone (used by mini-app or web phone login)
     if (phoneNumber) {
-        user = await prisma.user.findFirst({
-            where: { phoneNumber },
-            include: { role: true },
-        });
-        if (!user) {
-            return NextResponse.json({ isSuccess: false, errors: [`User with phone number ${phoneNumber} not found.`] }, { status: 404 });
-        }
-    } else if (email && password) {
-        user = await prisma.user.findUnique({
-          where: { email },
-          include: { role: true },
-        });
+      user = await prisma.user.findFirst({
+        where: { phoneNumber },
+        include: { role: true },
+      });
 
-        if (!user || !user.password) {
-          return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if (!isPasswordValid) {
-            return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
-        }
-    } else {
-        return NextResponse.json({ isSuccess: false, errors: ['Either phone number or email/password must be provided.'] }, { status: 400 });
+      if (!user) {
+        return NextResponse.json(
+          { isSuccess: false, errors: [`User with phone number ${phoneNumber} not found.`] },
+          { status: 404 }
+        );
+      }
     }
 
-    const ipAddress = request.ip || request.headers.get('x-forwarded-for');
-    const userAgent = request.headers.get('user-agent');
+    // --- 🔹 Case 2: Login via email/password (web users)
+    else if (email && password) {
+      user = await prisma.user.findUnique({
+        where: { email },
+        include: { role: true },
+      });
 
+      if (!user || !user.password) {
+        return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+      }
+    }
+
+    // --- ❌ Missing required credentials
+    else {
+      return NextResponse.json(
+        { isSuccess: false, errors: ['Either phone number or email/password must be provided.'] },
+        { status: 400 }
+      );
+    }
+
+    // --- 🔹 Create new session
     const newSessionId = randomUUID();
-    
+
     await prisma.$transaction([
-        prisma.user.update({
-            where: { id: user.id },
-            data: { activeSessionId: newSessionId }
-        }),
-        prisma.loginHistory.create({
-            data: {
-                userId: user.id,
-                ipAddress: typeof ipAddress === 'string' ? ipAddress : null,
-                userAgent,
-            }
-        })
+      prisma.user.update({
+        where: { id: user.id },
+        data: { activeSessionId: newSessionId },
+      }),
+      prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          ipAddress: request.ip || request.headers.get('x-forwarded-for'),
+          userAgent: request.headers.get('user-agent'),
+        },
+      }),
     ]);
-    
-    const expirationTime = '24h';
-    const token = await new SignJWT({ 
-        userId: user.id, 
-        role: user.role,
-        name: user.name,
-        email: user.email,
-        avatarUrl: user.avatarUrl,
-        sessionId: newSessionId,
-        trainingProviderId: user.trainingProviderId,
-     })
+
+    // --- 🔹 Generate JWT
+    const token = await new SignJWT({
+      userId: user.id,
+      role: user.role,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      sessionId: newSessionId,
+      trainingProviderId: user.trainingProviderId,
+    })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime(expirationTime)
+      .setExpirationTime('24h')
       .sign(getJwtSecret());
-      
+
+    // --- 🔹 Decide dashboard redirect
+    const roleName = user.role.name.toLowerCase();
+    const permissions = user.role.permissions as any;
+    const isSuperAdmin = roleName === 'super admin';
+    const canViewAdminDashboard = permissions?.courses?.r === true;
+
+    let redirectTo = '/dashboard';
+    if (isSuperAdmin) redirectTo = '/super-admin';
+    else if (canViewAdminDashboard && roleName !== 'staff') redirectTo = '/admin/analytics';
+
+    // --- 🔹 If from Mini-App → return JSON only (middleware sets cookie)
+    const isFromMiniApp = request.headers.get('x-miniapp-auth') === 'true';
+    if (isFromMiniApp) {
+      return NextResponse.json({
+        isSuccess: true,
+        user: { ...user, password: undefined },
+        redirectTo,
+        token,
+      });
+    }
+
+    // --- 🔹 For web → set cookie
     const cookieStore = await cookies();
     cookieStore.set('session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
     });
-    
-    const { password: _, ...userWithoutPassword } = user;
-
-    const permissions = user.role.permissions as any;
-    const isSuperAdmin = user.role.name.toLowerCase() === 'super admin';
-    const canViewAdminDashboard = permissions?.courses?.r === true;
-    
-    let redirectTo = '/dashboard';
-    if (isSuperAdmin) {
-        redirectTo = '/super-admin';
-    } else if (canViewAdminDashboard && user.role.name.toLowerCase() !== 'staff') {
-        redirectTo = '/admin/analytics';
-    }
 
     return NextResponse.json({
       isSuccess: true,
-      user: userWithoutPassword,
-      redirectTo: redirectTo,
+      user: { ...user, password: undefined },
+      redirectTo,
       errors: null,
     });
-
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });
