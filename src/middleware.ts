@@ -37,7 +37,8 @@ async function autoLoginFromMiniApp(request: NextRequest): Promise<NextResponse 
     }
 
     try {
-        const connectUrl = new URL('/api/connect', request.url);
+        const connectUrl = request.nextUrl.clone();
+        connectUrl.pathname = '/api/connect';
         const connectResponse = await fetch(connectUrl, {
             headers: { 'authorization': authHeader }
         });
@@ -47,7 +48,8 @@ async function autoLoginFromMiniApp(request: NextRequest): Promise<NextResponse 
         const { phoneNumber } = await connectResponse.json();
         if (!phoneNumber) return null;
         
-        const loginUrl = new URL('/api/auth/login', request.url);
+        const loginUrl = request.nextUrl.clone();
+        loginUrl.pathname = '/api/auth/login';
         const loginResponse = await fetch(loginUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -79,10 +81,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   let sessionCookie = request.cookies.get('session')?.value
 
+  // Check if the current path is a public path
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path))
 
-  // Attempt auto-login if no session cookie and auth header exists
-  if (!sessionCookie && request.headers.has('authorization')) {
+  // Attempt auto-login if no session cookie and auth header exists, and it's not an API call already part of the flow
+  if (!sessionCookie && request.headers.has('authorization') && !pathname.startsWith('/api/')) {
       const autoLoginResponse = await autoLoginFromMiniApp(request);
       if (autoLoginResponse) {
           return autoLoginResponse;
@@ -94,8 +97,8 @@ export async function middleware(request: NextRequest) {
   if (sessionCookie) {
     try {
       await jwtVerify(sessionCookie, getJwtSecret())
-      // If token is valid and user is on a public path or root, redirect to dashboard
-      if (isPublicPath || pathname === '/') {
+      // If token is valid and user is on a public path (not an API route) or root, redirect to dashboard
+      if ((isPublicPath && !pathname.startsWith('/api/')) || pathname === '/') {
         const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret())
         const roleName = payload.role.name.toLowerCase()
         let redirectTo = '/dashboard'
@@ -104,8 +107,7 @@ export async function middleware(request: NextRequest) {
         } else if (roleName !== 'staff') {
             redirectTo = '/admin/analytics'
         }
-        const res = NextResponse.redirect(new URL(redirectTo, request.url))
-        return res
+        return NextResponse.redirect(new URL(redirectTo, request.url))
       }
     } catch (err) {
       // Invalid token, treat as unauthenticated
@@ -122,23 +124,16 @@ export async function middleware(request: NextRequest) {
 
   // If the user has no session and is trying to access a protected page
   if (!sessionCookie && !isPublicPath && pathname !== '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    const res = NextResponse.redirect(url)
-    return res
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // If the user has no session and is on the root page, redirect to login
+  // If the user has no session and is on the root page, let it pass to be handled by the page itself (which redirects to /login)
   if (!sessionCookie && pathname === '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    const res = NextResponse.redirect(url)
-    return res
+    return NextResponse.next()
   }
 
   // Otherwise, allow the request to proceed
-  const res = NextResponse.next()
-  return res
+  return NextResponse.next()
 }
 
 // Apply middleware to all routes, including error pages
