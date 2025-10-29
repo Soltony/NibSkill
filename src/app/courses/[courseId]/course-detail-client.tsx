@@ -131,38 +131,37 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   };
 
   const handleBuyCourse = async () => {
+    console.log('[Client] "Buy Course" button clicked.');
     setIsPaying(true);
     try {
-        // The middleware handles getting the session cookie which contains the JWT
-        const sessionRes = await fetch('/api/auth/session');
-        const session = await sessionRes.json();
-        if (!session) {
-          throw new Error("You must be logged in to make a purchase.");
-        }
-        
-        // The JWT from the session is automatically sent in the cookies
+        console.log('[Client] Initiating payment API call.');
+        // The JWT from the session is automatically sent in the cookies by the browser
         const paymentResponse = await fetch('/api/payment/initiate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ amount: course.price })
         });
         
+        console.log('[Client] /api/payment/initiate response status:', paymentResponse.status);
         const paymentData = await paymentResponse.json();
+        console.log('[Client] /api/payment/initiate response data:', paymentData);
 
         if (!paymentResponse.ok || !paymentData.success) {
             throw new Error(paymentData.message || "Failed to initiate payment.");
         }
 
         const paymentToken = paymentData.paymentToken;
+        console.log('[Client] Received payment token:', paymentToken);
 
         if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+            console.log('[Client] Found window.myJsChannel. Posting message...');
             window.myJsChannel.postMessage({ token: paymentToken });
             toast({
                 title: "Payment Initiated",
                 description: "Please complete the payment in the NIBtera Super App.",
             });
         } else {
-            console.error("NIB Super App channel (window.myJsChannel) not found.");
+            console.error("[Client] NIB Super App channel (window.myJsChannel) not found.");
             toast({
                 title: "Error",
                 description: "Could not communicate with the payment app. This feature is only available within the NIBtera app.",
@@ -172,6 +171,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
     } catch (error) {
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
+        console.error('[Client] Payment Failed:', message);
         toast({
             title: "Payment Failed",
             description: message,
