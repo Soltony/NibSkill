@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
 import { getSession } from '@/lib/auth'; 
-import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
@@ -20,6 +19,8 @@ export async function POST(request: NextRequest) {
         console.log('[/api/payment/initiate] Requested amount:', amount);
         
         const miniAppToken = cookies().get('miniapp-auth-token')?.value;
+        console.log('[/api/payment/initiate] Received mini-app token from cookie:', miniAppToken);
+
 
         if (!amount || !miniAppToken) {
             console.error('[/api/payment/initiate] Amount or mini-app token is missing.');
