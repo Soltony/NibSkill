@@ -39,6 +39,7 @@ async function autoLoginFromMiniApp(request: NextRequest): Promise<NextResponse 
     try {
         const connectUrl = request.nextUrl.clone();
         connectUrl.pathname = '/api/connect';
+        
         const connectResponse = await fetch(connectUrl, {
             headers: { 'authorization': authHeader }
         });
@@ -50,9 +51,13 @@ async function autoLoginFromMiniApp(request: NextRequest): Promise<NextResponse 
         
         const loginUrl = request.nextUrl.clone();
         loginUrl.pathname = '/api/auth/login';
+        
         const loginResponse = await fetch(loginUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'authorization': authHeader // Forward the auth header
+            },
             body: JSON.stringify({ phoneNumber })
         });
         
@@ -96,10 +101,10 @@ export async function middleware(request: NextRequest) {
   // If the user has a session, handle redirects from public pages
   if (sessionCookie) {
     try {
-      await jwtVerify(sessionCookie, getJwtSecret())
+      const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret())
+      
       // If token is valid and user is on a public path (not an API route) or root, redirect to dashboard
       if ((isPublicPath && !pathname.startsWith('/api/')) || pathname === '/') {
-        const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret())
         const roleName = payload.role.name.toLowerCase()
         let redirectTo = '/dashboard'
         if (roleName === 'super admin') {
@@ -111,12 +116,13 @@ export async function middleware(request: NextRequest) {
       }
     } catch (err) {
       // Invalid token, treat as unauthenticated
-      // If on a protected path, redirect to login
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      const res = NextResponse.redirect(url)
+      res.cookies.delete('session'); // Clear invalid cookie
+      
+      // If we are on a protected path with an invalid cookie, redirect to login
       if (!isPublicPath) {
-        const url = request.nextUrl.clone()
-        url.pathname = '/login'
-        const res = NextResponse.redirect(url)
-        res.cookies.delete('session'); // Clear invalid cookie
         return res
       }
     }
@@ -126,12 +132,7 @@ export async function middleware(request: NextRequest) {
   if (!sessionCookie && !isPublicPath && pathname !== '/') {
     return NextResponse.redirect(new URL('/login', request.url))
   }
-
-  // If the user has no session and is on the root page, let it pass to be handled by the page itself (which redirects to /login)
-  if (!sessionCookie && pathname === '/') {
-    return NextResponse.next()
-  }
-
+  
   // Otherwise, allow the request to proceed
   return NextResponse.next()
 }
