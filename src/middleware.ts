@@ -104,7 +104,7 @@ export async function middleware(request: NextRequest) {
       const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret())
       
       // If token is valid and user is on a public path (not an API route) or root, redirect to dashboard
-      if ((isPublicPath && !pathname.startsWith('/api/')) || pathname === '/') {
+      if (isPublicPath && !pathname.startsWith('/api/')) {
         const roleName = payload.role.name.toLowerCase()
         let redirectTo = '/dashboard'
         if (roleName === 'super admin') {
@@ -114,6 +114,18 @@ export async function middleware(request: NextRequest) {
         }
         return NextResponse.redirect(new URL(redirectTo, request.url))
       }
+      
+      if (pathname === '/') {
+        const roleName = payload.role.name.toLowerCase()
+        let redirectTo = '/dashboard'
+        if (roleName === 'super admin') {
+            redirectTo = '/super-admin'
+        } else if (roleName !== 'staff') {
+            redirectTo = '/admin/analytics'
+        }
+        return NextResponse.redirect(new URL(redirectTo, request.url))
+      }
+
     } catch (err) {
       // Invalid token, treat as unauthenticated
       const url = request.nextUrl.clone()
