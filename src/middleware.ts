@@ -79,39 +79,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   let sessionCookie = request.cookies.get('session')?.value
 
-  // Generate nonce for inline scripts
-  const scriptNonce = crypto.randomUUID()
-
-  const setSecurityHeaders = (res: NextResponse) => {
-    const cspHeader = [
-        "default-src 'self' https://picsum.photos",
-        `script-src 'self' 'nonce-${scriptNonce}' 'strict-dynamic'`,
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "img-src 'self' data: https://picsum.photos https://images.unsplash.com",
-        "media-src 'self'",
-        "object-src 'none'",
-        "frame-src 'self' https://www.youtube.com",
-        "font-src 'self' https://fonts.gstatic.com",
-        "base-uri 'self'",
-        "form-action 'self'",
-        "frame-ancestors 'none'",
-        "upgrade-insecure-requests",
-    ].join('; ');
-    res.headers.set('Content-Security-Policy', cspHeader)
-    res.headers.set('x-script-nonce', scriptNonce)
-    res.headers.set('X-Content-Type-Options', 'nosniff')
-    res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-    res.headers.set('X-Frame-Options', 'DENY')
-    return res
-  }
-
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path))
 
   // Attempt auto-login if no session cookie and auth header exists
   if (!sessionCookie && request.headers.has('authorization')) {
       const autoLoginResponse = await autoLoginFromMiniApp(request);
       if (autoLoginResponse) {
-          return setSecurityHeaders(autoLoginResponse);
+          return autoLoginResponse;
       }
   }
 
@@ -131,7 +105,7 @@ export async function middleware(request: NextRequest) {
             redirectTo = '/admin/analytics'
         }
         const res = NextResponse.redirect(new URL(redirectTo, request.url))
-        return setSecurityHeaders(res)
+        return res
       }
     } catch (err) {
       // Invalid token, treat as unauthenticated
@@ -141,7 +115,7 @@ export async function middleware(request: NextRequest) {
         url.pathname = '/login'
         const res = NextResponse.redirect(url)
         res.cookies.delete('session'); // Clear invalid cookie
-        return setSecurityHeaders(res)
+        return res
       }
     }
   }
@@ -151,7 +125,7 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     const res = NextResponse.redirect(url)
-    return setSecurityHeaders(res)
+    return res
   }
 
   // If the user has no session and is on the root page, redirect to login
@@ -159,12 +133,12 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     const res = NextResponse.redirect(url)
-    return setSecurityHeaders(res)
+    return res
   }
 
   // Otherwise, allow the request to proceed
   const res = NextResponse.next()
-  return setSecurityHeaders(res)
+  return res
 }
 
 // Apply middleware to all routes, including error pages
