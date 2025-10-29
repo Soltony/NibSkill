@@ -2,7 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
-import { getSession } from '@/lib/auth'; // We'll get the token from the user's session
+import { getSession } from '@/lib/auth'; 
+import prisma from '@/lib/db';
 
 export async function POST(request: NextRequest) {
     try {
@@ -13,15 +14,11 @@ export async function POST(request: NextRequest) {
 
         const { amount } = await request.json();
 
-        // The JWT from the user's session cookie is our token.
-        // We need to re-sign it or pass it along if the payment gateway accepts it directly.
-        // For this example, we assume we need to extract a phone number or user ID from our session.
-        // Let's assume the payment gateway needs the user's phone number.
         const user = await prisma.user.findUnique({ where: { id: session.id } });
         if (!user?.phoneNumber) {
              return NextResponse.json({ success: false, message: 'User phone number is required for payment.' }, { status: 400 });
         }
-        const tokenForGateway = user.phoneNumber; // Using phone number as the token for the gateway
+        const tokenForGateway = user.phoneNumber; 
 
 
         if (!amount || !tokenForGateway) {
@@ -70,8 +67,6 @@ export async function POST(request: NextRequest) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // The gateway might require the original Bearer token here if it's different from the payload token
-                // 'Authorization': `Bearer ${original_jwt_if_needed}` 
             },
             body: JSON.stringify(payload),
         });
