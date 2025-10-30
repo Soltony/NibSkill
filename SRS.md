@@ -108,7 +108,7 @@ The NIB Training Platform is a web-based and mini-app-integrated system designed
 
 - **Constraints**:
   - The application must be built using Next.js, React, and Prisma.
-  - Deployment will be on Firebase App Hosting.
+  - Deployment will be on a serverless web hosting platform.
   - Payment integration is exclusively with the NIB Payment Gateway.
 - **Assumptions**:
   - A stable internet connection is available for users.

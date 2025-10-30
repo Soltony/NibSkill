@@ -16,7 +16,7 @@ The NIB Training Platform is built on a modern, serverless web architecture that
        |
        | HTTPS / API Calls
        v
-[Next.js Application on Firebase App Hosting]
+[Next.js Application on a Serverless Platform]
   |    /      \
   |   /        \
 [Middleware] [API Routes] [Server/Client Components]
@@ -38,7 +38,7 @@ The NIB Training Platform is built on a modern, serverless web architecture that
 | **Database**      | PostgreSQL                                        | A powerful, open-source relational database.                                   |
 | **ORM**           | Prisma                                            | Provides type-safe database access and simplifies data modeling.               |
 | **Authentication**| JWT (Jose), bcrypt                                | Secure, stateless session management using JSON Web Tokens.                    |
-| **Deployment**    | Firebase App Hosting                              | A managed, serverless platform for deploying modern web apps.                  |
+| **Deployment**    | Serverless Web Hosting (e.g., Vercel, App Hosting)| A managed, serverless platform for deploying modern web apps.                  |
 
 ---
 
@@ -95,7 +95,7 @@ The application is broken down into several logical modules:
 
 ## 6. Deployment Architecture
 
-- The application is a monolithic Next.js project deployed to **Firebase App Hosting**.
-- Firebase App Hosting provides a managed, serverless environment that automatically handles scaling, logging, and security.
+- The application is a monolithic Next.js project deployed to a **serverless web hosting platform**.
+- The platform provides a managed environment that automatically handles scaling, logging, and security.
 - The PostgreSQL database is hosted separately (e.g., on Google Cloud SQL, Supabase, or another provider) and is connected via a secure connection string stored in environment variables.
-- Static assets (JS, CSS, images) are automatically distributed via Firebase's global CDN for fast delivery.
+- Static assets (JS, CSS, images) are automatically distributed via a global CDN for fast delivery.
