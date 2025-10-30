@@ -1,4 +1,3 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -15,147 +14,130 @@ const loginSchema = z.object({
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not set.');
-  }
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
   return new TextEncoder().encode(secret);
 };
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    console.log('[/api/auth/login] Received login request with body:', body);
-    const validation = loginSchema.safeParse(body);
+    let phoneNumber: string | undefined;
+    let token: string | undefined;
 
-    if (!validation.success) {
-      console.error('[/api/auth/login] Invalid login data format:', validation.error);
-      return NextResponse.json({ isSuccess: false, errors: ['Invalid login data format.'] }, { status: 400 });
+    // --- 1️⃣ Check for miniapp token from cookie or header ---
+    const cookieStore = await cookies();
+    const tokenFromCookie = cookieStore.get('miniapp-auth-token')?.value;
+    const authHeader = request.headers.get('Authorization');
+
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else if (tokenFromCookie) {
+      token = tokenFromCookie;
     }
 
-    const { email, password, phoneNumber } = validation.data;
+    // If token exists, validate via /api/connect
+    if (token) {
+      const connectUrl = new URL('/api/connect', request.url);
+      const res = await fetch(connectUrl.toString(), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        phoneNumber = data.phoneNumber;
+      } else {
+        console.warn('Miniapp token invalid');
+      }
+    }
+
+    // --- 2️⃣ Parse body for web login ---
+    const body = await request.json();
+    const validation = loginSchema.safeParse(body);
+    if (!validation.success && !phoneNumber) {
+      return NextResponse.json({ isSuccess: false, errors: ['Invalid login data.'] }, { status: 400 });
+    }
+
+    const { email, password } = validation.success ? validation.data : {};
     let user;
 
-    // --- 🔹 Case 1: Login via phone (used by mini-app or web phone login)
+    // --- 3️⃣ Find user ---
     if (phoneNumber) {
-      console.log('[/api/auth/login] Attempting login via phone number:', phoneNumber);
       user = await prisma.user.findFirst({
         where: { phoneNumber },
         include: { role: true },
       });
-
       if (!user) {
-        console.log('[/api/auth/login] User with phone number not found.');
-        return NextResponse.json(
-          { isSuccess: false, message: `User with phone number ${phoneNumber} not found.` },
-          { status: 404 }
-        );
+        return NextResponse.json({ isSuccess: false, errors: ['User is not registered.'] }, { status: 404 });
       }
-      console.log('[/api/auth/login] User found via phone number:', user.email);
-    }
-    // --- 🔹 Case 2: Login via email/password (web users)
-    else if (email && password) {
-      console.log('[/api/auth/login] Attempting login via email/password for:', email);
+    } else if (email && password) {
       user = await prisma.user.findUnique({
         where: { email },
         include: { role: true },
       });
-
       if (!user || !user.password) {
-        console.log('[/api/auth/login] User not found or password not set.');
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
       }
-
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        console.log('[/api/auth/login] Invalid password for user:', email);
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
       }
-      console.log('[/api/auth/login] Email/password login successful for:', email);
-    }
-    // --- ❌ Missing required credentials
-    else {
-      console.error('[/api/auth/login] Missing required credentials (email/password or phone).');
-      return NextResponse.json(
-        { isSuccess: false, errors: ['Either phone number or email/password must be provided.'] },
-        { status: 400 }
-      );
     }
 
-    // --- 🔹 Create new session
-    const newSessionId = randomUUID();
-    console.log('[/api/auth/login] Creating new session ID:', newSessionId, 'for user:', user.id);
+    // --- 4️⃣ Create session + JWT ---
+    const sessionId = randomUUID();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { activeSessionId: sessionId },
+    });
 
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: user.id },
-        data: { activeSessionId: newSessionId },
-      }),
-      prisma.loginHistory.create({
-        data: {
-          userId: user.id,
-          ipAddress: request.ip || request.headers.get('x-forwarded-for'),
-          userAgent: request.headers.get('user-agent'),
-        },
-      }),
-    ]);
-    console.log('[/api/auth/login] Updated user session and logged history.');
-
-    // --- 🔹 Generate JWT
-    const token = await new SignJWT({
+    const jwt = await new SignJWT({
       userId: user.id,
       role: user.role,
       name: user.name,
       email: user.email,
-      avatarUrl: user.avatarUrl,
-      sessionId: newSessionId,
-      trainingProviderId: user.trainingProviderId,
+      phoneNumber: user.phoneNumber,
+      sessionId,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('24h')
       .sign(getJwtSecret());
-    console.log('[/api/auth/login] JWT generated successfully.');
 
-    // --- 🔹 Decide dashboard redirect
-    const roleName = user.role.name.toLowerCase();
-    const permissions = user.role.permissions as any;
-    const isSuperAdmin = roleName === 'super admin';
-    const canViewAdminDashboard = permissions?.courses?.r === true;
-
-    let redirectTo = '/dashboard';
-    if (isSuperAdmin) redirectTo = '/super-admin';
-    else if (canViewAdminDashboard && roleName !== 'staff') redirectTo = '/admin/analytics';
-    console.log('[/api/auth/login] Determined redirect URL:', redirectTo);
-
-    // --- 🔹 If from Mini-App (internal call) -> return JSON with token
-    const isFromMiniApp = request.headers.get('x-miniapp-auth') === 'true';
-    if (isFromMiniApp) {
-      console.log('[/api/auth/login] Responding for Mini-App auto-login flow.');
-      return NextResponse.json({
-        isSuccess: true,
-        user: { ...user, password: undefined },
-        redirectTo,
-        token,
-      });
-    }
-
-    // --- 🔹 For web -> set cookie and return JSON
-    console.log('[/api/auth/login] Responding for web login flow.');
-    cookies().set('session', token, {
+    // --- 5️⃣ Set cookies ---
+    cookieStore.set('session', jwt, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
+      maxAge: 60 * 60 * 24,
     });
+
+    if (token) {
+      cookieStore.set({
+        name: 'miniapp-auth-token',
+        value: token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 60 * 60 * 24,
+      });
+    }
+
+    const { password: _, ...userWithoutPassword } = user;
+
+    // --- 6️⃣ Redirect by role ---
+    const roleName = user.role.name.toLowerCase();
+    let redirectTo = '/dashboard';
+    if (roleName === 'super admin') redirectTo = '/super-admin';
+    else if (roleName !== 'staff') redirectTo = '/admin/analytics';
 
     return NextResponse.json({
       isSuccess: true,
-      user: { ...user, password: undefined },
+      user: userWithoutPassword,
       redirectTo,
       errors: null,
     });
   } catch (error) {
-    console.error('[/api/auth/login] Login error:', error);
-    return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });
+    console.error('Login error:', error);
+    return NextResponse.json({ isSuccess: false, errors: ['Unexpected server error.'] }, { status: 500 });
   }
 }

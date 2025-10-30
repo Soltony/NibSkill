@@ -1,167 +1,174 @@
+import { NextResponse, type NextRequest } from 'next/server'
+import { jwtVerify, SignJWT, type JWTPayload } from 'jose'
+import prisma from '@/lib/db'
+import crypto from 'crypto'
 
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { jwtVerify } from 'jose';
+interface CustomJwtPayload extends JWTPayload {
+  userId: string
+  role: {
+    name: string
+    permissions?: Record<string, any>
+  }
+}
 
+// --- Helper: get JWT secret ---
 const getJwtSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
-  return new TextEncoder().encode(secret);
-};
+  const secret = process.env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set.')
+  return new TextEncoder().encode(secret)
+}
 
+// --- Public routes (no auth required) ---
 const publicPaths = [
   '/login',
   '/login/register',
-  '/login/super-admin',
   '/api/auth/login',
   '/api/auth/register',
   '/api/connect',
-  '/api/payment/initiate',
-  '/api/payment/callback',
-  '/api/registration-data',
-];
+]
 
+// --- Auto-login from MiniApp ---
 async function autoLoginFromMiniApp(request: NextRequest) {
-  console.log('[Middleware] Starting mini-app auto-login...');
-  const miniAppAuthToken = request.headers.get('authorization');
-  
-  if (!miniAppAuthToken) {
-      console.error('[Middleware] Mini-app auth header is missing.');
-      return null;
+  // Try to get token from Authorization header or ?token param
+  const authHeader = request.headers.get('authorization')
+  const queryToken = request.nextUrl.searchParams.get('token')
+  let token: string | null = null
+
+  if (authHeader?.startsWith('Bearer ')) {
+    token = authHeader.replace('Bearer ', '').trim()
+  } else if (queryToken) {
+    token = queryToken.trim()
   }
 
+  if (!token) return null
+
   try {
-    // 1. Call /api/connect to get phone number
-    const connectUrl = request.nextUrl.clone();
-    connectUrl.pathname = '/api/connect';
-    console.log('[Middleware] Calling /api/connect at:', connectUrl.href);
+    // Validate token via /api/connect
+    const connectUrl = new URL('/api/connect', request.url)
+    const connectRes = await fetch(connectUrl.toString(), {
+      headers: { authorization: `Bearer ${token}` },
+    })
 
-    const connectResponse = await fetch(connectUrl, {
-      headers: {
-        'Authorization': miniAppAuthToken,
-      }
-    });
-
-    console.log('[Middleware] /api/connect response status:', connectResponse.status);
-    if (!connectResponse.ok) {
-        const errorText = await connectResponse.text();
-        console.error('[Middleware] /api/connect failed:', errorText);
-        return null;
+    if (!connectRes.ok) {
+      console.error('MiniApp token validation failed:', connectRes.status)
+      return null
     }
-    const connectData = await connectResponse.json();
-    const phoneNumber = connectData.data?.phoneNumber;
 
-    if (!phoneNumber) {
-        console.error('[Middleware] Phone number not returned from /api/connect');
-        return null;
+    const { phoneNumber } = await connectRes.json()
+    if (!phoneNumber) return null
+
+    // Find user by phone number
+    const user = await prisma.user.findFirst({
+      where: { phoneNumber },
+      include: { role: true },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { isSuccess: false, message: 'User is not registered.' },
+        { status: 404 }
+      )
     }
-    console.log('[Middleware] Phone number received:', phoneNumber);
 
-    // 2. Call /api/auth/login with phone number
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/api/auth/login';
-    console.log('[Middleware] Calling /api/auth/login at:', loginUrl.href);
+    // Create new session
+    const sessionId = crypto.randomUUID()
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { activeSessionId: sessionId },
+    })
 
-    const loginResponse = await fetch(loginUrl, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-MiniApp-Auth': 'true' // Internal flag for API
-      },
-      body: JSON.stringify({ phoneNumber })
-    });
+    // Generate new JWT
+    const jwtToken = await new SignJWT({
+      userId: user.id,
+      role: user.role,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      sessionId,
+      trainingProviderId: user.trainingProviderId,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h')
+      .sign(getJwtSecret())
 
-    console.log('[Middleware] /api/auth/login response status:', loginResponse.status);
-    const loginData = await loginResponse.json();
+    // Redirect to dashboard and set cookies
+    const res = NextResponse.redirect(new URL('/dashboard', request.url))
 
-     if (!loginResponse.ok || !loginData.isSuccess) {
-        if (loginResponse.status === 404) {
-            const url = request.nextUrl.clone();
-            url.pathname = '/login';
-            url.searchParams.set('error', 'miniapp_user_not_found');
-            console.log('[Middleware] User not found, redirecting to login page with error.');
-            return NextResponse.redirect(url);
-        }
-        console.error('[Middleware] /api/auth/login failed:', loginData);
-        return null; // Let it fall through to normal login page
-    }
-    
-    console.log('[Middleware] /api/auth/login successful. Preparing redirect to:', loginData.redirectTo);
-
-    // 3. Create redirect response and set cookies
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = loginData.redirectTo || '/dashboard';
-    const response = NextResponse.redirect(redirectUrl);
-
-    // Set the main session cookie
-    response.cookies.set('session', loginData.token, {
+    // Session cookie (for auth)
+    res.cookies.set('session', jwtToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-    });
-    console.log('[Middleware] Set session cookie.');
+      maxAge: 60 * 60 * 24, // 1 day
+    })
 
-    // Set the mini-app token cookie for payments
-    const miniAppTokenValue = miniAppAuthToken.replace('Bearer ', '');
-    response.cookies.set('miniapp-auth-token', miniAppTokenValue, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-    });
-    console.log('[Middleware] Set miniapp-auth-token cookie.');
+    // MiniApp token cookie (for payments, etc.)
+    res.cookies.set('miniapp-auth-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24,
+    })
 
-    return response;
-
+    return res
   } catch (error) {
-    console.error("[Middleware] Mini-app auto-login error:", error);
-    return null;
+    console.error('MiniApp auto-login error:', error)
+    return null
   }
 }
 
+// --- Middleware ---
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get('session')?.value;
-  const isMiniAppRequest = !!request.headers.get('authorization')?.startsWith('Bearer ');
-  
-  console.log(`[Middleware] Path: ${pathname}, HasSession: ${!!sessionCookie}, IsMiniApp: ${isMiniAppRequest}`);
+  const { pathname } = request.nextUrl
+  const sessionCookie = request.cookies.get('session')?.value
+  const isPublicPath = publicPaths.some((p) => pathname.startsWith(p))
 
-  // Handle Mini-App Auto-Login on first load
-  if (isMiniAppRequest && !sessionCookie && !pathname.startsWith('/api/')) {
-    const miniAppResponse = await autoLoginFromMiniApp(request);
-    if (miniAppResponse) {
-      return miniAppResponse;
-    }
+  // 🟢 Auto-login from MiniApp if no session
+  if (!sessionCookie && !pathname.startsWith('/api/')) {
+    const autoLoginRes = await autoLoginFromMiniApp(request)
+    if (autoLoginRes) return autoLoginRes
   }
 
-  const isPublicPath = publicPaths.some(p => pathname === p || (p.endsWith('/') && pathname.startsWith(p)));
-
+  // 🔐 JWT verification
   if (sessionCookie) {
     try {
-      await jwtVerify(sessionCookie, getJwtSecret());
-      if (isPublicPath && !pathname.startsWith('/api')) {
-        console.log(`[Middleware] User logged in, redirecting from public path ${pathname} to /dashboard`);
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+      const { payload } = await jwtVerify<CustomJwtPayload>(sessionCookie, getJwtSecret())
+
+      // Redirect logged-in users away from login pages
+      const redirectablePaths = ['/', '/login', '/login/register']
+      if (redirectablePaths.includes(pathname)) {
+        const roleName = payload.role.name.toLowerCase()
+        let redirectTo = '/dashboard'
+        if (roleName === 'super admin') redirectTo = '/super-admin'
+        else if (roleName !== 'staff') redirectTo = '/admin/analytics'
+        return NextResponse.redirect(new URL(redirectTo, request.url))
       }
-      return NextResponse.next();
+
+      return NextResponse.next()
     } catch (err) {
-      console.log('[Middleware] Invalid session token, clearing cookie and redirecting to login.');
-      const response = NextResponse.redirect(new URL('/login', request.url));
-      response.cookies.delete('session');
-      response.cookies.delete('miniapp-auth-token');
-      return response;
+      console.error('JWT verification failed:', err)
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      const res = NextResponse.redirect(url)
+      res.cookies.delete('session')
+      return res
     }
   }
 
-  if (!isPublicPath) {
-    console.log(`[Middleware] No session, redirecting from protected path ${pathname} to /login`);
-    return NextResponse.redirect(new URL('/login', request.url));
+  // 🚪 Redirect unauthenticated users to login
+  if (!sessionCookie && !isPublicPath) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
 
-  return NextResponse.next();
+  return NextResponse.next()
 }
 
+// --- Config ---
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-};
+}

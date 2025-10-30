@@ -1,56 +1,58 @@
-
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const VALIDATE_TOKEN_URL = process.env.VALIDATE_TOKEN_URL!;
 
 export async function GET(request: NextRequest) {
-  console.log('[/api/connect] Received request.');
-  const authHeader = request.headers.get('authorization');
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.error('[/api/connect] Authorization header is missing or invalid.');
-    return NextResponse.json({ error: 'Authorization header is missing or invalid.' }, { status: 401 });
-  }
-
-  const token = authHeader.substring(7);
-
-  const validationApiUrl = process.env.TOKEN_VALIDATION_API_URL;
-  if (!validationApiUrl) {
-    console.error("[/api/connect] TOKEN_VALIDATION_API_URL is not set in environment variables.");
-    return NextResponse.json({ error: 'Server configuration error: Token validation URL is not configured.' }, { status: 500 });
-  }
-  console.log('[/api/connect] Validation URL:', validationApiUrl);
-  
   try {
-    const validationResponse = await fetch(validationApiUrl, {
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization header missing' }, { status: 400 });
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Malformed Authorization header' }, { status: 400 });
+    }
+
+    const token = authHeader.substring(7);
+
+    // Validate token with external API
+    const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
+      method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
       },
+      cache: 'no-store',
     });
 
-    console.log('[/api/connect] External validation API response status:', validationResponse.status);
-    if (!validationResponse.ok) {
-      const errorText = await validationResponse.text();
-      console.error('[/api/connect] Token validation failed with external API.', { status: validationResponse.status, error: errorText });
-      return NextResponse.json({ error: 'Token validation failed.' }, { status: validationResponse.status });
+    if (!externalResponse.ok) {
+      const text = await externalResponse.text();
+      return NextResponse.json({ error: `Token validation failed: ${text}` }, { status: 401 });
     }
 
-    const responseBody = await validationResponse.json();
-    console.log('[/api/connect] External validation API response body:', responseBody);
-    const phoneNumber = responseBody.phone;
+    const data = await externalResponse.json();
+    const phoneNumber = data.phone;
 
     if (!phoneNumber) {
-        console.error('[/api/connect] Phone number not found in validation response.');
-        return NextResponse.json({ error: 'Phone number not found in validation response.' }, { status: 404 });
+      return NextResponse.json({ error: 'No phone number returned from validation' }, { status: 400 });
     }
-    
-    console.log('[/api/connect] Successfully retrieved phone number:', phoneNumber);
-    return NextResponse.json({ success: true, data: { phoneNumber: phoneNumber, token: token }});
 
-  } catch (error) {
-    console.error("[/api/connect] Error during token validation:", error);
-    const errorMessage = (error instanceof Error && error.message.includes('fetch failed'))
-      ? `Could not connect to the token validation server at ${validationApiUrl}. Please check if the TOKEN_VALIDATION_API_URL environment variable is set correctly and the server is reachable.`
-      : 'An unexpected error occurred during token validation.';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    // ✅ Store token securely in cookie
+    const cookieStore = await cookies();
+    cookieStore.set({
+      name: 'miniapp-auth-token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24, // 1 day
+    });
+
+    return NextResponse.json({ success: true, phoneNumber });
+  } catch (err) {
+    console.error('Connect route error:', err);
+    return NextResponse.json({ error: 'Server error during token validation' }, { status: 500 });
   }
 }
