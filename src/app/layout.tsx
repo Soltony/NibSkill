@@ -18,7 +18,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, BookCopy, BookMarked, Radio, ShieldCheck, User, CheckCircle, Package, ClipboardCheck, Edit, FilePieChart, UserCheck, Award, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, BookCopy, BookMarked, Radio, ShieldCheck, User, CheckCircle, Package, ClipboardCheck, Edit, FilePieChart, UserCheck, Award, Settings, LogOut, Users } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
 import { NotificationCenter } from '@/components/notification-center';
@@ -80,18 +80,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   ];
 
   const adminNavItems = [
-    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/admin/products', icon: Package, label: 'Products' },
-    { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt' },
-    { href: '/admin/courses/approvals', icon: CheckCircle, label: 'Approvals' },
-    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths' },
-    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt' },
-    { href: '/admin/grading', icon: Edit, label: 'Grading' },
-    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions' },
-    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report' },
-    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report' },
-    { href: '/admin/certificate', icon: Award, label: 'Certificate' },
-    { href: '/admin/settings', icon: Settings, label: 'Settings' },
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', permission: permissions?.analytics?.r },
+    { href: '/admin/products', icon: Package, label: 'Products', permission: permissions?.products?.r },
+    { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt', permission: permissions?.courses?.r },
+    { href: '/admin/courses/approvals', icon: CheckCircle, label: 'Approvals', permission: permissions?.courses?.u },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', permission: permissions?.courses?.r },
+    { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', permission: permissions?.quizzes?.r },
+    { href: '/admin/grading', icon: Edit, label: 'Grading', permission: permissions?.quizzes?.u },
+    { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', permission: permissions?.liveSessions?.r },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', permission: permissions?.analytics?.r },
+    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report', permission: permissions?.analytics?.r },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate', permission: permissions?.users?.u },
+    { href: '/admin/settings', icon: Settings, label: 'Settings', permission: permissions?.users?.r || permissions?.staff?.r },
   ];
 
   const superAdminNavItems = [{ href: '/super-admin', icon: ShieldCheck, label: 'Super Admin' }];
@@ -105,7 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     currentNavItems = superAdminNavItems;
     currentNavItem = superAdminNavItems.find(item => pathname.startsWith(item.href));
   } else if (isAdminPath) {
-    currentNavItems = adminNavItems;
+    // We don't set currentNavItems here because we will filter it based on permissions
     currentNavItem = adminNavItems.find(item => pathname.startsWith(item.href));
   } else {
     currentNavItem = navItems.find(item => pathname.startsWith(item.href));
@@ -152,7 +152,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     window.location.href = '/login';
   };
 
-  const hasAdminReadAccess = permissions?.courses?.r === true;
+  const hasAnyAdminReadAccess = adminNavItems.some(item => item.permission === true);
   const isStaffView = !isAdminPath && !isSuperAdminPath;
 
   return (
@@ -185,7 +185,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       <SidebarGroupLabel>
                         {isSuperAdminPath ? 'Super Admin' : isAdminPath ? 'Admin Menu' : 'Menu'}
                       </SidebarGroupLabel>
-                      {currentNavItems.map(item => (
+                      {isStaffView && navItems.map(item => (
                         <SidebarMenuItem key={item.href}>
                           <Link href={item.href}>
                             <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
@@ -194,9 +194,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                           </Link>
                         </SidebarMenuItem>
                       ))}
+                      {isSuperAdminPath && superAdminNavItems.map(item => (
+                         <SidebarMenuItem key={item.href}>
+                          <Link href={item.href}>
+                            <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
+                              <item.icon /><span>{item.label}</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                      ))}
+                       {isAdminPath && adminNavItems.map(item => (
+                         item.permission && (
+                            <SidebarMenuItem key={item.href}>
+                            <Link href={item.href}>
+                                <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
+                                <item.icon /><span>{item.label}</span>
+                                </SidebarMenuButton>
+                            </Link>
+                            </SidebarMenuItem>
+                         )
+                      ))}
                     </SidebarGroup>
 
-                    {isStaffView && hasAdminReadAccess && (
+                    {isStaffView && hasAnyAdminReadAccess && (
                       <SidebarMenuItem>
                         <Link href="/admin/analytics">
                           <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
@@ -204,10 +224,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       </SidebarMenuItem>
                     )}
 
-                    {!isStaffView && !isSuperAdminPath && (
+                    {!isStaffView && (
                       <SidebarMenuItem>
                         <Link href="/dashboard">
-                          <SidebarMenuButton tooltip="Staff View"><User /><span>Staff View</span></SidebarMenuButton>
+                          <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
                         </Link>
                       </SidebarMenuItem>
                     )}
