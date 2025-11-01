@@ -1,5 +1,4 @@
 
-
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -148,13 +147,13 @@ const permissionSchema = z.object({
 const roleSchema = z.object({
   name: z.string().min(2, "Role name must be at least 2 characters."),
   permissions: z.object({
-    courses: permissionSchema,
-    users: permissionSchema,
     analytics: permissionSchema,
     products: permissionSchema,
+    courses: permissionSchema,
     quizzes: permissionSchema,
-    staff: permissionSchema,
     liveSessions: permissionSchema,
+    users: permissionSchema,
+    staff: permissionSchema,
   })
 })
 

@@ -41,18 +41,20 @@ const permissionSchema = z.object({
 const formSchema = z.object({
   name: z.string().min(2, "Role name must be at least 2 characters."),
   permissions: z.object({
-    courses: permissionSchema,
-    users: permissionSchema,
-    analytics: permissionSchema,
+    dashboard: permissionSchema,
     products: permissionSchema,
+    courses: permissionSchema,
+    learningPaths: permissionSchema,
     quizzes: permissionSchema,
-    staff: permissionSchema,
+    grading: permissionSchema,
     liveSessions: permissionSchema,
+    reports: permissionSchema,
+    settings: permissionSchema,
   })
 })
 
 const permissionAreas = [
-  "courses", "users", "analytics", "products", "quizzes", "staff", "liveSessions"
+  "dashboard", "products", "courses", "learningPaths", "quizzes", "grading", "liveSessions", "reports", "settings"
 ] as const;
 
 type EditRoleDialogProps = {
@@ -70,15 +72,38 @@ export function EditRoleDialog({ role, children }: EditRoleDialogProps) {
 
   useEffect(() => {
     if (open) {
+      const currentPerms = role.permissions as any;
       form.reset({
         name: role.name,
-        permissions: role.permissions as any,
+        permissions: {
+            dashboard: currentPerms?.analytics || { c: false, r: false, u: false, d: false },
+            products: currentPerms?.products || { c: false, r: false, u: false, d: false },
+            courses: currentPerms?.courses || { c: false, r: false, u: false, d: false },
+            learningPaths: currentPerms?.learningPaths || { c: false, r: false, u: false, d: false },
+            quizzes: currentPerms?.quizzes || { c: false, r: false, u: false, d: false },
+            grading: currentPerms?.grading || { c: false, r: false, u: false, d: false },
+            liveSessions: currentPerms?.liveSessions || { c: false, r: false, u: false, d: false },
+            reports: currentPerms?.reports || { c: false, r: false, u: false, d: false },
+            settings: currentPerms?.users || { c: false, r: false, u: false, d: false },
+        },
       })
     }
   }, [open, role, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = await updateRole(role.id, values)
+     const submissionValues = {
+        name: values.name,
+        permissions: {
+            analytics: values.permissions.dashboard,
+            products: values.permissions.products,
+            courses: values.permissions.courses,
+            quizzes: values.permissions.quizzes,
+            liveSessions: values.permissions.liveSessions,
+            users: values.permissions.settings,
+            staff: values.permissions.settings
+        }
+    };
+    const result = await updateRole(role.id, submissionValues as any);
     if (result.success) {
       toast({
         title: "Role Updated",
@@ -138,7 +163,7 @@ export function EditRoleDialog({ role, children }: EditRoleDialogProps) {
                   <TableBody>
                     {permissionAreas.map(area => (
                       <TableRow key={area}>
-                        <TableCell className="font-medium capitalize">{area}</TableCell>
+                        <TableCell className="font-medium capitalize">{area.replace(/([A-Z])/g, ' $1')}</TableCell>
                         {(['c', 'r', 'u', 'd'] as const).map(p => (
                           <TableCell key={p} className="text-center">
                             <FormField

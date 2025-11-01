@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState } from "react"
@@ -96,7 +95,7 @@ const CrudPermissions = ({ permissions }: { permissions: any }) => {
           key={letter} 
           className={cn(
             'font-mono font-bold',
-            permissions[letter] ? 'text-green-500' : 'text-muted-foreground/30'
+            permissions && permissions[letter] ? 'text-green-500' : 'text-muted-foreground/30'
           )}
         >
           {letter.toUpperCase()}
@@ -117,6 +116,11 @@ type SettingsTabsProps = {
 }
 
 const USERS_PER_PAGE = 10;
+
+const permissionKeys = [
+  "dashboard", "products", "courses", "learningPaths", "quizzes", "grading", "liveSessions", "reports", "settings"
+] as const;
+
 
 export function SettingsTabs({ users, roles, registrationFields, loginHistory, districts, branches, departments }: SettingsTabsProps) {
   const [roleToDelete, setRoleToDelete] = useState<RoleType | null>(null);
@@ -229,10 +233,6 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     }
   }
 
-
-  const permissionKeys = (roles[0]?.permissions && Object.keys(roles[0].permissions as object)) as (keyof RoleType['permissions'])[] || [];
-
-
   return (
     <>
       <Tabs defaultValue="user-management">
@@ -319,12 +319,12 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
               <AddRoleDialog />
             </CardHeader>
             <CardContent>
-              <Table>
+               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[150px]">Role Name</TableHead>
                     {permissionKeys.map(key => (
-                      <TableHead key={key} className="capitalize">{key}</TableHead>
+                      <TableHead key={key} className="capitalize text-center">{key.replace(/([A-Z])/g, ' $1')}</TableHead>
                     ))}
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -334,8 +334,8 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     <TableRow key={role.id}>
                       <TableCell className="font-medium">{role.name}</TableCell>
                       {permissionKeys.map(key => (
-                        <TableCell key={key}>
-                          <CrudPermissions permissions={(role.permissions as any)[key]} />
+                        <TableCell key={key} className="text-center">
+                          <CrudPermissions permissions={(role.permissions as any)?.[key]} />
                         </TableCell>
                       ))}
                       <TableCell className="text-right">
