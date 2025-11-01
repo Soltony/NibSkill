@@ -70,3 +70,26 @@ export async function updateProduct(id: string, values: z.infer<typeof productSc
     return { success: false, message: 'Failed to update product.' }
   }
 }
+
+export async function deleteProduct(id: string) {
+  try {
+    // Check if any courses are associated with this product
+    const associatedCourses = await prisma.course.count({
+      where: { productId: id },
+    });
+
+    if (associatedCourses > 0) {
+      return { success: false, message: 'Cannot delete product. It is currently associated with one or more courses.' };
+    }
+
+    await prisma.product.delete({
+      where: { id },
+    });
+
+    revalidatePath('/admin/products');
+    return { success: true, message: 'Product deleted successfully.' };
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    return { success: false, message: 'Failed to delete product.' };
+  }
+}

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card"
 import { AddProductDialog } from "@/components/add-product-dialog"
 import { EditProductDialog } from "@/components/edit-product-dialog"
+import { DeleteProductDialog } from "@/components/delete-product-dialog"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
 
@@ -67,8 +68,8 @@ export default async function ProductManagementPage() {
                 </TableHead>
                 <TableHead>Product Name</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
+                <TableHead className="text-right">
+                  Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -88,10 +89,20 @@ export default async function ProductManagementPage() {
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.description}</TableCell>
                   <TableCell className="text-right">
-                    <EditProductDialog product={product} />
+                    <div className="flex justify-end gap-2">
+                      <EditProductDialog product={product} />
+                      <DeleteProductDialog product={product} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
+               {products.length === 0 && (
+                <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                        No products have been created yet.
+                    </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
