@@ -155,9 +155,12 @@ export function CertificateClient({ template, path, user, completionDate }: Cert
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
-                    body > div > div > main {
-                        padding: 0;
-                        margin: 0;
+                    main {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                    }
+                    div[data-sidebar="sidebar"], header {
+                        display: none !important;
                     }
                     .print-hidden {
                         display: none;
