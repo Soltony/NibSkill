@@ -25,13 +25,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -43,7 +36,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import {
   AlertDialog,
@@ -59,7 +52,7 @@ import { Switch } from "@/components/ui/switch"
 import { AddFieldDialog } from "@/components/add-field-dialog"
 import { AddRoleDialog } from "@/components/add-role-dialog"
 import { EditRoleDialog } from "@/components/edit-role-dialog"
-import { updateUserRole, registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField } from "@/app/actions/settings-actions"
+import { registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField, deleteUser } from "@/app/actions/settings-actions"
 import { Badge } from "@/components/ui/badge"
 import { AddDistrictDialog } from "@/components/add-district-dialog"
 import { EditDistrictDialog, DeleteDistrictButton } from "@/components/edit-district-dialog"
@@ -67,6 +60,8 @@ import { AddBranchDialog } from "@/components/add-branch-dialog"
 import { EditBranchDialog, DeleteBranchButton } from "@/components/edit-branch-dialog"
 import { AddDepartmentDialog } from "@/components/add-department-dialog"
 import { EditDepartmentDialog, DeleteDepartmentButton } from "@/components/edit-department-dialog"
+import { EditUserDialog } from "@/components/edit-user-dialog"
+import { DeleteUserDialog } from "@/components/delete-user-dialog"
 
 type UserWithRole = User & { role: RoleType };
 type LoginHistoryWithUser = LoginHistory & { user: User };
@@ -121,11 +116,17 @@ type SettingsTabsProps = {
     departments: Department[];
 }
 
+const USERS_PER_PAGE = 10;
+
 export function SettingsTabs({ users, roles, registrationFields, loginHistory, districts, branches, departments }: SettingsTabsProps) {
   const [roleToDelete, setRoleToDelete] = useState<RoleType | null>(null);
   const { toast } = useToast()
-
+  const [currentPage, setCurrentPage] = useState(1);
   const [fieldToDelete, setFieldToDelete] = useState<RegistrationField | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+  const totalPages = Math.ceil(users.length / USERS_PER_PAGE);
+  const paginatedUsers = users.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE);
 
   const registrationFieldsForm = useForm<z.infer<typeof registrationFieldsSchema>>({
     resolver: zodResolver(registrationFieldsSchema),
@@ -147,15 +148,6 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
             description: result.message,
             variant: "destructive"
         })
-    }
-  }
-
-  const handleRoleChange = async (userId: string, newRoleId: string) => {
-    const result = await updateUserRole({ userId, roleId: newRoleId });
-    if (result.success) {
-        toast({ title: "User role updated" })
-    } else {
-        toast({ title: "Error", description: result.message, variant: "destructive" });
     }
   }
 
@@ -222,6 +214,21 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     }
   };
 
+  const handleConfirmDeleteUser = async () => {
+    if (userToDelete) {
+        const result = await deleteUser(userToDelete.id);
+        if (result.success) {
+            toast({
+                title: "User Deleted",
+                description: "The user has been successfully deleted.",
+            });
+        } else {
+            toast({ title: "Error", description: result.message, variant: "destructive" });
+        }
+        setUserToDelete(null);
+    }
+  }
+
 
   const permissionKeys = (roles[0]?.permissions && Object.keys(roles[0].permissions as object)) as (keyof RoleType['permissions'])[] || [];
 
@@ -241,7 +248,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>
-              <CardDescription>Assign roles to users in the system.</CardDescription>
+              <CardDescription>Edit, delete, and assign roles to users in the system.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -250,35 +257,53 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
+                  {paginatedUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={user.role.id}
-                          onValueChange={(newRoleId) =>
-                            handleRoleChange(user.id, newRoleId)
-                          }
-                        >
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roles.map(role => (
-                                <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <TableCell>{user.role.name}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Actions</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <EditUserDialog user={user} roles={roles}>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit</DropdownMenuItem>
+                                </EditUserDialog>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onSelect={() => setUserToDelete(user)} className="text-destructive">
+                                    Delete
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </CardContent>
+            <CardFooter className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                    Showing {Math.min((currentPage - 1) * USERS_PER_PAGE + 1, users.length)} to {Math.min(currentPage * USERS_PER_PAGE, users.length)} of {users.length} users.
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>
+                        Previous
+                    </Button>
+                    <span className="text-sm font-medium">{currentPage} / {totalPages > 0 ? totalPages : 1}</span>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages || totalPages === 0}>
+                        Next
+                    </Button>
+                </div>
+            </CardFooter>
           </Card>
         </TabsContent>
 
@@ -411,18 +436,11 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Role</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {roles.map(role => (
-                                <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <EditUserDialog user={{} as User} roles={roles}>
+                            <FormControl>
+                                <Input value={field.value} readOnly className="hidden"/>
+                            </FormControl>
+                        </EditUserDialog>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -611,6 +629,13 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DeleteUserDialog
+        user={userToDelete}
+        open={!!userToDelete}
+        onOpenChange={(open) => !open && setUserToDelete(null)}
+        onConfirm={handleConfirmDeleteUser}
+      />
     </>
   )
 }
