@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText } from "lucide-react"
+import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText, MoveLeft } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import prisma from "@/lib/db"
@@ -56,6 +56,12 @@ export default async function ProfilePage() {
 
   return (
     <div className="space-y-8">
+        <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard">
+                <MoveLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+            </Link>
+        </Button>
        <div className="flex items-center gap-6">
         <Avatar className="h-24 w-24 border-4 border-primary">
           <AvatarImage src={currentUser.avatarUrl ?? ''} alt={currentUser.name} />

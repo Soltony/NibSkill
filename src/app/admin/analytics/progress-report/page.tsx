@@ -3,6 +3,9 @@ import prisma from "@/lib/db"
 import { ProgressReportClient } from "./progress-report-client"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { MoveLeft } from "lucide-react"
 
 async function getProgressReportData(trainingProviderId: string) {
   const users = await prisma.user.findMany({
@@ -81,12 +84,20 @@ export default async function ProgressReportPage() {
   const { reportData, courses, departments, districts, branches } = await getProgressReportData(session.trainingProviderId)
   
   return (
-    <ProgressReportClient
-        reportData={reportData}
-        allCourses={courses}
-        departments={departments}
-        districts={districts}
-        allBranches={branches}
-    />
+    <div className="space-y-8">
+      <Button asChild variant="outline" size="sm">
+        <Link href="/admin/analytics">
+            <MoveLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+        </Link>
+      </Button>
+      <ProgressReportClient
+          reportData={reportData}
+          allCourses={courses}
+          departments={departments}
+          districts={districts}
+          allBranches={branches}
+      />
+    </div>
   )
 }

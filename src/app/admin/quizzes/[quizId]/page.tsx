@@ -2,6 +2,9 @@
 import prisma from "@/lib/db";
 import { notFound } from "next/navigation";
 import { QuizEditor } from "./quiz-editor-client";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { MoveLeft } from "lucide-react";
 
 async function getQuizData(quizId: string) {
     const quiz = await prisma.quiz.findUnique({
@@ -30,5 +33,15 @@ export default async function ManageQuizPage({ params }: { params: { quizId: str
         notFound();
     }
     
-    return <QuizEditor quiz={quiz} courseTitle={quiz.course?.title || 'Unknown'} />;
+    return (
+        <div className="space-y-8">
+            <Button asChild variant="outline" size="sm">
+                <Link href="/admin/quizzes">
+                    <MoveLeft className="mr-2 h-4 w-4" />
+                    Back to Quizzes
+                </Link>
+            </Button>
+            <QuizEditor quiz={quiz} courseTitle={quiz.course?.title || 'Unknown'} />
+        </div>
+    );
 }

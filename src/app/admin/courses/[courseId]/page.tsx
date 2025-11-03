@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { CourseDetailAdminClient } from './course-detail-admin-client';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { MoveLeft } from 'lucide-react';
 
 async function getCourseData(courseId: string) {
   const course = await prisma.course.findUnique({
@@ -62,9 +65,17 @@ export default async function CourseDetailAdminPage({ params }: { params: { cour
 
 
   return (
-    <CourseDetailAdminClient 
-        initialCourse={data.course}
-        initialProgress={totalUsersWithProgress > 0 ? 50 : 0} // Mock progress for admin
-    />
+    <div className="space-y-8">
+        <Button asChild variant="outline" size="sm">
+            <Link href="/admin/courses/list">
+                <MoveLeft className="mr-2 h-4 w-4" />
+                Back to Courses
+            </Link>
+        </Button>
+        <CourseDetailAdminClient 
+            initialCourse={data.course}
+            initialProgress={totalUsersWithProgress > 0 ? 50 : 0} // Mock progress for admin
+        />
+    </div>
   );
 }

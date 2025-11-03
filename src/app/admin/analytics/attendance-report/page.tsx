@@ -3,6 +3,9 @@ import prisma from "@/lib/db"
 import { AttendanceReportClient } from "./attendance-report-client"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { MoveLeft } from "lucide-react"
 
 async function getAttendanceReportData(trainingProviderId: string) {
   const sessions = await prisma.liveSession.findMany({
@@ -61,12 +64,20 @@ export default async function AttendanceReportPage() {
   const { sessions, users, departments, districts, branches } = await getAttendanceReportData(session.trainingProviderId)
   
   return (
-    <AttendanceReportClient
-        sessions={sessions}
-        users={users}
-        departments={departments}
-        districts={districts}
-        branches={branches}
-    />
+    <div className="space-y-8">
+      <Button asChild variant="outline" size="sm">
+        <Link href="/admin/analytics">
+            <MoveLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+        </Link>
+      </Button>
+      <AttendanceReportClient
+          sessions={sessions}
+          users={users}
+          departments={departments}
+          districts={districts}
+          branches={branches}
+      />
+    </div>
   )
 }
