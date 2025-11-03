@@ -27,13 +27,13 @@ export default function SuperAdminLoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
-    const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+    const phoneNumber = (form.elements.namedItem('phoneNumber') as HTMLInputElement).value;
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
 
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ phoneNumber, password }),
     });
 
     const data = await response.json();
@@ -66,13 +66,12 @@ export default function SuperAdminLoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="super@example.com"
-                defaultValue="super@nibtraining.com"
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                placeholder="e.g. 251912345678"
                 required
               />
             </div>

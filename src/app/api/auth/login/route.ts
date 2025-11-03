@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
+  phoneNumber: z.string().optional(),
   password: z.string().optional(),
 });
 
@@ -62,14 +63,14 @@ export async function POST(request: NextRequest) {
       if (!validation.success) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid login data.'] }, { status: 400 });
       }
-      const { email, password } = validation.data;
+      const { phoneNumber, password } = validation.data;
       
-      if (!email || !password) {
-        return NextResponse.json({ isSuccess: false, errors: ['Email and password are required.'] }, { status: 400 });
+      if (!phoneNumber || !password) {
+        return NextResponse.json({ isSuccess: false, errors: ['Phone number and password are required.'] }, { status: 400 });
       }
 
       user = await prisma.user.findUnique({
-        where: { email },
+        where: { phoneNumber },
         include: { role: true },
       });
 

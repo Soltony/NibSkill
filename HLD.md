@@ -38,7 +38,7 @@ The NIB Training Platform is built on a modern, serverless web architecture that
 | **Database**      | PostgreSQL                                        | A powerful, open-source relational database.                                   |
 | **ORM**           | Prisma                                            | Provides type-safe database access and simplifies data modeling.               |
 | **Authentication**| JWT (Jose), bcrypt                                | Secure, stateless session management using JSON Web Tokens.                    |
-| **Deployment**    | Serverless Web Hosting (e.g., Vercel, App Hosting)| A managed, serverless platform for deploying modern web apps.                  |
+| **Deployment**    | Serverless Web Hosting (e.g., Vercel)             | A managed, serverless platform for deploying modern web apps.                  |
 
 ---
 
@@ -78,7 +78,7 @@ The application is broken down into several logical modules:
 ## 5. Data Flow
 
 ### 5.1 User Login Data Flow
-1.  **User** submits email/password to the Login Page.
+1.  **User** submits phone number/password to the Login Page.
 2.  **Client** sends a POST request to `/api/auth/login`.
 3.  **API Route** validates credentials against the `User` table in the database.
 4.  If valid, a **JWT** is generated and set as a secure, HTTP-only cookie.

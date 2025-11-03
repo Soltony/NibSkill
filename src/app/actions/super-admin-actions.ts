@@ -26,11 +26,16 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
 
         const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPassword, adminPhoneNumber } = validatedFields.data;
 
-        const existingUser = await prisma.user.findUnique({
-            where: { email: adminEmail }
+        const existingUser = await prisma.user.findFirst({
+            where: { 
+                OR: [
+                    { email: adminEmail },
+                    { phoneNumber: adminPhoneNumber }
+                ]
+             }
         });
         if (existingUser) {
-            return { success: false, message: "A user with this email already exists." };
+            return { success: false, message: "A user with this email or phone number already exists." };
         }
 
         const providerAdminRole = await prisma.role.findFirst({

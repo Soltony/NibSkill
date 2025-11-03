@@ -152,6 +152,17 @@ export function AddProviderDialog() {
             </div>
              <FormField
               control={form.control}
+              name="adminPhoneNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Admin Phone Number</FormLabel>
+                  <FormControl><Input type="tel" placeholder="e.g. 2519..." {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
               name="adminEmail"
               render={({ field }) => (
                 <FormItem>
@@ -168,17 +179,6 @@ export function AddProviderDialog() {
                 <FormItem>
                   <FormLabel>Admin Password</FormLabel>
                   <FormControl><Input type="password" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="adminPhoneNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Admin Phone Number</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
