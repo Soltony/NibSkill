@@ -84,6 +84,15 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // --- Create login history record ---
+    await prisma.loginHistory.create({
+        data: {
+            userId: user.id,
+            ipAddress: request.ip,
+            userAgent: request.headers.get('user-agent'),
+        }
+    });
+
     // --- Create session + JWT ---
     const sessionId = randomUUID();
     await prisma.user.update({
