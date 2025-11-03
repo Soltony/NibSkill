@@ -84,15 +84,13 @@ export function AddRoleDialog() {
     const submissionValues = {
         name: values.name,
         permissions: {
-            analytics: values.permissions.dashboard, // Map dashboard to analytics
+            analytics: values.permissions.dashboard,
             products: values.permissions.products,
             courses: values.permissions.courses,
-            // learningPaths is not in old schema, so we omit it or decide on a mapping
             quizzes: values.permissions.quizzes,
-            // grading is not in old schema
             liveSessions: values.permissions.liveSessions,
-            users: values.permissions.settings, // Map settings to users
-            staff: values.permissions.settings // Map settings to staff as well, or handle differently
+            users: values.permissions.settings,
+            staff: values.permissions.settings,
         }
     };
 
