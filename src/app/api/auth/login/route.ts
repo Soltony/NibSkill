@@ -1,4 +1,3 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -11,6 +10,7 @@ const loginSchema = z.object({
   email: z.string().email().optional(),
   phoneNumber: z.string().optional(),
   password: z.string().optional(),
+  loginAs: z.enum(['admin', 'staff']).optional(),
 });
 
 const getJwtSecret = () => {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       if (!validation.success) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid login data.'] }, { status: 400 });
       }
-      const { phoneNumber, password } = validation.data;
+      const { phoneNumber, password, loginAs } = validation.data;
       
       if (!phoneNumber || !password) {
         return NextResponse.json({ isSuccess: false, errors: ['Phone number and password are required.'] }, { status: 400 });
@@ -81,6 +81,12 @@ export async function POST(request: NextRequest) {
       const isValid = await bcrypt.compare(password, user.password);
       if (!isValid) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+      }
+
+      // Role-based access check
+      const roleName = user.role.name.toLowerCase();
+      if (loginAs === 'admin' && roleName.includes('staff')) {
+        return NextResponse.json({ isSuccess: false, errors: ["You do not have permission to access the admin area."] }, { status: 403 });
       }
     }
     
@@ -125,9 +131,10 @@ export async function POST(request: NextRequest) {
 
     // --- Redirect by role ---
     const roleName = user.role.name.toLowerCase();
-    let redirectTo = '/dashboard';
-    if (roleName.includes('super')) redirectTo = '/super-admin';
-    else if (!roleName.includes('staff')) redirectTo = '/admin/analytics';
+    let redirectTo = '/dashboard'; // Default for staff/members
+    if (!roleName.includes('staff')) {
+      redirectTo = '/admin/analytics'; // For admins/super-admins
+    }
 
     return NextResponse.json({
       isSuccess: true,

@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useRouter } from 'next/navigation';
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -16,13 +15,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push('/admin/courses');
+    const form = e.target as HTMLFormElement;
+    const phoneNumber = (form.elements.namedItem('phoneNumber') as HTMLInputElement).value;
+    const password = (form.elements.namedItem('password') as HTMLInputElement).value;
+
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phoneNumber, password, loginAs: 'admin' }),
+    });
+
+    const data = await response.json();
+
+    if (data.isSuccess) {
+      toast({
+        title: 'Login Successful',
+        description: 'Welcome back, Admin!',
+      });
+      router.push(data.redirectTo || '/admin/analytics');
+    } else {
+      toast({
+        title: 'Login Failed',
+        description: data.errors?.[0] || 'Invalid credentials or not an admin.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -38,23 +65,40 @@ export default function AdminLoginPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <Input 
-                id="email" 
-                type="email" 
-                placeholder="admin@company.com" 
-                defaultValue="admin@nibtraining.com"
+                id="phoneNumber" 
+                name="phoneNumber"
+                type="tel" 
+                placeholder="e.g. 2519..." 
                 required 
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" defaultValue="skillup123" required />
+              <div className="relative">
+                <Input 
+                  id="password"
+                  name="password" 
+                  type={showPassword ? 'text' : 'password'} 
+                  required 
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full">
-              Sign In
+              Sign In as Admin
             </Button>
             <Button variant="link" asChild className="text-xs">
                 <Link href="/login">Back to role selection</Link>
