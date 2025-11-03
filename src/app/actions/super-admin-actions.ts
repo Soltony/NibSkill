@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { roles } from '@/lib/data'
 
 const formSchema = z.object({
   name: z.string().min(2, "Provider name is required."),
@@ -46,8 +47,11 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
         }
 
         const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        
+        const defaultAdminRolePermissions = roles.find(r => r.name === 'Admin')?.permissions;
+        const defaultStaffRolePermissions = roles.find(r => r.name === 'Staff')?.permissions;
 
-        await prisma.trainingProvider.create({
+        const newProvider = await prisma.trainingProvider.create({
             data: {
                 name,
                 address,
@@ -61,6 +65,12 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
                         roleId: providerAdminRole.id,
                         avatarUrl: `https://picsum.photos/seed/${adminEmail}/100/100`,
                     }
+                },
+                roles: {
+                    create: [
+                        { name: 'Admin', permissions: defaultAdminRolePermissions || {} },
+                        { name: 'Staff', permissions: defaultStaffRolePermissions || {} },
+                    ]
                 }
             }
         });
@@ -104,3 +114,4 @@ export async function updateTrainingProvider(id: string, values: z.infer<typeof 
         return { success: false, message: "Failed to update provider." };
     }
 }
+
