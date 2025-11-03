@@ -120,7 +120,7 @@ type SettingsTabsProps = {
 const USERS_PER_PAGE = 10;
 
 const permissionKeys = [
-  "courses", "users", "analytics", "products", "quizzes", "staff", "liveSessions"
+  "dashboard", "products", "courses", "approvals", "learningPaths", "quizzes", "grading", "liveSessions", "reports", "certificate", "settings"
 ] as const;
 
 
@@ -179,7 +179,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
 
   const handleConfirmDelete = async () => {
     if (roleToDelete) {
-      if (roleToDelete.name === 'Admin' || roleToDelete.name === 'Staff') {
+      if (roleToDelete.name === 'Admin' || roleToDelete.name === 'Staff' || roleToDelete.name === 'Super Admin' || roleToDelete.name === 'Training Provider') {
         toast({
           title: "Cannot Delete Core Role",
           description: `The "${roleToDelete.name}" role is essential to the application and cannot be deleted.`,
@@ -234,6 +234,8 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
         setUserToDelete(null);
     }
   }
+
+  const filteredRoles = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider');
 
   return (
     <>
@@ -332,7 +334,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {roles.map((role) => (
+                  {filteredRoles.map((role) => (
                     <TableRow key={role.id}>
                       <TableCell className="font-medium">{role.name}</TableCell>
                       {permissionKeys.map(key => (
