@@ -62,7 +62,7 @@ import { AddDepartmentDialog } from "@/components/add-department-dialog"
 import { EditDepartmentDialog, DeleteDepartmentButton } from "@/components/edit-department-dialog"
 import { EditUserDialog } from "@/components/edit-user-dialog"
 import { DeleteUserDialog } from "@/components/delete-user-dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type UserWithRole = User & { role: RoleType };
 type LoginHistoryWithUser = LoginHistory & { user: User };
