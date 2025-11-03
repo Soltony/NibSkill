@@ -62,7 +62,7 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
     try {
         const submission = await prisma.quizSubmission.findUnique({
             where: { id: submissionId },
-            include: { quiz: true }
+            include: { quiz: { include: { course: true } } }
         });
         
         if (!submission) {
@@ -97,13 +97,24 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             }
         });
 
+        // Create a notification for the user
+        const passed = finalScore >= submission.quiz.passingScore;
+        await prisma.notification.create({
+            data: {
+                userId: submission.userId,
+                title: "Quiz Graded",
+                description: `Your quiz for "${submission.quiz.course.title}" has been graded. You ${passed ? 'passed' : 'failed'} with a score of ${finalScore}%.`,
+            }
+        });
+
         // Revalidate paths to update UI
-        if (finalScore >= submission.quiz.passingScore && submission.quiz.course.hasCertificate) {
+        if (passed && submission.quiz.course.hasCertificate) {
              revalidatePath(`/courses/${submission.quiz.courseId}/certificate`);
         }
         revalidatePath(`/courses/${submission.quiz.courseId}`);
         revalidatePath('/admin/grading');
         revalidatePath('/profile');
+        revalidatePath('/layout'); // To update notification bell
 
         return { success: true };
     } catch (error) {
