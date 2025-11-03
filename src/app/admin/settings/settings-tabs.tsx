@@ -52,7 +52,7 @@ import { Switch } from "@/components/ui/switch"
 import { AddFieldDialog } from "@/components/add-field-dialog"
 import { AddRoleDialog } from "@/components/add-role-dialog"
 import { EditRoleDialog } from "@/components/edit-role-dialog"
-import { registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField, deleteUser } from "@/app/actions/settings-actions"
+import { registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField, updateUser, deleteUser } from "@/app/actions/settings-actions"
 import { Badge } from "@/components/ui/badge"
 import { AddDistrictDialog } from "@/components/add-district-dialog"
 import { EditDistrictDialog, DeleteDistrictButton } from "@/components/edit-district-dialog"
@@ -62,6 +62,7 @@ import { AddDepartmentDialog } from "@/components/add-department-dialog"
 import { EditDepartmentDialog, DeleteDepartmentButton } from "@/components/edit-department-dialog"
 import { EditUserDialog } from "@/components/edit-user-dialog"
 import { DeleteUserDialog } from "@/components/delete-user-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 
 type UserWithRole = User & { role: RoleType };
 type LoginHistoryWithUser = LoginHistory & { user: User };
@@ -437,11 +438,20 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Role</FormLabel>
-                        <EditUserDialog user={{} as User} roles={roles}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                                <Input value={field.value} readOnly className="hidden"/>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a role to assign" />
+                                </SelectTrigger>
                             </FormControl>
-                        </EditUserDialog>
+                            <SelectContent>
+                                {roles.map(role => (
+                                    <SelectItem key={role.id} value={role.id}>
+                                        {role.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -640,3 +650,5 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     </>
   )
 }
+
+    
