@@ -13,10 +13,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { EditLearningPathDialog } from "@/components/edit-learning-path-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { deleteLearningPath } from "@/app/actions/learning-path-actions"
 import type { LearningPath, Course } from "@prisma/client"
+import Link from "next/link"
 
 type LearningPathWithCourses = LearningPath & { courses: { course: Course }[] };
 
@@ -51,10 +51,11 @@ export function LearningPathActions({ path, courses }: LearningPathActionsProps)
     return (
         <>
             <div className="flex justify-end gap-2">
-                <EditLearningPathDialog
-                  learningPath={path}
-                  courses={courses}
-                />
+                <Button asChild variant="outline" size="sm">
+                    <Link href={`/admin/learning-paths/${path.id}/edit`}>
+                        Edit
+                    </Link>
+                </Button>
                  <Button variant="destructive-outline" size="sm" onClick={() => setPathToDelete(path)}>Delete</Button>
             </div>
         
