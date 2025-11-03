@@ -120,7 +120,7 @@ type SettingsTabsProps = {
 const USERS_PER_PAGE = 10;
 
 const permissionKeys = [
-  "dashboard", "products", "courses", "approvals", "learningPaths", "quizzes", "grading", "liveSessions", "reports", "certificate", "settings"
+  "courses", "users", "analytics", "products", "quizzes", "staff", "liveSessions"
 ] as const;
 
 
@@ -326,7 +326,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                   <TableRow>
                     <TableHead className="w-[150px]">Role Name</TableHead>
                     {permissionKeys.map(key => (
-                      <TableHead key={key} className="capitalize text-center">{key.replace(/([A-Z])/g, ' $1')}</TableHead>
+                      <TableHead key={key} className="capitalize text-center">{key}</TableHead>
                     ))}
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -650,5 +650,3 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     </>
   )
 }
-
-    

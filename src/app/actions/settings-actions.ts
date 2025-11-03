@@ -129,17 +129,13 @@ const permissionSchema = z.object({
 const roleSchema = z.object({
   name: z.string().min(2, "Role name must be at least 2 characters."),
   permissions: z.object({
-    dashboard: permissionSchema,
-    products: permissionSchema,
     courses: permissionSchema,
-    approvals: permissionSchema,
-    learningPaths: permissionSchema,
+    users: permissionSchema,
+    analytics: permissionSchema,
+    products: permissionSchema,
     quizzes: permissionSchema,
-    grading: permissionSchema,
+    staff: permissionSchema,
     liveSessions: permissionSchema,
-    reports: permissionSchema,
-    certificate: permissionSchema,
-    settings: permissionSchema,
   })
 })
 
@@ -158,7 +154,7 @@ export async function addRole(values: z.infer<typeof roleSchema>) {
         await prisma.role.create({
             data: {
                 name: validatedFields.data.name,
-                permissions: validatedFields.data.permissions as any,
+                permissions: validatedFields.data.permissions,
                 trainingProviderId: session.trainingProviderId,
             }
         });
@@ -186,7 +182,7 @@ export async function updateRole(id: string, values: z.infer<typeof roleSchema>)
             where: { id },
             data: {
                 name: validatedFields.data.name,
-                permissions: validatedFields.data.permissions as any,
+                permissions: validatedFields.data.permissions,
             }
         });
 
