@@ -1,4 +1,5 @@
 
+
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -80,18 +81,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   ];
 
   const adminNavItems = [
-    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', permission: permissions?.analytics?.r },
+    { href: '/admin/analytics', icon: LayoutDashboard, label: 'Dashboard', permission: permissions?.dashboard?.r },
     { href: '/admin/products', icon: Package, label: 'Products', permission: permissions?.products?.r },
     { href: '/admin/courses/list', icon: BookCopy, label: 'Course Mgmt', permission: permissions?.courses?.r },
     { href: '/admin/courses/approvals', icon: CheckCircle, label: 'Approvals', permission: permissions?.courses?.u },
-    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', permission: permissions?.courses?.r },
+    { href: '/admin/learning-paths', icon: BookMarked, label: 'Learning Paths', permission: permissions?.learningPaths?.r },
     { href: '/admin/quizzes', icon: ClipboardCheck, label: 'Quiz Mgmt', permission: permissions?.quizzes?.r },
-    { href: '/admin/grading', icon: Edit, label: 'Grading', permission: permissions?.quizzes?.u },
+    { href: '/admin/grading', icon: Edit, label: 'Grading', permission: permissions?.grading?.r },
     { href: '/admin/live-sessions', icon: Radio, label: 'Live Sessions', permission: permissions?.liveSessions?.r },
-    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', permission: permissions?.analytics?.r },
-    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report', permission: permissions?.analytics?.r },
-    { href: '/admin/certificate', icon: Award, label: 'Certificate', permission: permissions?.users?.u },
-    { href: '/admin/settings', icon: Settings, label: 'Settings', permission: permissions?.users?.r || permissions?.staff?.r },
+    { href: '/admin/analytics/progress-report', icon: FilePieChart, label: 'Progress Report', permission: permissions?.reports?.r },
+    { href: '/admin/analytics/attendance-report', icon: UserCheck, label: 'Attendance Report', permission: permissions?.reports?.r },
+    { href: '/admin/certificate', icon: Award, label: 'Certificate', permission: permissions?.settings?.u },
+    { href: '/admin/settings', icon: Settings, label: 'Settings', permission: permissions?.settings?.r },
   ];
 
   const superAdminNavItems = [{ href: '/super-admin', icon: ShieldCheck, label: 'Super Admin' }];
@@ -282,3 +283,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+
+    

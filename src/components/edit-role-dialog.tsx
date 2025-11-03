@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -76,7 +77,7 @@ export function EditRoleDialog({ role, children }: EditRoleDialogProps) {
       form.reset({
         name: role.name,
         permissions: {
-            dashboard: currentPerms?.analytics || { c: false, r: false, u: false, d: false },
+            dashboard: currentPerms?.dashboard || { c: false, r: false, u: false, d: false },
             products: currentPerms?.products || { c: false, r: false, u: false, d: false },
             courses: currentPerms?.courses || { c: false, r: false, u: false, d: false },
             learningPaths: currentPerms?.learningPaths || { c: false, r: false, u: false, d: false },
@@ -84,26 +85,14 @@ export function EditRoleDialog({ role, children }: EditRoleDialogProps) {
             grading: currentPerms?.grading || { c: false, r: false, u: false, d: false },
             liveSessions: currentPerms?.liveSessions || { c: false, r: false, u: false, d: false },
             reports: currentPerms?.reports || { c: false, r: false, u: false, d: false },
-            settings: currentPerms?.users || { c: false, r: false, u: false, d: false },
+            settings: currentPerms?.settings || { c: false, r: false, u: false, d: false },
         },
       })
     }
   }, [open, role, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-     const submissionValues = {
-        name: values.name,
-        permissions: {
-            analytics: values.permissions.dashboard,
-            users: values.permissions.settings,
-            staff: values.permissions.settings,
-            products: values.permissions.products,
-            courses: values.permissions.courses,
-            quizzes: values.permissions.quizzes,
-            liveSessions: values.permissions.liveSessions,
-        }
-    };
-    const result = await updateRole(role.id, submissionValues as any);
+    const result = await updateRole(role.id, values);
     if (result.success) {
       toast({
         title: "Role Updated",
@@ -200,3 +189,5 @@ export function EditRoleDialog({ role, children }: EditRoleDialogProps) {
     </Dialog>
   )
 }
+
+    

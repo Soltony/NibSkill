@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react"
@@ -66,35 +67,21 @@ export function AddRoleDialog() {
     defaultValues: {
       name: "",
       permissions: {
-        dashboard: { c: false, r: true, u: false, d: false },
-        products: { c: false, r: true, u: false, d: false },
-        courses: { c: false, r: true, u: false, d: false },
-        learningPaths: { c: false, r: true, u: false, d: false },
-        quizzes: { c: false, r: true, u: false, d: false },
-        grading: { c: false, r: true, u: false, d: false },
-        liveSessions: { c: false, r: true, u: false, d: false },
-        reports: { c: false, r: true, u: false, d: false },
+        dashboard: { c: false, r: false, u: false, d: false },
+        products: { c: false, r: false, u: false, d: false },
+        courses: { c: false, r: false, u: false, d: false },
+        learningPaths: { c: false, r: false, u: false, d: false },
+        quizzes: { c: false, r: false, u: false, d: false },
+        grading: { c: false, r: false, u: false, d: false },
+        liveSessions: { c: false, r: false, u: false, d: false },
+        reports: { c: false, r: false, u: false, d: false },
         settings: { c: false, r: false, u: false, d: false },
       }
     },
   })
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    // Manually construct the payload to match the old schema for the server action
-    const submissionValues = {
-        name: values.name,
-        permissions: {
-            analytics: values.permissions.dashboard,
-            users: values.permissions.settings,
-            staff: values.permissions.settings,
-            products: values.permissions.products,
-            courses: values.permissions.courses,
-            quizzes: values.permissions.quizzes,
-            liveSessions: values.permissions.liveSessions,
-        }
-    };
-
-    const result = await addRole(submissionValues as any);
+    const result = await addRole(values);
     if (result.success) {
       toast({
         title: "Role Added",
@@ -194,3 +181,5 @@ export function AddRoleDialog() {
     </Dialog>
   )
 }
+
+    
