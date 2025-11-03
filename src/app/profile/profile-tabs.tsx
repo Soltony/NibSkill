@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { updateUserProfile, logout } from "@/app/actions/user-actions"
 
 import type { User, Badge, UserBadge, UserCompletedCourse, Course, Department } from "@prisma/client"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
 
 
 type CompletedCourse = UserCompletedCourse & { course: Course }
@@ -97,8 +98,9 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
 
     return (
         <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="overview">Profile Overview</TabsTrigger>
+                <TabsTrigger value="history">My Learning History</TabsTrigger>
                 <TabsTrigger value="edit">Edit Profile</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-6 space-y-6">
@@ -134,42 +136,6 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                     </CardContent>
                     </Card>
                 </div>
-
-                <Card>
-                    <CardHeader>
-                    <CardTitle>My Certificates</CardTitle>
-                    <CardDescription>
-                        All of the certificates you've earned from completing courses or learning paths.
-                    </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                    {completedCourses.some(c => c.course.hasCertificate) ? (
-                        <ul className="space-y-4">
-                            {completedCourses.map(cert => (
-                                cert.course.hasCertificate ? (
-                                    <li key={cert.courseId} className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border p-4">
-                                        <div>
-                                            <p className="font-semibold">{cert.course.title}</p>
-                                            <p className="text-sm text-muted-foreground">Completed on: {new Date(cert.completionDate).toLocaleDateString()}</p>
-                                        </div>
-                                        <Button asChild variant="outline" className="mt-2 sm:mt-0">
-                                            <Link href={`/courses/${cert.courseId}/certificate`}>
-                                                <FileText className="mr-2 h-4 w-4" />
-                                                View Certificate
-                                            </Link>
-                                        </Button>
-                                    </li>
-                                ) : null
-                            ))}
-                        </ul>
-                        ) : (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <p>No certificates earned yet. Complete a course that offers a certificate to see it here!</p>
-                        </div>
-                        )}
-                    </CardContent>
-                </Card>
-
                 <Card>
                     <CardHeader>
                     <CardTitle>My Badges</CardTitle>
@@ -189,6 +155,50 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                             <p>No badges earned yet. Keep learning to collect them!</p>
                         </div>
                     )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="history" className="mt-6 space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Completed Courses</CardTitle>
+                        <CardDescription>A record of all the courses you have successfully completed.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Course</TableHead>
+                                    <TableHead>Completed On</TableHead>
+                                    <TableHead className="text-right">Score</TableHead>
+                                    <TableHead className="text-right">Certificate</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {completedCourses.length > 0 ? completedCourses.map(c => (
+                                    <TableRow key={c.courseId}>
+                                        <TableCell className="font-medium">{c.course.title}</TableCell>
+                                        <TableCell>{new Date(c.completionDate).toLocaleDateString()}</TableCell>
+                                        <TableCell className="text-right font-semibold text-primary">{c.score}%</TableCell>
+                                        <TableCell className="text-right">
+                                            {c.course.hasCertificate ? (
+                                                <Button asChild variant="link">
+                                                    <Link href={`/courses/${c.courseId}/certificate`}>View</Link>
+                                                </Button>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">N/A</span>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">
+                                            You haven't completed any courses yet.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </TabsContent>
