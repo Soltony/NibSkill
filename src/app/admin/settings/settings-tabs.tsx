@@ -447,7 +447,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                {roles.map(role => (
+                                {filteredRoles.map(role => (
                                     <SelectItem key={role.id} value={role.id}>
                                         {role.name}
                                     </SelectItem>
