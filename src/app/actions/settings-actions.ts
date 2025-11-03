@@ -33,6 +33,41 @@ export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema
     }
 }
 
+const updateUserSchema = z.object({
+  name: z.string().min(2, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  roleId: z.string({ required_error: "A role is required." }),
+  phoneNumber: z.string().optional(),
+})
+
+export async function updateUser(userId: string, values: z.infer<typeof updateUserSchema>) {
+    try {
+        const validatedFields = updateUserSchema.safeParse(values);
+        if (!validatedFields.success) {
+            return { success: false, message: 'Invalid data provided.' };
+        }
+        await prisma.user.update({
+            where: { id: userId },
+            data: validatedFields.data
+        });
+
+        revalidatePath('/admin/settings');
+        return { success: true, message: 'User updated successfully.' };
+    } catch (error) {
+        console.error("Error updating user:", error);
+         if ((error as any).code === 'P2002') {
+             if ((error as any).meta?.target.includes('email')) {
+                return { success: false, message: 'Failed to update user. Email might already be in use.' };
+             }
+             if ((error as any).meta?.target.includes('phoneNumber')) {
+                 return { success: false, message: 'Failed to update user. Phone number might already be in use.' };
+             }
+        }
+        return { success: false, message: 'Failed to update user.' };
+    }
+}
+
+
 const registerUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
@@ -176,6 +211,17 @@ export async function deleteRole(roleId: string) {
             return { success: false, message: 'Cannot delete role as it is still assigned to users.' };
         }
         return { success: false, message: 'Failed to delete role.' };
+    }
+}
+
+export async function deleteUser(userId: string) {
+    try {
+        await prisma.user.delete({ where: { id: userId }});
+        revalidatePath('/admin/settings');
+        return { success: true, message: 'User deleted successfully.' };
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        return { success: false, message: 'Failed to delete user.' };
     }
 }
 
