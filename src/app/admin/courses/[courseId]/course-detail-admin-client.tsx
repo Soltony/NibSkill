@@ -39,9 +39,10 @@ type CourseWithRelations = Course & {
 type CourseDetailAdminClientProps = {
     initialCourse: CourseWithRelations;
     initialProgress: number;
+    reviewMode?: boolean;
 }
 
-export function CourseDetailAdminClient({ initialCourse, initialProgress }: CourseDetailAdminClientProps) {
+export function CourseDetailAdminClient({ initialCourse, initialProgress, reviewMode = false }: CourseDetailAdminClientProps) {
   const userRole = useContext(UserContext);
   
   const [course, setCourse] = useState<CourseWithRelations>(initialCourse);
@@ -71,6 +72,8 @@ export function CourseDetailAdminClient({ initialCourse, initialProgress }: Cour
   const displayImageUrl = course.imageUrl ?? course.product?.imageUrl;
   const displayImageHint = course.imageHint ?? course.product?.imageHint;
   const displayImageDescription = course.imageDescription ?? course.product?.description;
+
+  const canEdit = userRole === 'admin' && !reviewMode;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -103,7 +106,7 @@ export function CourseDetailAdminClient({ initialCourse, initialProgress }: Cour
 
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold font-headline">Course Modules</h2>
-        {userRole === 'admin' && <AddModuleDialog onModuleAdded={handleModuleAdded} courseId={course.id} />}
+        {canEdit && <AddModuleDialog onModuleAdded={handleModuleAdded} courseId={course.id} />}
       </div>
 
         <>
@@ -130,7 +133,7 @@ export function CourseDetailAdminClient({ initialCourse, initialProgress }: Cour
                                   Bookmark
                                 </Button>
                             </FeatureNotImplementedDialog>
-                            {userRole === 'admin' && (
+                            {canEdit && (
                                 <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
                                     <Button variant="ghost" size="sm">
                                         <Pencil className="mr-2 h-4 w-4" />
@@ -147,7 +150,7 @@ export function CourseDetailAdminClient({ initialCourse, initialProgress }: Cour
             {course.modules.length === 0 && (
               <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">
                 <p>No modules have been added to this course yet.</p>
-                {userRole === 'admin' && <p>Click "Add Module" to get started.</p>}
+                {canEdit && <p>Click "Add Module" to get started.</p>}
               </div>
             )}
 

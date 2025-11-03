@@ -29,7 +29,7 @@ export function ApprovalActions({ course }: { course: CourseType }) {
     return (
       <div className="flex justify-end gap-2">
         <Button asChild variant="outline" size="sm">
-            <Link href={`/admin/courses/${course.id}`}>Review</Link>
+            <Link href={`/admin/courses/${course.id}?from=approvals`}>Review</Link>
         </Button>
         <Button onClick={handlePublish} size="sm">Approve</Button>
       </div>

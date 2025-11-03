@@ -46,7 +46,13 @@ async function getCourseData(courseId: string) {
   return { course, completedModules };
 }
 
-export default async function CourseDetailAdminPage({ params }: { params: { courseId: string } }) {
+export default async function CourseDetailAdminPage({ 
+    params,
+    searchParams 
+}: { 
+    params: { courseId: string };
+    searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const session = await getSession();
   const permissions = session?.role.permissions as any;
   if (!session || !permissions?.courses?.r) {
@@ -55,6 +61,7 @@ export default async function CourseDetailAdminPage({ params }: { params: { cour
   
   const { courseId } = params;
   const data = await getCourseData(courseId);
+  const fromApprovals = searchParams.from === 'approvals';
 
   if (!data || !data.course) {
     notFound();
@@ -63,18 +70,20 @@ export default async function CourseDetailAdminPage({ params }: { params: { cour
   // A simplified progress metric for admin view (e.g., based on one user or average)
   const totalUsersWithProgress = new Set(data.completedModules.map(cm => cm.userId)).size;
 
+  const backLink = fromApprovals ? "/admin/courses/approvals" : "/admin/courses/list";
 
   return (
     <div className="space-y-8">
         <Button asChild variant="outline" size="sm">
-            <Link href="/admin/courses/list">
+            <Link href={backLink}>
                 <MoveLeft className="mr-2 h-4 w-4" />
-                Back to Courses
+                Back to {fromApprovals ? 'Approvals' : 'Courses'}
             </Link>
         </Button>
         <CourseDetailAdminClient 
             initialCourse={data.course}
             initialProgress={totalUsersWithProgress > 0 ? 50 : 0} // Mock progress for admin
+            reviewMode={fromApprovals}
         />
     </div>
   );
