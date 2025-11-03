@@ -45,17 +45,19 @@ const formSchema = z.object({
     dashboard: permissionSchema,
     products: permissionSchema,
     courses: permissionSchema,
+    approvals: permissionSchema,
     learningPaths: permissionSchema,
     quizzes: permissionSchema,
     grading: permissionSchema,
     liveSessions: permissionSchema,
     reports: permissionSchema,
+    certificate: permissionSchema,
     settings: permissionSchema,
   })
 })
 
 const permissionAreas = [
-  "dashboard", "products", "courses", "learningPaths", "quizzes", "grading", "liveSessions", "reports", "settings"
+  "dashboard", "products", "courses", "approvals", "learningPaths", "quizzes", "grading", "liveSessions", "reports", "certificate", "settings"
 ] as const;
 
 type EditRoleDialogProps = {
@@ -74,19 +76,29 @@ export function EditRoleDialog({ role, children }: EditRoleDialogProps) {
   useEffect(() => {
     if (open) {
       const currentPerms = role.permissions as any;
+      const defaultPermissions = {
+        dashboard: { c: false, r: false, u: false, d: false },
+        products: { c: false, r: false, u: false, d: false },
+        courses: { c: false, r: false, u: false, d: false },
+        approvals: { c: false, r: false, u: false, d: false },
+        learningPaths: { c: false, r: false, u: false, d: false },
+        quizzes: { c: false, r: false, u: false, d: false },
+        grading: { c: false, r: false, u: false, d: false },
+        liveSessions: { c: false, r: false, u: false, d: false },
+        reports: { c: false, r: false, u: false, d: false },
+        certificate: { c: false, r: false, u: false, d: false },
+        settings: { c: false, r: false, u: false, d: false },
+      };
+
+      for (const area of permissionAreas) {
+        if (currentPerms && currentPerms[area]) {
+          defaultPermissions[area] = currentPerms[area];
+        }
+      }
+
       form.reset({
         name: role.name,
-        permissions: {
-            dashboard: currentPerms?.dashboard || { c: false, r: false, u: false, d: false },
-            products: currentPerms?.products || { c: false, r: false, u: false, d: false },
-            courses: currentPerms?.courses || { c: false, r: false, u: false, d: false },
-            learningPaths: currentPerms?.learningPaths || { c: false, r: false, u: false, d: false },
-            quizzes: currentPerms?.quizzes || { c: false, r: false, u: false, d: false },
-            grading: currentPerms?.grading || { c: false, r: false, u: false, d: false },
-            liveSessions: currentPerms?.liveSessions || { c: false, r: false, u: false, d: false },
-            reports: currentPerms?.reports || { c: false, r: false, u: false, d: false },
-            settings: currentPerms?.settings || { c: false, r: false, u: false, d: false },
-        },
+        permissions: defaultPermissions,
       })
     }
   }, [open, role, form])
@@ -189,5 +201,3 @@ export function EditRoleDialog({ role, children }: EditRoleDialogProps) {
     </Dialog>
   )
 }
-
-    

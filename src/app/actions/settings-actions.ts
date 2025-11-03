@@ -84,60 +84,6 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
     }
 }
 
-const updateUserSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().optional(),
-});
-
-export async function updateUser(userId: string, values: z.infer<typeof updateUserSchema>) {
-    try {
-        const validatedFields = updateUserSchema.safeParse(values);
-        if (!validatedFields.success) {
-            return { success: false, message: 'Invalid data provided.' };
-        }
-        
-        await prisma.user.update({
-            where: { id: userId },
-            data: validatedFields.data
-        });
-
-        revalidatePath('/admin/settings');
-        return { success: true, message: 'User updated successfully.' };
-
-    } catch (error) {
-        console.error("Error updating user:", error);
-        if ((error as any).code === 'P2002') {
-             if ((error as any).meta?.target.includes('email')) {
-                return { success: false, message: 'Failed to update user. Email might already be in use.' };
-             }
-        }
-        return { success: false, message: 'Failed to update user.' };
-    }
-}
-
-export async function deleteUser(userId: string) {
-    try {
-        const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: { select: { name: true } } } });
-
-        if (user?.role.name.toLowerCase() === 'super admin') {
-            return { success: false, message: "Super admin cannot be deleted." };
-        }
-
-        await prisma.user.delete({
-            where: { id: userId }
-        });
-        
-        revalidatePath('/admin/settings');
-        return { success: true, message: 'User deleted successfully.' };
-    } catch (error) {
-        console.error("Error deleting user:", error);
-        return { success: false, message: 'Failed to delete user. They might be associated with other records.' };
-    }
-}
-
-
 const permissionSchema = z.object({
   c: z.boolean(),
   r: z.boolean(),
@@ -151,11 +97,13 @@ const roleSchema = z.object({
     dashboard: permissionSchema,
     products: permissionSchema,
     courses: permissionSchema,
+    approvals: permissionSchema,
     learningPaths: permissionSchema,
     quizzes: permissionSchema,
     grading: permissionSchema,
     liveSessions: permissionSchema,
     reports: permissionSchema,
+    certificate: permissionSchema,
     settings: permissionSchema,
   })
 })
@@ -321,5 +269,3 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
-
-    

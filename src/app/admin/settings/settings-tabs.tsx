@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react"
@@ -118,7 +119,7 @@ type SettingsTabsProps = {
 const USERS_PER_PAGE = 10;
 
 const permissionKeys = [
-  "dashboard", "products", "courses", "learningPaths", "quizzes", "grading", "liveSessions", "reports", "settings"
+  "dashboard", "products", "courses", "approvals", "learningPaths", "quizzes", "grading", "liveSessions", "reports", "certificate", "settings"
 ] as const;
 
 
