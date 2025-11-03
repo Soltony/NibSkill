@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { updateUserProfile, logout } from "@/app/actions/user-actions"
 
 import type { User, Badge, UserBadge, UserCompletedCourse, Course, Department } from "@prisma/client"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 
 type CompletedCourse = UserCompletedCourse & { course: Course }
