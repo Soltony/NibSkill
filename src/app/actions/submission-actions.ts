@@ -14,6 +14,21 @@ export async function createSubmission(data: SubmissionData) {
     try {
         const { userId, quizId, answers } = data;
 
+        const questions = await prisma.question.findMany({
+            where: {
+                quizId: quizId,
+                id: {
+                    in: Object.keys(answers)
+                }
+            },
+            select: {
+                id: true,
+                type: true
+            }
+        });
+
+        const questionTypeMap = new Map(questions.map(q => [q.id, q.type]));
+
         const submission = await prisma.quizSubmission.create({
             data: {
                 userId,
@@ -21,11 +36,13 @@ export async function createSubmission(data: SubmissionData) {
                 status: 'PENDING_REVIEW',
                 answers: {
                     create: Object.entries(answers).map(([questionId, answer]) => {
-                        const isMcOrTf = Array.isArray(answer) || typeof answer === 'string' && answer.startsWith('opt_');
+                        const questionType = questionTypeMap.get(questionId);
+                        const isOptionBased = questionType === 'MULTIPLE_CHOICE' || questionType === 'TRUE_FALSE';
+                        
                         return {
                             questionId,
-                            selectedOptionId: isMcOrTf ? (Array.isArray(answer) ? answer[0] : answer) : undefined,
-                            answerText: !isMcOrTf ? answer as string : undefined,
+                            selectedOptionId: isOptionBased ? (Array.isArray(answer) ? answer[0] : answer as string) : undefined,
+                            answerText: !isOptionBased ? answer as string : undefined,
                         };
                     }),
                 },
@@ -43,6 +60,15 @@ export async function createSubmission(data: SubmissionData) {
 
 export async function gradeSubmission({ submissionId, finalScore }: { submissionId: string, finalScore: number }) {
     try {
+        const submission = await prisma.quizSubmission.findUnique({
+            where: { id: submissionId },
+            include: { quiz: true }
+        });
+        
+        if (!submission) {
+            return { success: false, message: "Submission not found." };
+        }
+
         await prisma.quizSubmission.update({
             where: { id: submissionId },
             data: {
@@ -52,7 +78,30 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             }
         });
         
+        // After grading, if the user passed, record the course completion
+        if (finalScore >= submission.quiz.passingScore) {
+            await prisma.userCompletedCourse.upsert({
+                where: {
+                    userId_courseId: {
+                        userId: submission.userId,
+                        courseId: submission.quiz.courseId,
+                    }
+                },
+                update: {
+                    score: finalScore,
+                    completionDate: new Date(),
+                },
+                create: {
+                    userId: submission.userId,
+                    courseId: submission.quiz.courseId,
+                    score: finalScore,
+                }
+            });
+            revalidatePath(`/courses/${submission.quiz.courseId}`);
+        }
+        
         revalidatePath('/admin/grading');
+        revalidatePath('/profile');
         return { success: true };
     } catch (error) {
         console.error("Error grading submission:", error);
