@@ -13,7 +13,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { AddLearningPathDialog } from "@/components/add-learning-path-dialog"
 import { EditLearningPathDialog } from "@/components/edit-learning-path-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { deleteLearningPath } from "@/app/actions/learning-path-actions"
@@ -21,18 +20,12 @@ import type { LearningPath, Course } from "@prisma/client"
 
 type LearningPathWithCourses = LearningPath & { courses: { course: Course }[] };
 
-type LearningPathClientProps = {
-  paths: LearningPathWithCourses[];
+type LearningPathActionsProps = {
+  path: LearningPathWithCourses;
   courses: Course[];
 }
 
-export function LearningPathClient({ paths, courses }: LearningPathClientProps) {
-  return (
-    <AddLearningPathDialog courses={courses} />
-  )
-}
-
-export function LearningPathActions({ path, courses }: { path: LearningPathWithCourses, courses: Course[]}) {
+export function LearningPathActions({ path, courses }: LearningPathActionsProps) {
     const [pathToDelete, setPathToDelete] = useState<LearningPath | null>(null);
     const { toast } = useToast();
 

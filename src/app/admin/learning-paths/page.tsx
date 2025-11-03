@@ -15,9 +15,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
-import { LearningPathClient, LearningPathActions } from "./learning-path-client"
+import { LearningPathActions } from "./learning-path-client"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { PlusCircle } from "lucide-react"
 
 async function getData(trainingProviderId: string) {
   const learningPaths = await prisma.learningPath.findMany({
@@ -64,7 +67,11 @@ export default async function LearningPathManagementPage() {
               A list of all learning paths in the system.
             </CardDescription>
           </div>
-          <LearningPathClient paths={learningPaths} courses={courses} />
+          <Button asChild>
+            <Link href="/admin/learning-paths/add">
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Path
+            </Link>
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
