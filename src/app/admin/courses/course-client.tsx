@@ -47,7 +47,7 @@ export function CourseClient({ courses, products }: CourseClientProps) {
 
 export function CourseLink({ course }: { course: CourseWithRelations }) {
     return (
-        <Link href={`/admin/courses/${course.id}`} className="hover:underline">
+        <Link href={`/admin/courses/${course.id}`} className="hover:underline text-primary">
             {course.title}
         </Link>
     )
@@ -91,6 +91,9 @@ export function CourseActions({ course, products }: { course: CourseWithRelation
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem asChild>
+                <Link href={`/admin/courses/${course.id}`}>Manage</Link>
+            </DropdownMenuItem>
             <EditCourseDialog course={course} products={products}>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                     Edit
