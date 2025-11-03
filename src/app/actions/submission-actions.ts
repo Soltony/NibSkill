@@ -65,8 +65,8 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             include: { quiz: { include: { course: true } } }
         });
         
-        if (!submission) {
-            return { success: false, message: "Submission not found." };
+        if (!submission || !submission.quiz || !submission.quiz.course) {
+            return { success: false, message: "Submission, quiz, or course not found." };
         }
 
         await prisma.quizSubmission.update({
