@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ isSuccess: false, errors: ['Phone number and password are required.'] }, { status: 400 });
       }
 
-      user = await prisma.user.findUnique({
+      user = await prisma.user.findFirst({
         where: { phoneNumber },
         include: { role: true },
       });
