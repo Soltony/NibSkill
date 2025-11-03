@@ -95,9 +95,7 @@ export default async function CourseApprovalPage() {
                       )}
                     </TableCell>
                     <TableCell className="font-medium">
-                      <Link href={`/admin/courses/${course.id}`} className="hover:underline">
-                        {course.title}
-                      </Link>
+                      {course.title}
                     </TableCell>
                     <TableCell>{course.product?.name}</TableCell>
                     <TableCell className="text-center">
