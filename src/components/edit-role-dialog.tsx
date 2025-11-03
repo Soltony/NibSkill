@@ -95,12 +95,12 @@ export function EditRoleDialog({ role, children }: EditRoleDialogProps) {
         name: values.name,
         permissions: {
             analytics: values.permissions.dashboard,
+            users: values.permissions.settings,
+            staff: values.permissions.settings,
             products: values.permissions.products,
             courses: values.permissions.courses,
             quizzes: values.permissions.quizzes,
             liveSessions: values.permissions.liveSessions,
-            users: values.permissions.settings,
-            staff: values.permissions.settings
         }
     };
     const result = await updateRole(role.id, submissionValues as any);
