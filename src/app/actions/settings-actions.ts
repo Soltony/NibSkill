@@ -129,13 +129,17 @@ const permissionSchema = z.object({
 const roleSchema = z.object({
   name: z.string().min(2, "Role name must be at least 2 characters."),
   permissions: z.object({
-    courses: permissionSchema,
-    users: permissionSchema,
-    analytics: permissionSchema,
+    dashboard: permissionSchema,
     products: permissionSchema,
+    courses: permissionSchema,
+    approvals: permissionSchema,
+    learningPaths: permissionSchema,
     quizzes: permissionSchema,
-    staff: permissionSchema,
+    grading: permissionSchema,
     liveSessions: permissionSchema,
+    reports: permissionSchema,
+    certificate: permissionSchema,
+    settings: permissionSchema,
   })
 })
 
