@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import {
   Accordion,
@@ -12,7 +12,6 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Video, FileText, Presentation, Pencil, Bookmark, Music } from 'lucide-react';
-import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
 import { ModuleContent } from '@/components/module-content';
@@ -40,10 +39,10 @@ type CourseDetailAdminClientProps = {
     initialCourse: CourseWithRelations;
     initialProgress: number;
     reviewMode?: boolean;
+    canEdit: boolean;
 }
 
-export function CourseDetailAdminClient({ initialCourse, initialProgress, reviewMode = false }: CourseDetailAdminClientProps) {
-  const userRole = useContext(UserContext);
+export function CourseDetailAdminClient({ initialCourse, initialProgress, reviewMode = false, canEdit }: CourseDetailAdminClientProps) {
   
   const [course, setCourse] = useState<CourseWithRelations>(initialCourse);
   const [progress, setProgress] = useState(initialProgress);
@@ -73,7 +72,6 @@ export function CourseDetailAdminClient({ initialCourse, initialProgress, review
   const displayImageHint = course.imageHint ?? course.product?.imageHint;
   const displayImageDescription = course.imageDescription ?? course.product?.description;
 
-  const canEdit = userRole === 'admin' && !reviewMode;
 
   return (
     <div className="mx-auto max-w-4xl">

@@ -72,6 +72,8 @@ export default async function CourseDetailAdminPage({
 
   const backLink = fromApprovals ? "/admin/courses/approvals" : "/admin/courses/list";
 
+  const canEdit = permissions?.courses?.u && !fromApprovals;
+
   return (
     <div className="space-y-8">
         <Button asChild variant="outline" size="sm">
@@ -84,6 +86,7 @@ export default async function CourseDetailAdminPage({
             initialCourse={data.course}
             initialProgress={totalUsersWithProgress > 0 ? 50 : 0} // Mock progress for admin
             reviewMode={fromApprovals}
+            canEdit={canEdit}
         />
     </div>
   );
