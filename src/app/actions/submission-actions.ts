@@ -78,30 +78,33 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             }
         });
         
-        // After grading, if the user passed, record the course completion
-        if (finalScore >= submission.quiz.passingScore) {
-            await prisma.userCompletedCourse.upsert({
-                where: {
-                    userId_courseId: {
-                        userId: submission.userId,
-                        courseId: submission.quiz.courseId,
-                    }
-                },
-                update: {
-                    score: finalScore,
-                    completionDate: new Date(),
-                },
-                create: {
+        // Always record the attempt, regardless of whether the user passed or failed.
+        await prisma.userCompletedCourse.upsert({
+            where: {
+                userId_courseId: {
                     userId: submission.userId,
                     courseId: submission.quiz.courseId,
-                    score: finalScore,
                 }
-            });
-            revalidatePath(`/courses/${submission.quiz.courseId}`);
+            },
+            update: {
+                score: finalScore,
+                completionDate: new Date(),
+            },
+            create: {
+                userId: submission.userId,
+                courseId: submission.quiz.courseId,
+                score: finalScore,
+            }
+        });
+
+        // Revalidate paths to update UI
+        if (finalScore >= submission.quiz.passingScore && submission.quiz.course.hasCertificate) {
+             revalidatePath(`/courses/${submission.quiz.courseId}/certificate`);
         }
-        
+        revalidatePath(`/courses/${submission.quiz.courseId}`);
         revalidatePath('/admin/grading');
         revalidatePath('/profile');
+
         return { success: true };
     } catch (error) {
         console.error("Error grading submission:", error);

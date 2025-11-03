@@ -27,7 +27,13 @@ async function getProfileData(userId: string) {
 
     const completedCourses = await prisma.userCompletedCourse.findMany({
         where: { userId: user.id },
-        include: { course: true },
+        include: { 
+            course: {
+                include: {
+                    quiz: true
+                }
+            } 
+        },
         orderBy: { completionDate: 'desc' }
     });
 

@@ -3,7 +3,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText } from "lucide-react"
+import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText, BadgeCheck, BadgeX } from "lucide-react"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -15,11 +15,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { updateUserProfile, logout } from "@/app/actions/user-actions"
 
-import type { User, Badge, UserBadge, UserCompletedCourse, Course, Department } from "@prisma/client"
+import type { User, Badge, UserBadge, UserCompletedCourse, Course, Department, Quiz } from "@prisma/client"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
 
-type CompletedCourse = UserCompletedCourse & { course: Course }
+type CompletedCourse = UserCompletedCourse & { course: Course & { quiz: Quiz | null } }
 type UserWithDepartment = User & { department: Department | null }
 type EarnedBadge = UserBadge & { badge: Badge }
 
@@ -62,11 +63,13 @@ type ProfileTabsProps = {
 
 export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsProps) {
     const { toast } = useToast();
-    const coursesCompletedCount = completedCourses.length;
-    const avgScore = coursesCompletedCount > 0
+    const coursesCompletedCount = completedCourses.filter(c => c.course.quiz && c.score >= c.course.quiz.passingScore).length;
+    
+    const attempts = completedCourses.length;
+    const avgScore = attempts > 0
         ? Math.round(
             completedCourses.reduce((acc, c) => acc + c.score, 0) /
-            coursesCompletedCount
+            attempts
         )
         : 0;
         
@@ -107,12 +110,12 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                  <div className="grid gap-4 md:grid-cols-3">
                     <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Courses Completed</CardTitle>
+                        <CardTitle className="text-sm font-medium">Courses Passed</CardTitle>
                         <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{coursesCompletedCount}</div>
-                        <p className="text-xs text-muted-foreground">Total courses finished.</p>
+                        <p className="text-xs text-muted-foreground">Total courses successfully passed.</p>
                     </CardContent>
                     </Card>
                     <Card>
@@ -122,7 +125,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{avgScore}%</div>
-                        <p className="text-xs text-muted-foreground">Across all completed quizzes.</p>
+                        <p className="text-xs text-muted-foreground">Across all attempts.</p>
                     </CardContent>
                     </Card>
                     <Card>
@@ -161,39 +164,50 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
             <TabsContent value="history" className="mt-6 space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Completed Courses</CardTitle>
-                        <CardDescription>A record of all the courses you have successfully completed.</CardDescription>
+                        <CardTitle>My Assessment History</CardTitle>
+                        <CardDescription>A record of all your quiz attempts, including passes and fails.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Course</TableHead>
-                                    <TableHead>Completed On</TableHead>
-                                    <TableHead className="text-right">Score</TableHead>
+                                    <TableHead>Date of Attempt</TableHead>
+                                    <TableHead className="text-center">Score</TableHead>
+                                    <TableHead className="text-center">Result</TableHead>
                                     <TableHead className="text-right">Certificate</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {completedCourses.length > 0 ? completedCourses.map(c => (
-                                    <TableRow key={c.courseId}>
-                                        <TableCell className="font-medium">{c.course.title}</TableCell>
-                                        <TableCell>{new Date(c.completionDate).toLocaleDateString()}</TableCell>
-                                        <TableCell className="text-right font-semibold text-primary">{c.score}%</TableCell>
-                                        <TableCell className="text-right">
-                                            {c.course.hasCertificate ? (
-                                                <Button asChild variant="link">
-                                                    <Link href={`/courses/${c.courseId}/certificate`}>View</Link>
-                                                </Button>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground">N/A</span>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
+                                {completedCourses.length > 0 ? completedCourses.map(c => {
+                                    const passed = c.course.quiz ? c.score >= c.course.quiz.passingScore : false;
+                                    return (
+                                        <TableRow key={c.courseId + c.completionDate.toISOString()}>
+                                            <TableCell className="font-medium">{c.course.title}</TableCell>
+                                            <TableCell>{new Date(c.completionDate).toLocaleDateString()}</TableCell>
+                                            <TableCell className={cn("text-center font-semibold", passed ? "text-green-600" : "text-destructive")}>{c.score}%</TableCell>
+                                            <TableCell className="text-center">
+                                                {passed ? (
+                                                    <span className="flex items-center justify-center gap-1 text-green-600"><BadgeCheck className="h-4 w-4" /> Passed</span>
+                                                ) : (
+                                                    <span className="flex items-center justify-center gap-1 text-destructive"><BadgeX className="h-4 w-4" /> Failed</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {c.course.hasCertificate && passed ? (
+                                                    <Button asChild variant="link">
+                                                        <Link href={`/courses/${c.courseId}/certificate`}>View</Link>
+                                                    </Button>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">N/A</span>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                }) : (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="h-24 text-center">
-                                            You haven't completed any courses yet.
+                                        <TableCell colSpan={5} className="h-24 text-center">
+                                            You haven't attempted any quizzes yet.
                                         </TableCell>
                                     </TableRow>
                                 )}
