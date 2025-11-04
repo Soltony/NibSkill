@@ -1,3 +1,4 @@
+
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -5,6 +6,7 @@ import { z } from 'zod';
 import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
+import type { Prisma } from '@prisma/client';
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
@@ -84,8 +86,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Role-based access check
-      const roleName = user.role.name.toLowerCase();
-      if (loginAs === 'admin' && roleName.includes('staff')) {
+      const permissions = user.role.permissions as Prisma.JsonObject;
+      const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
+
+      if (loginAs === 'admin' && !hasAdminPermissions) {
         return NextResponse.json({ isSuccess: false, errors: ["You do not have permission to access the admin area."] }, { status: 403 });
       }
     }
@@ -130,9 +134,11 @@ export async function POST(request: NextRequest) {
     const { password: _, ...userWithoutPassword } = user;
 
     // --- Redirect by role ---
-    const roleName = user.role.name.toLowerCase();
+    const permissions = user.role.permissions as Prisma.JsonObject;
+    const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
+
     let redirectTo = '/dashboard'; // Default for staff/members
-    if (!roleName.includes('staff')) {
+    if (hasAdminPermissions) {
       redirectTo = '/admin/analytics'; // For admins/super-admins
     }
 

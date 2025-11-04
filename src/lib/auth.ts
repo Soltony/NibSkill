@@ -38,7 +38,11 @@ export async function getSession() {
         // Fetch the user's current active session ID from the database
         const user = await prisma.user.findUnique({
             where: { id: payload.userId },
-            select: { activeSessionId: true, trainingProviderId: true }
+            select: { 
+                activeSessionId: true, 
+                trainingProviderId: true,
+                role: true, // Fetch the full role object
+            }
         });
 
         // If the user doesn't exist or the session ID in the token doesn't match the one in DB, the session is invalid.
@@ -51,7 +55,7 @@ export async function getSession() {
         // Session is valid, return the payload including the role with permissions
         return {
             id: payload.userId,
-            role: payload.role,
+            role: user.role,
             name: payload.name,
             email: payload.email,
             avatarUrl: payload.avatarUrl,
