@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import { CourseStatus } from "@prisma/client"
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 async function getData(trainingProviderId: string) {
   const courses = await prisma.course.findMany({
@@ -113,16 +114,34 @@ export default async function CourseManagementPage() {
                       {course.modules.length}
                     </TableCell>
                     <TableCell className="text-center">
-                       <Badge 
-                        variant={course.status === 'PUBLISHED' ? 'secondary' : 'outline'}
-                        className={cn(
-                          course.status === 'PUBLISHED' && 'text-green-600 border-green-600',
-                          course.status === 'PENDING' && 'text-amber-600 border-amber-600',
-                          course.status === 'REJECTED' && 'text-destructive border-destructive'
-                        )}
-                      >
-                        {course.status}
-                      </Badge>
+                       {course.status === 'REJECTED' && course.rejectionReason ? (
+                         <TooltipProvider>
+                           <Tooltip>
+                             <TooltipTrigger>
+                               <Badge 
+                                variant="destructive"
+                                className="cursor-help"
+                               >
+                                 REJECTED
+                               </Badge>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>{course.rejectionReason}</p>
+                             </TooltipContent>
+                           </Tooltip>
+                         </TooltipProvider>
+                       ) : (
+                        <Badge 
+                          variant={course.status === 'PUBLISHED' ? 'secondary' : 'outline'}
+                          className={cn(
+                            course.status === 'PUBLISHED' && 'text-green-600 border-green-600',
+                            course.status === 'PENDING' && 'text-amber-600 border-amber-600',
+                            course.status === 'REJECTED' && 'text-destructive border-destructive'
+                          )}
+                        >
+                          {course.status}
+                        </Badge>
+                       )}
                     </TableCell>
                     <TableCell>
                       <CourseActions course={course} products={products} />
