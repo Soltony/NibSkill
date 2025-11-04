@@ -75,7 +75,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/courses', icon: BookCopy, label: 'Courses' },
     { href: '/learning-paths', icon: BookMarked, label: 'Learning Paths' },
     { href: '/live-sessions', icon: Radio, label: 'Live Sessions' },
   ];
