@@ -11,6 +11,7 @@ const quizFormSchema = z.object({
   passingScore: z.coerce.number().min(0, "Passing score must be at least 0.").max(100, "Passing score cannot exceed 100."),
   timeLimit: z.coerce.number().min(0, "Time limit must be a positive number or 0 for no limit."),
   quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"]),
+  maxAttempts: z.coerce.number().min(0, "Max attempts must be a positive number or 0 for unlimited."),
 })
 
 export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
@@ -26,6 +27,7 @@ export async function addQuiz(values: z.infer<typeof quizFormSchema>) {
                 passingScore: validatedFields.data.passingScore,
                 timeLimit: validatedFields.data.timeLimit,
                 quizType: validatedFields.data.quizType as QuizType,
+                maxAttempts: validatedFields.data.maxAttempts,
             }
         });
 
@@ -54,6 +56,7 @@ const questionSchema = z.object({
 const updateQuizFormSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
   timeLimit: z.coerce.number().min(0),
+  maxAttempts: z.coerce.number().min(0),
   quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"]),
   questions: z.array(
     z.object({
@@ -79,13 +82,13 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
             return { success: false, message: "Invalid data provided. Check question and option fields." }
         }
 
-        const { passingScore, timeLimit, quizType, questions: incomingQuestions } = validatedFields.data;
+        const { passingScore, timeLimit, quizType, questions: incomingQuestions, maxAttempts } = validatedFields.data;
         const requiresManualGrading = quizType === 'CLOSED_LOOP' && incomingQuestions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
 
         await prisma.$transaction(async (tx) => {
             await tx.quiz.update({
                 where: { id: quizId },
-                data: { passingScore, timeLimit, quizType, requiresManualGrading },
+                data: { passingScore, timeLimit, quizType, requiresManualGrading, maxAttempts },
             });
 
             const existingQuestionIds = (await tx.question.findMany({ where: { quizId }, select: { id: true } })).map(q => q.id);

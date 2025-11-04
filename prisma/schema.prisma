@@ -1,3 +1,4 @@
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -142,6 +143,7 @@ model Quiz {
   id                    String           @id @default(cuid())
   passingScore          Int
   timeLimit             Int // in minutes, 0 for no limit
+  maxAttempts           Int              @default(0) // 0 for unlimited
   quizType              QuizType
   requiresManualGrading Boolean          @default(false)
   courseId              String           @unique
@@ -267,7 +269,7 @@ model UserCompletedCourse {
   completionDate DateTime @default(now())
   score          Int
 
-  @@id([userId, courseId])
+  @@id([userId, courseId, completionDate])
 }
 
 model UserCompletedModule {

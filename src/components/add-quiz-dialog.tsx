@@ -42,6 +42,7 @@ const formSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
   passingScore: z.coerce.number().min(0, "Passing score must be at least 0.").max(100, "Passing score cannot exceed 100."),
   timeLimit: z.coerce.number().min(0, "Time limit must be a positive number or 0 for no limit."),
+  maxAttempts: z.coerce.number().min(0, "Max attempts must be a positive number or 0 for unlimited."),
   quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"], { required_error: "Please select a quiz type."}),
 })
 
@@ -59,6 +60,7 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
     defaultValues: {
       passingScore: 80,
       timeLimit: 0,
+      maxAttempts: 3,
       quizType: "CLOSED_LOOP"
     }
   })
@@ -74,7 +76,7 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
         description: `A new quiz has been created. You can now add questions.`,
       })
       setOpen(false)
-      form.reset({ passingScore: 80, timeLimit: 0, courseId: undefined, quizType: "CLOSED_LOOP" })
+      form.reset({ passingScore: 80, timeLimit: 0, courseId: undefined, quizType: "CLOSED_LOOP", maxAttempts: 3 })
     } else {
         toast({
             title: "Error",
@@ -162,7 +164,7 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
                     </FormItem>
                 )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="passingScore"
@@ -184,6 +186,19 @@ export function AddQuizDialog({ courses, quizzes }: AddQuizDialogProps) {
                     <FormLabel>Time Limit (min)</FormLabel>
                     <FormControl>
                       <Input type="number" min="0" placeholder="0 for none" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="maxAttempts"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Max Attempts</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" placeholder="0 for unlimited" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

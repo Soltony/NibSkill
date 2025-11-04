@@ -46,6 +46,7 @@ const questionSchema = z.object({
 const formSchema = z.object({
   passingScore: z.coerce.number().min(0).max(100),
   timeLimit: z.coerce.number().min(0),
+  maxAttempts: z.coerce.number().min(0),
   quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"], { required_error: "Required" }),
   questions: z.array(questionSchema),
 })
@@ -88,6 +89,7 @@ export function QuizEditor({ quiz, courseTitle }: QuizEditorProps) {
     form.reset({
       passingScore: quiz.passingScore,
       timeLimit: quiz.timeLimit ?? 0,
+      maxAttempts: quiz.maxAttempts ?? 0,
       quizType: quiz.quizType,
       questions: questionsWithCorrectAnswerHandling,
     })
@@ -382,19 +384,34 @@ export function QuizEditor({ quiz, courseTitle }: QuizEditorProps) {
                                     </FormItem>
                                 )}
                             />
-                            <FormField
-                                control={form.control}
-                                name="timeLimit"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Time Limit (minutes)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" min="0" placeholder="0 for none" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                             <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="timeLimit"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Time Limit (min)</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" min="0" placeholder="0 for none" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="maxAttempts"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Max Attempts</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" min="0" placeholder="0 for unlimited" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
                              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                                 {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
                             </Button>
