@@ -22,6 +22,7 @@ import { CourseClient, CourseLink, CourseActions } from "../course-client"
 import { cn } from "@/lib/utils"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
+import { CourseStatus } from "@prisma/client"
 
 async function getData(trainingProviderId: string) {
   const courses = await prisma.course.findMany({

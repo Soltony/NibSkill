@@ -38,7 +38,7 @@ import { useToast } from "@/hooks/use-toast"
 import { updateCourse } from "@/app/actions/course-actions"
 import type { Course, Product } from "@prisma/client"
 import { Switch } from "./ui/switch"
-import { Currency } from "@prisma/client"
+import { Currency, CourseStatus } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -48,7 +48,7 @@ const formSchema = z.object({
   price: z.coerce.number().optional(),
   currency: z.nativeEnum(Currency).optional(),
   hasCertificate: z.boolean().default(false),
-  status: z.enum(['PENDING', 'PUBLISHED']).optional(),
+  status: z.nativeEnum(CourseStatus).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -77,7 +77,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
       price: course.price ?? undefined,
       currency: course.currency ?? undefined,
       hasCertificate: course.hasCertificate,
-      status: course.status as 'PENDING' | 'PUBLISHED' | undefined,
+      status: course.status as CourseStatus | undefined,
     },
   })
   
@@ -93,7 +93,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
         price: course.price ?? undefined,
         currency: course.currency ?? undefined,
         hasCertificate: course.hasCertificate,
-        status: course.status as 'PENDING' | 'PUBLISHED' | undefined,
+        status: course.status as CourseStatus | undefined,
       })
     }
   }, [open, course, form])
@@ -262,25 +262,21 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value ?? undefined} disabled={course.status === 'PENDING'}>
+                    <Select onValueChange={field.onChange} value={field.value ?? undefined} disabled={course.status === 'PENDING' || course.status === 'REJECTED'}>
                         <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a status" />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {course.status === 'PENDING' && <SelectItem value="PENDING">Pending</SelectItem>}
-                            {course.status === 'PUBLISHED' && (
-                                <>
-                                    <SelectItem value="PUBLISHED">Published</SelectItem>
-                                    <SelectItem value="PENDING">Pending</SelectItem>
-                                </>
-                            )}
+                            <SelectItem value={CourseStatus.PENDING}>Pending</SelectItem>
+                            <SelectItem value={CourseStatus.PUBLISHED}>Published</SelectItem>
+                            <SelectItem value={CourseStatus.REJECTED}>Rejected</SelectItem>
                         </SelectContent>
                     </Select>
-                    {course.status === 'PENDING' && (
+                    {(course.status === 'PENDING' || course.status === 'REJECTED') && (
                         <FormDescription>
-                            Approve this course from the "Approvals" page to publish it.
+                            Change status via the "Approvals" page or by re-submitting.
                         </FormDescription>
                     )}
                   <FormMessage />
