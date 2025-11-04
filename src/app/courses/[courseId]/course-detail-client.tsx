@@ -108,6 +108,9 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   }
   
   const handleModuleCompletion = async (moduleId: string, completed: boolean) => {
+    // Prevent re-toggling if already in the desired state
+    if (completed === localCompletedModules.has(moduleId)) return;
+    
     // Optimistic UI update
     const newCompletions = new Set(localCompletedModules);
     if (completed) {
@@ -244,51 +247,57 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         ) : (
         <>
             <Accordion type="single" collapsible className="w-full" defaultValue={course.modules.length > 0 ? course.modules[0].id : undefined}>
-                {course.modules.map((module) => (
-                <AccordionItem value={module.id} key={module.id}>
-                    <AccordionTrigger className="font-semibold hover:no-underline">
-                        <div className="flex items-center gap-4">
-                            {iconMap[module.type as keyof typeof iconMap]}
-                            <span>{module.title}</span>
-                            <span className="text-sm font-normal text-muted-foreground">({module.duration} min)</span>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-4 p-4 bg-muted/50 rounded-md">
-                        <ModuleContent module={module as any} />
-                        <div className="flex items-center justify-between pt-4 border-t">
+                {course.modules.map((module) => {
+                  const isUploadedMedia = (module.type === 'VIDEO' || module.type === 'AUDIO') && module.content.startsWith('data:');
+
+                  return (
+                    <AccordionItem value={module.id} key={module.id}>
+                        <AccordionTrigger className="font-semibold hover:no-underline">
                             <div className="flex items-center gap-4">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id={`complete-${module.id}`}
-                                        checked={localCompletedModules.has(module.id)}
-                                        onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
-                                    />
-                                    <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
-                                </div>
-                                <FeatureNotImplementedDialog
-                                    title="Bookmark Module"
-                                    description="This feature is not yet implemented. In the future, you will be able to bookmark modules to easily find them later."
-                                >
-                                    <Button variant="ghost" size="sm">
-                                        <Bookmark className="mr-2 h-4 w-4" />
-                                        Bookmark
-                                    </Button>
-                                </FeatureNotImplementedDialog>
+                                {iconMap[module.type.toLowerCase() as keyof typeof iconMap]}
+                                <span>{module.title}</span>
+                                <span className="text-sm font-normal text-muted-foreground">({module.duration} min)</span>
                             </div>
-                            {userRole === 'admin' && (
-                                <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
-                                    <Button variant="ghost" size="sm">
-                                        <Pencil className="mr-2 h-4 w-4" />
-                                        Edit Module
-                                    </Button>
-                                </EditModuleDialog>
-                            )}
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 p-4 bg-muted/50 rounded-md">
+                            <ModuleContent module={module as any} onAutoComplete={() => handleModuleCompletion(module.id, true)} />
+                            <div className="flex items-center justify-between pt-4 border-t">
+                                <div className="flex items-center gap-4">
+                                    {!isUploadedMedia && (
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`complete-${module.id}`}
+                                                checked={localCompletedModules.has(module.id)}
+                                                onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
+                                            />
+                                            <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
+                                        </div>
+                                    )}
+                                    <FeatureNotImplementedDialog
+                                        title="Bookmark Module"
+                                        description="This feature is not yet implemented. In the future, you will be able to bookmark modules to easily find them later."
+                                    >
+                                        <Button variant="ghost" size="sm">
+                                            <Bookmark className="mr-2 h-4 w-4" />
+                                            Bookmark
+                                        </Button>
+                                    </FeatureNotImplementedDialog>
+                                </div>
+                                {userRole === 'admin' && (
+                                    <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
+                                        <Button variant="ghost" size="sm">
+                                            <Pencil className="mr-2 h-4 w-4" />
+                                            Edit Module
+                                        </Button>
+                                    </EditModuleDialog>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                    </AccordionContent>
-                </AccordionItem>
-                ))}
+                        </AccordionContent>
+                    </AccordionItem>
+                  )
+                })}
             </Accordion>
             {course.modules.length === 0 && (
               <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">

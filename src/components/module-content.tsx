@@ -35,13 +35,14 @@ const YouTubeEmbed = ({ url }: { url: string }) => {
     }
 };
 
-const LocalVideoPlayer = ({ url }: { url: string }) => {
+const LocalVideoPlayer = ({ url, onEnded }: { url: string, onEnded: () => void }) => {
     return (
         <div className="aspect-video w-full">
             <video
                 controls
                 className="w-full h-full rounded-lg bg-black"
                 src={url}
+                onEnded={onEnded}
             >
                 Your browser does not support the video tag.
             </video>
@@ -49,13 +50,14 @@ const LocalVideoPlayer = ({ url }: { url: string }) => {
     );
 }
 
-const LocalAudioPlayer = ({ url }: { url: string }) => {
+const LocalAudioPlayer = ({ url, onEnded }: { url: string, onEnded: () => void }) => {
     return (
         <div>
             <audio
                 controls
                 className="w-full rounded-lg"
                 src={url}
+                onEnded={onEnded}
             >
                 Your browser does not support the audio tag.
             </audio>
@@ -63,7 +65,12 @@ const LocalAudioPlayer = ({ url }: { url: string }) => {
     );
 }
 
-export const ModuleContent = ({ module }: { module: Module }) => {
+type ModuleContentProps = {
+    module: Module;
+    onAutoComplete: () => void;
+}
+
+export const ModuleContent = ({ module, onAutoComplete }: ModuleContentProps) => {
 
     const isUploadedContent = module.content.startsWith('data:');
     const isExternalUrl = module.content.startsWith('https://');
@@ -80,7 +87,7 @@ export const ModuleContent = ({ module }: { module: Module }) => {
                     return <YouTubeEmbed url={module.content} />;
                 }
                 if (isUploadedContent) {
-                    return <LocalVideoPlayer url={module.content} />;
+                    return <LocalVideoPlayer url={module.content} onEnded={onAutoComplete} />;
                 }
                 if (isExternalUrl) {
                     return (
@@ -96,7 +103,7 @@ export const ModuleContent = ({ module }: { module: Module }) => {
 
             case 'AUDIO':
                 if (isUploadedContent) {
-                    return <LocalAudioPlayer url={module.content} />;
+                    return <LocalAudioPlayer url={module.content} onEnded={onAutoComplete} />;
                 }
                 if (isExternalUrl) {
                     return (
