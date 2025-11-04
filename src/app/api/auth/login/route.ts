@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     const miniAppToken = cookieStore.get('miniapp-auth-token')?.value;
 
     let user;
+    let loginAs: 'admin' | 'staff' | undefined;
 
     if (miniAppToken) {
       // Mini-app auto-login flow
@@ -65,7 +66,8 @@ export async function POST(request: NextRequest) {
       if (!validation.success) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid login data.'] }, { status: 400 });
       }
-      const { phoneNumber, password, loginAs } = validation.data;
+      const { phoneNumber, password } = validation.data;
+      loginAs = validation.data.loginAs;
       
       if (!phoneNumber || !password) {
         return NextResponse.json({ isSuccess: false, errors: ['Phone number and password are required.'] }, { status: 400 });
@@ -138,8 +140,8 @@ export async function POST(request: NextRequest) {
     const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
 
     let redirectTo = '/dashboard'; // Default for staff/members
-    if (hasAdminPermissions) {
-      redirectTo = '/admin/analytics'; // For admins/super-admins
+    if (loginAs === 'admin' && hasAdminPermissions) {
+      redirectTo = '/admin/analytics'; // For admins/super-admins logging in as admin
     }
 
     return NextResponse.json({
