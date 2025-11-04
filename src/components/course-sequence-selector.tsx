@@ -3,13 +3,16 @@
 
 import { useState, useEffect } from "react";
 import type { Course } from "@prisma/client";
-import { GripVertical, Plus, X } from "lucide-react";
+import { GripVertical, Plus, X, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+
+type CourseWithStatus = Course & { status?: string };
 
 type CourseSequenceSelectorProps = {
-  allCourses: Course[];
+  allCourses: CourseWithStatus[];
   selectedCourseIds: string[];
   onSelectedCourseIdsChange: (ids: string[]) => void;
 };
@@ -20,28 +23,28 @@ export function CourseSequenceSelector({
   onSelectedCourseIdsChange,
 }: CourseSequenceSelectorProps) {
 
-  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
-  const [selectedCourses, setSelectedCourses] = useState<Course[]>([]);
-  const [draggedCourse, setDraggedCourse] = useState<Course | null>(null);
+  const [availableCourses, setAvailableCourses] = useState<CourseWithStatus[]>([]);
+  const [selectedCourses, setSelectedCourses] = useState<CourseWithStatus[]>([]);
+  const [draggedCourse, setDraggedCourse] = useState<CourseWithStatus | null>(null);
 
   useEffect(() => {
     const selectedSet = new Set(selectedCourseIds);
-    setAvailableCourses(allCourses.filter(c => !selectedSet.has(c.id)));
+    setAvailableCourses(allCourses.filter(c => !selectedSet.has(c.id) && c.status === 'PUBLISHED'));
     
-    const orderedSelected = selectedCourseIds.map(id => allCourses.find(c => c.id === id)).filter((c): c is Course => !!c);
+    const orderedSelected = selectedCourseIds.map(id => allCourses.find(c => c.id === id)).filter((c): c is CourseWithStatus => !!c);
     setSelectedCourses(orderedSelected);
 
   }, [selectedCourseIds, allCourses]);
 
-  const handleAddCourse = (course: Course) => {
+  const handleAddCourse = (course: CourseWithStatus) => {
     onSelectedCourseIdsChange([...selectedCourseIds, course.id]);
   };
 
-  const handleRemoveCourse = (course: Course) => {
+  const handleRemoveCourse = (course: CourseWithStatus) => {
     onSelectedCourseIdsChange(selectedCourseIds.filter(id => id !== course.id));
   };
   
-  const handleDragStart = (course: Course) => {
+  const handleDragStart = (course: CourseWithStatus) => {
     setDraggedCourse(course);
   };
   
@@ -49,7 +52,7 @@ export function CourseSequenceSelector({
     e.preventDefault();
   };
 
-  const handleDrop = (targetCourse: Course) => {
+  const handleDrop = (targetCourse: CourseWithStatus) => {
     if (!draggedCourse || draggedCourse.id === targetCourse.id) return;
 
     const currentIds = [...selectedCourseIds];
@@ -90,7 +93,7 @@ export function CourseSequenceSelector({
                 </ul>
               ) : (
                 <div className="p-4 text-center text-sm text-muted-foreground">
-                  No more courses available.
+                  No more published courses available.
                 </div>
               )}
             </CardContent>
@@ -118,6 +121,20 @@ export function CourseSequenceSelector({
                         <span className="text-sm">
                           <span className="font-mono text-muted-foreground text-xs mr-2">{index + 1}.</span>
                           {course.title}
+                           {course.status !== 'PUBLISHED' && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="ml-2">
+                                                <AlertCircle className="h-4 w-4 text-destructive inline" />
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>This course is no longer published and will not be visible to users.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                           )}
                         </span>
                       </div>
                       <Button

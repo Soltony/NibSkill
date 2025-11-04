@@ -33,14 +33,15 @@ const formSchema = z.object({
   hasCertificate: z.boolean().default(false),
 })
 
-type LearningPathWithCourses = LearningPath & { courses: { course: Course }[] };
+type CourseWithStatus = Course & { status: string };
+type LearningPathWithCourses = LearningPath & { courses: { course: CourseWithStatus }[] };
 
 type EditLearningPathFormProps = {
   learningPath: LearningPathWithCourses
-  courses: Course[]
+  allPublishedCourses: Course[]
 }
 
-export function EditLearningPathForm({ learningPath, courses }: EditLearningPathFormProps) {
+export function EditLearningPathForm({ learningPath, allPublishedCourses }: EditLearningPathFormProps) {
   const { toast } = useToast()
   const router = useRouter();
 
@@ -70,6 +71,14 @@ export function EditLearningPathForm({ learningPath, courses }: EditLearningPath
         })
     }
   }
+
+  // Combine currently selected courses (even if not published) with all other published courses for the selector
+  const allAvailableCourses = [...allPublishedCourses];
+  learningPath.courses.forEach(({ course }) => {
+    if (!allAvailableCourses.some(c => c.id === course.id)) {
+      allAvailableCourses.push(course);
+    }
+  });
 
   return (
     <Form {...form}>
@@ -113,11 +122,11 @@ export function EditLearningPathForm({ learningPath, courses }: EditLearningPath
                     <div className="mb-2">
                         <FormLabel>Courses</FormLabel>
                         <FormDescription>
-                            Drag and drop to reorder the courses in the learning path.
+                            Select from published courses. Drag and drop to reorder.
                         </FormDescription>
                     </div>
                         <CourseSequenceSelector
-                            allCourses={courses}
+                            allCourses={allAvailableCourses}
                             selectedCourseIds={field.value}
                             onSelectedCourseIdsChange={field.onChange}
                         />

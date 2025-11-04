@@ -9,7 +9,10 @@ import { MoveLeft } from "lucide-react";
 
 async function getData(trainingProviderId: string) {
     const courses = await prisma.course.findMany({
-        where: { trainingProviderId },
+        where: { 
+            trainingProviderId,
+            status: 'PUBLISHED'
+        },
         orderBy: { title: "asc" }
     });
     return { courses };
@@ -22,13 +25,6 @@ export default async function AddLearningPathPage() {
     }
 
     const { courses } = await getData(session.trainingProviderId);
-    
-    const handleAddLearningPath = async (values: any) => {
-        "use server"
-        // This is a placeholder for the server action
-        console.log(values);
-        redirect('/admin/learning-paths');
-    }
 
     return (
         <div className="space-y-8">

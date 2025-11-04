@@ -8,8 +8,11 @@ import Link from "next/link";
 import { MoveLeft } from "lucide-react";
 
 async function getData(trainingProviderId: string, pathId: string) {
-    const courses = await prisma.course.findMany({
-        where: { trainingProviderId },
+    const allPublishedCourses = await prisma.course.findMany({
+        where: { 
+            trainingProviderId,
+            status: 'PUBLISHED'
+        },
         orderBy: { title: "asc" }
     });
 
@@ -19,6 +22,9 @@ async function getData(trainingProviderId: string, pathId: string) {
             courses: {
                 orderBy: {
                     order: 'asc'
+                },
+                include: {
+                    course: true // Include full course object
                 }
             }
         }
@@ -28,15 +34,7 @@ async function getData(trainingProviderId: string, pathId: string) {
         notFound();
     }
     
-    const learningPathWithCourseDetails = {
-        ...learningPath,
-        courses: learningPath.courses.map(lc => ({
-            ...lc,
-            course: courses.find(c => c.id === lc.courseId)!
-        }))
-    }
-
-    return { courses, learningPath: learningPathWithCourseDetails };
+    return { allPublishedCourses, learningPath };
 }
 
 export default async function EditLearningPathPage({ params }: { params: { pathId: string } }) {
@@ -45,7 +43,7 @@ export default async function EditLearningPathPage({ params }: { params: { pathI
         notFound();
     }
 
-    const { courses, learningPath } = await getData(session.trainingProviderId, params.pathId);
+    const { allPublishedCourses, learningPath } = await getData(session.trainingProviderId, params.pathId);
 
     return (
         <div className="space-y-8">
@@ -61,7 +59,7 @@ export default async function EditLearningPathPage({ params }: { params: { pathI
                     Update the details for "{learningPath.title}".
                 </p>
             </div>
-            <EditLearningPathForm courses={courses} learningPath={learningPath as any} />
+            <EditLearningPathForm allPublishedCourses={allPublishedCourses} learningPath={learningPath as any} />
         </div>
     )
 }

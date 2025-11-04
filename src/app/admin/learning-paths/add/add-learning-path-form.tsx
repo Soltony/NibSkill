@@ -110,7 +110,7 @@ export function AddLearningPathForm({ courses }: AddLearningPathFormProps) {
                     <div className="mb-2">
                         <FormLabel>Courses</FormLabel>
                         <FormDescription>
-                            Drag and drop to reorder the courses in the learning path.
+                            Select from published courses. Drag and drop to reorder.
                         </FormDescription>
                     </div>
                         <CourseSequenceSelector
