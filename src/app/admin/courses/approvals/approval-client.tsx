@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast"
 import { publishCourse } from "@/app/actions/course-actions"
 import type { Course as CourseType } from "@prisma/client"
 import Link from "next/link"
+import { RejectCourseDialog } from "@/components/reject-course-dialog"
 
 export function ApprovalActions({ course }: { course: CourseType }) {
     const { toast } = useToast();
@@ -31,6 +32,7 @@ export function ApprovalActions({ course }: { course: CourseType }) {
         <Button asChild variant="outline" size="sm">
             <Link href={`/admin/courses/${course.id}?from=approvals`}>Review</Link>
         </Button>
+        <RejectCourseDialog course={course} />
         <Button onClick={handlePublish} size="sm">Approve</Button>
       </div>
     )

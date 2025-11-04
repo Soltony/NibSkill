@@ -114,7 +114,11 @@ export default async function CourseManagementPage() {
                     <TableCell className="text-center">
                        <Badge 
                         variant={course.status === 'PUBLISHED' ? 'secondary' : 'outline'}
-                        className={cn(course.status === 'PUBLISHED' ? 'text-green-600 border-green-600' : 'text-amber-600 border-amber-600')}
+                        className={cn(
+                          course.status === 'PUBLISHED' && 'text-green-600 border-green-600',
+                          course.status === 'PENDING' && 'text-amber-600 border-amber-600',
+                          course.status === 'REJECTED' && 'text-destructive border-destructive'
+                        )}
                       >
                         {course.status}
                       </Badge>

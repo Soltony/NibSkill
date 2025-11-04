@@ -15,7 +15,7 @@ const formSchema = z.object({
   price: z.coerce.number().optional(),
   currency: z.nativeEnum(Currency).optional(),
   hasCertificate: z.boolean().default(false),
-  status: z.enum(['PENDING', 'PUBLISHED']).optional(),
+  status: z.enum(['PENDING', 'PUBLISHED', 'REJECTED']).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -132,7 +132,7 @@ export async function publishCourse(id: string) {
     try {
         await prisma.course.update({
             where: { id },
-            data: { status: 'PUBLISHED' }
+            data: { status: 'PUBLISHED', rejectionReason: null }
         });
 
         revalidatePath('/admin/courses/list');
@@ -141,5 +141,34 @@ export async function publishCourse(id: string) {
     } catch (error) {
         console.error("Error publishing course:", error);
         return { success: false, message: "Failed to publish course." }
+    }
+}
+
+
+const rejectionSchema = z.object({
+  reason: z.string().min(10, "A reason for rejection is required (min. 10 characters)."),
+})
+
+export async function rejectCourse(id: string, values: z.infer<typeof rejectionSchema>) {
+    try {
+        const validatedFields = rejectionSchema.safeParse(values);
+        if (!validatedFields.success) {
+            return { success: false, message: "Invalid data provided." }
+        }
+
+        await prisma.course.update({
+            where: { id },
+            data: { 
+                status: 'REJECTED',
+                rejectionReason: validatedFields.data.reason
+            }
+        });
+
+        revalidatePath('/admin/courses/list');
+        revalidatePath('/admin/courses/approvals');
+        return { success: true, message: 'Course rejected.' }
+    } catch (error) {
+        console.error("Error rejecting course:", error);
+        return { success: false, message: "Failed to reject course." }
     }
 }
