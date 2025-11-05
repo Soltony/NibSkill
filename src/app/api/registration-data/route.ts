@@ -11,12 +11,14 @@ export async function GET() {
         const districtsData = await prisma.district.findMany({ orderBy: { name: 'asc' } });
         const branchesData = await prisma.branch.findMany({ orderBy: { name: 'asc' } });
         const departmentsData = await prisma.department.findMany({ orderBy: { name: 'asc' } });
+        const trainingProvidersData = await prisma.trainingProvider.findMany({ orderBy: { name: 'asc' } });
 
         return NextResponse.json({
             fields,
             districtsData,
             branchesData,
-            departmentsData
+            departmentsData,
+            trainingProvidersData,
         });
 
     } catch (error) {

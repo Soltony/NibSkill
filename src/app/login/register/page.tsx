@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
-import type { RegistrationField as TRegistrationField, District, Branch, Department } from "@prisma/client";
+import type { RegistrationField as TRegistrationField, District, Branch, Department, TrainingProvider } from "@prisma/client";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,6 +39,7 @@ const baseSchema = z.object({
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   password: z.string().min(6, "Password must be at least 6 characters"),
   phoneNumber: z.string().min(1, "Phone number is required"),
+  trainingProviderId: z.string({ required_error: "Please select a training provider." }),
 });
 
 // Create initial default values from both static and dynamic fields
@@ -47,6 +48,7 @@ const allDefaultValues = {
   email: "",
   password: "",
   phoneNumber: "",
+  trainingProviderId: "",
   ...initialRegistrationFields.reduce((acc, field) => {
     acc[field.id] = "";
     return acc;
@@ -61,6 +63,7 @@ export default function RegisterPage() {
   const [districts, setDistricts] = useState<District[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [trainingProviders, setTrainingProviders] = useState<TrainingProvider[]>([]);
   
   const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
 
@@ -82,12 +85,13 @@ export default function RegisterPage() {
         if (!response.ok) {
           throw new Error('Failed to fetch registration data');
         }
-        const { fields, districtsData, branchesData, departmentsData } = await response.json();
+        const { fields, districtsData, branchesData, departmentsData, trainingProvidersData } = await response.json();
 
         setRegistrationFields(fields.filter((f: TRegistrationField) => f.id !== 'phoneNumber')); // Exclude phoneNumber from dynamic fields
         setDistricts(districtsData);
         setBranches(branchesData);
         setDepartments(departmentsData);
+        setTrainingProviders(trainingProvidersData);
 
         let schema = baseSchema as z.ZodObject<any>;
         fields.forEach((field: TRegistrationField) => {
@@ -298,6 +302,28 @@ export default function RegisterPage() {
                     <FormControl>
                       <Input placeholder="e.g. 2519..." {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="trainingProviderId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Training Provider</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select your organization" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {trainingProviders.map(p => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
