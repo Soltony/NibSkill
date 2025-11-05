@@ -5,14 +5,32 @@ import { AnalyticsDashboard } from "./analytics-dashboard"
 import prisma from "@/lib/db"
 
 async function getAnalyticsData(trainingProviderId: string) {
+    const staffRole = await prisma.role.findFirst({
+        where: { name: 'Staff', trainingProviderId },
+        select: { id: true }
+    });
+
+    if (!staffRole) {
+        // Handle case where Staff role isn't found, though it should exist
+        return {
+            kpis: { totalUsers: 0, totalCourses: 0, avgCompletionRate: 0, avgScore: 0 },
+            leaderboard: [],
+            courseEngagement: { mostCompleted: [], leastCompleted: [] },
+            scoresDistribution: [],
+            completionByDept: [],
+        };
+    }
+
     const totalUsers = await prisma.user.count({
-        where: { trainingProviderId },
+        where: { trainingProviderId, roleId: staffRole.id },
     });
 
     const courses = await prisma.course.findMany({
-        where: { trainingProviderId },
+        where: { trainingProviderId, status: 'PUBLISHED' },
         include: { 
-            completedBy: true,
+            completedBy: {
+                where: { user: { roleId: staffRole.id } }
+            },
             modules: true,
         },
     });
@@ -23,12 +41,12 @@ async function getAnalyticsData(trainingProviderId: string) {
     const avgCompletionRate = totalEnrollments > 0 ? Math.round((totalCompletions / totalEnrollments) * 100) : 0;
     
     const allCompletions = await prisma.userCompletedCourse.findMany({
-        where: { user: { trainingProviderId } },
+        where: { user: { trainingProviderId, roleId: staffRole.id } },
     });
     const avgScore = allCompletions.length > 0 ? Math.round(allCompletions.reduce((acc, c) => acc + c.score, 0) / allCompletions.length) : 0;
 
     const leaderboard = await prisma.user.findMany({
-        where: { trainingProviderId },
+        where: { trainingProviderId, roleId: staffRole.id },
         include: {
             completedCourses: true,
             department: true,
@@ -52,7 +70,7 @@ async function getAnalyticsData(trainingProviderId: string) {
     }).sort((a, b) => b.completionRate - a.completionRate);
 
     const scores = await prisma.userCompletedCourse.findMany({
-        where: { user: { trainingProviderId } },
+        where: { user: { trainingProviderId, roleId: staffRole.id } },
         select: { score: true }
     });
     const scoresDistribution = scores.reduce((acc, curr) => {
@@ -68,6 +86,7 @@ async function getAnalyticsData(trainingProviderId: string) {
         where: { trainingProviderId },
         include: {
             users: {
+                where: { roleId: staffRole.id },
                 include: {
                     completedCourses: true
                 }

@@ -8,8 +8,17 @@ import Link from "next/link"
 import { MoveLeft } from "lucide-react"
 
 async function getProgressReportData(trainingProviderId: string) {
+  const staffRole = await prisma.role.findFirst({
+      where: { name: 'Staff', trainingProviderId },
+      select: { id: true }
+  });
+
+  if (!staffRole) {
+      return { reportData: [], courses: [], departments: [], districts: [], branches: [] };
+  }
+
   const users = await prisma.user.findMany({
-    where: { trainingProviderId },
+    where: { trainingProviderId, roleId: staffRole.id },
     include: {
       department: true,
       district: true,
@@ -29,7 +38,8 @@ async function getProgressReportData(trainingProviderId: string) {
   const completions = await prisma.userCompletedCourse.findMany({
     where: {
       user: {
-        trainingProviderId
+        trainingProviderId,
+        roleId: staffRole.id
       }
     }
   });
