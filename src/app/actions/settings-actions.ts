@@ -70,7 +70,7 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
 
 const registerUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal('')),
   password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
   phoneNumber: z.string().optional(),
@@ -88,15 +88,27 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
             return { success: false, message: 'Invalid data provided.' };
         }
 
-        const hashedPassword = await bcrypt.hash(validatedFields.data.password, 10);
+        const { name, email, password, roleId, phoneNumber } = validatedFields.data;
+
+        // Since phone number is the main identifier, check for its uniqueness if provided
+        if (phoneNumber) {
+             const existingUserByPhone = await prisma.user.findFirst({
+                 where: { phoneNumber: phoneNumber, roleId: roleId, trainingProviderId: session.trainingProviderId },
+             });
+             if (existingUserByPhone) {
+                 return { success: false, message: 'A user with this phone number and role already exists.' };
+             }
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
         
         await prisma.user.create({
             data: {
-                name: validatedFields.data.name,
-                email: validatedFields.data.email,
+                name,
+                email: email || null,
                 password: hashedPassword,
-                roleId: validatedFields.data.roleId,
-                phoneNumber: validatedFields.data.phoneNumber,
+                roleId: roleId,
+                phoneNumber: phoneNumber,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
                 trainingProviderId: session.trainingProviderId,
             }
@@ -107,15 +119,8 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
     } catch (error) {
         console.error("Error registering user:", error);
-        if ((error as any).code === 'P2002') {
-             if ((error as any).meta?.target.includes('email')) {
-                return { success: false, message: 'Failed to register user. Email might already be in use.' };
-             }
-             if ((error as any).meta?.target.includes('phoneNumber')) {
-                 return { success: false, message: 'Failed to register user. Phone number might already be in use.' };
-             }
-        }
-        return { success: false, message: 'Failed to register user.' };
+        // Generic error message to avoid revealing specific database constraint failures
+        return { success: false, message: 'Failed to register user. There might be a conflict with existing data.' };
     }
 }
 
