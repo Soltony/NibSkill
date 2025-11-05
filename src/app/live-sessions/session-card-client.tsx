@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from "@/hooks/use-toast";
 import { markAttendance } from "../actions/live-session-actions";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 type SessionWithAttendance = SessionType & { attendedBy: UserAttendedLiveSession[] };
 
@@ -67,11 +68,11 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, 
             <CardContent className="flex-1 space-y-3">
                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4"/>
-                  <span>{new Date(session.dateTime).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                  <span>{format(new Date(session.dateTime), 'PPPP')}</span>
                </div>
                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4"/>
-                  <span>{new Date(session.dateTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>{format(new Date(session.dateTime), 'p')}</span>
                </div>
                 <div>
                     <h4 className="font-semibold mb-1">Key Takeaways:</h4>

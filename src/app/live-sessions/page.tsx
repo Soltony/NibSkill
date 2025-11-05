@@ -39,11 +39,18 @@ export default async function LiveSessionsPage() {
     const { sessions, userId } = await getLiveSessionsData(user.id);
 
     const now = new Date();
-    const upcomingSessions = sessions.filter((s) => new Date(s.dateTime) >= now)
-        .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+    const oneHour = 60 * 60 * 1000;
 
-    const pastSessions = sessions.filter((s) => new Date(s.dateTime) < now)
-        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    const liveAndUpcomingSessions = sessions.filter(s => {
+        const sessionEndTime = new Date(s.dateTime).getTime() + oneHour;
+        return sessionEndTime > now.getTime();
+    }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+    
+    const pastSessions = sessions.filter(s => {
+        const sessionEndTime = new Date(s.dateTime).getTime() + oneHour;
+        return sessionEndTime <= now.getTime();
+    }).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+
 
   return (
     <div className="space-y-8">
@@ -58,7 +65,7 @@ export default async function LiveSessionsPage() {
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upcoming">
                 <Radio className="mr-2 h-4 w-4"/>
-                Upcoming Sessions
+                Live & Upcoming
             </TabsTrigger>
             <TabsTrigger value="past">
                 <Video className="mr-2 h-4 w-4"/>
@@ -66,9 +73,9 @@ export default async function LiveSessionsPage() {
             </TabsTrigger>
         </TabsList>
         <TabsContent value="upcoming">
-            {upcomingSessions.length > 0 ? (
+            {liveAndUpcomingSessions.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
-                    {upcomingSessions.map(session => {
+                    {liveAndUpcomingSessions.map(session => {
                         const isAllowed = !session.isRestricted || session.allowedAttendees.some(attendee => attendee.userId === userId);
                         return (
                             <SessionCard 
