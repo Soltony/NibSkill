@@ -96,11 +96,8 @@ export default function RegisterPage() {
         let schema = baseSchema as z.ZodObject<any>;
         fields.forEach((field: TRegistrationField) => {
           if (field.id === 'phoneNumber') return;
-          if (field.required) {
-            schema = schema.extend({ [field.id]: z.string().min(1, `${field.label} is required`) });
-          } else {
-            schema = schema.extend({ [field.id]: z.string().optional() });
-          }
+          // Make all dynamic fields optional
+          schema = schema.extend({ [field.id]: z.string().optional() });
         });
         setDynamicSchema(schema as any);
       } catch (error) {
@@ -153,7 +150,7 @@ export default function RegisterPage() {
             {...commonProps}
             render={({ field: formField }) => (
               <FormItem>
-                <FormLabel>{field.label}</FormLabel>
+                <FormLabel>{field.label}{!field.required && <span className="text-muted-foreground"> (Optional)</span>}</FormLabel>
                 <FormControl><Input {...formField} /></FormControl>
                 <FormMessage />
               </FormItem>
@@ -166,7 +163,7 @@ export default function RegisterPage() {
               {...commonProps}
               render={({ field: formField }) => (
                 <FormItem>
-                  <FormLabel>{field.label}</FormLabel>
+                  <FormLabel>{field.label}{!field.required && <span className="text-muted-foreground"> (Optional)</span>}</FormLabel>
                   <FormControl><Input type="number" {...formField} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -179,7 +176,7 @@ export default function RegisterPage() {
               {...commonProps}
               render={({ field: formField }) => (
                 <FormItem>
-                  <FormLabel>{field.label}</FormLabel>
+                  <FormLabel>{field.label}{!field.required && <span className="text-muted-foreground"> (Optional)</span>}</FormLabel>
                   <FormControl><Input type="date" {...formField} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -197,7 +194,7 @@ export default function RegisterPage() {
             {...commonProps}
             render={({ field: formField }) => (
               <FormItem>
-                <FormLabel>{field.label}</FormLabel>
+                <FormLabel>{field.label}{!field.required && <span className="text-muted-foreground"> (Optional)</span>}</FormLabel>
                 <Select onValueChange={formField.onChange} defaultValue={formField.value} disabled={field.id === 'branch' && !watchedDistrict}>
                     <FormControl>
                         <SelectTrigger>
