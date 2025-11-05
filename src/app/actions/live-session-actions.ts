@@ -152,3 +152,28 @@ export async function markAttendance(sessionId: string, userId: string) {
         return { success: false, message: "Failed to mark attendance." }
     }
 }
+
+export async function endLiveSession(sessionId: string) {
+    try {
+        const session = await prisma.liveSession.findUnique({ where: { id: sessionId } });
+        if (!session) {
+            return { success: false, message: "Session not found." };
+        }
+
+        if (session.status !== 'LIVE') {
+            return { success: false, message: "Only live sessions can be ended." };
+        }
+        
+        await prisma.liveSession.update({
+            where: { id: sessionId },
+            data: { status: 'ENDED' }
+        });
+
+        revalidatePath('/admin/live-sessions');
+        return { success: true };
+
+    } catch (error) {
+        console.error("Error ending live session:", error);
+        return { success: false, message: "Failed to end live session." };
+    }
+}

@@ -17,9 +17,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { AddLiveSessionDialog, EditLiveSessionDialog, ViewAttendeesDialog, DeleteLiveSessionAction } from "./live-session-client"
+import { AddLiveSessionDialog, EditLiveSessionDialog, ViewAttendeesDialog, DeleteLiveSessionAction, EndLiveSessionAction } from "./live-session-client"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
+import { LiveSessionStatus } from "@prisma/client"
+import { cn } from "@/lib/utils"
 
 async function getData(trainingProviderId: string) {
   const sessions = await prisma.liveSession.findMany({
@@ -59,14 +61,13 @@ export default async function LiveSessionManagementPage() {
 
   const { sessions, users } = await getData(sessionData.trainingProviderId);
 
-  const getStatus = (dateTime: Date): { text: "Upcoming" | "Past" | "Live", variant: "default" | "secondary" | "destructive" | "outline" } => {
-    const now = new Date();
-    const sessionTime = new Date(dateTime);
-    const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // Assuming 1-hour duration
-    
-    if (now < sessionTime) return { text: "Upcoming", variant: "secondary" };
-    if (now > endTime) return { text: "Past", variant: "outline" };
-    return { text: "Live", variant: "destructive" };
+  const getStatusVariant = (status: LiveSessionStatus) => {
+    switch (status) {
+        case 'UPCOMING': return 'secondary';
+        case 'LIVE': return 'destructive';
+        case 'ENDED': return 'outline';
+        default: return 'default';
+    }
   }
 
   return (
@@ -107,8 +108,11 @@ export default async function LiveSessionManagementPage() {
                   <TableCell>{session.speaker}</TableCell>
                   <TableCell>{new Date(session.dateTime).toLocaleString()}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatus(session.dateTime).variant}>
-                      {getStatus(session.dateTime).text}
+                    <Badge 
+                      variant={getStatusVariant(session.status)}
+                      className={cn(session.status === 'LIVE' && 'animate-pulse')}
+                    >
+                      {session.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -123,6 +127,7 @@ export default async function LiveSessionManagementPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <EndLiveSessionAction session={session} />
                       <EditLiveSessionDialog session={session} users={users} />
                       <DeleteLiveSessionAction session={session} />
                     </div>

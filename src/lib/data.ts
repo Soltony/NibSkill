@@ -1,7 +1,7 @@
 
 import type { ImagePlaceholder } from './placeholder-images';
 import { placeholderImages as PlaceHolderImages } from './placeholder-images.json';
-import { FieldType, Prisma } from '@prisma/client';
+import { FieldType, Prisma, LiveSessionStatus } from '@prisma/client';
 import type { LiveSessionPlatform, QuestionType, QuizType as PrismaQuizType, Currency } from '@prisma/client';
 
 export enum QuizType {
@@ -108,6 +108,7 @@ export type LiveSession = {
   attendees?: string[]; // Array of user IDs
   isRestricted?: boolean;
   allowedAttendees?: { userId: string }[];
+  status?: LiveSessionStatus;
 };
 
 

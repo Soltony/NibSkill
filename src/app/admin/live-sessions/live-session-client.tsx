@@ -2,7 +2,7 @@
 "use client"
 
 import { useState } from "react"
-import type { LiveSession, User, UserAttendedLiveSession } from "@prisma/client"
+import type { LiveSession, User, UserAttendedLiveSession, LiveSessionStatus } from "@prisma/client"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { deleteLiveSession } from "@/app/actions/live-session-actions"
+import { deleteLiveSession, endLiveSession } from "@/app/actions/live-session-actions"
 
 export { AddLiveSessionDialog } from "@/components/add-live-session-dialog"
 export { EditLiveSessionDialog } from "@/components/edit-live-session-dialog"
@@ -59,6 +59,37 @@ export const ViewAttendeesDialog = ({ session }: { session: SessionWithAttendees
                 </div>
             </DialogContent>
         </Dialog>
+    )
+}
+
+export function EndLiveSessionAction({ session }: { session: LiveSession }) {
+    const [isEnding, setIsEnding] = useState(false);
+    const { toast } = useToast();
+
+    const handleEndSession = async () => {
+        setIsEnding(true);
+        const result = await endLiveSession(session.id);
+        if (result.success) {
+            toast({
+                title: "Session Ended",
+                description: `The session "${session.title}" has been marked as ended.`,
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: result.message,
+                variant: "destructive"
+            });
+        }
+        setIsEnding(false);
+    };
+
+    if (session.status !== 'LIVE') return null;
+
+    return (
+        <Button variant="destructive" size="sm" onClick={handleEndSession} disabled={isEnding}>
+            {isEnding ? 'Ending...' : 'End Session'}
+        </Button>
     )
 }
 

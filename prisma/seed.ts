@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency, LiveSessionStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -251,15 +251,28 @@ async function main() {
       const { attendees, ...sessionData } = session;
       const { allowedAttendees, ...rest } = sessionData as any;
       const platform = session.platform.replace(' ', '_') as LiveSessionPlatform;
+      
+      const now = new Date();
+      const sessionTime = new Date(session.dateTime);
+      const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000);
+      let status: LiveSessionStatus = 'UPCOMING';
+      if (now >= sessionTime && now <= endTime) {
+        status = 'LIVE';
+      } else if (now > endTime) {
+        status = 'ENDED';
+      }
+
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
               ...rest,
-              platform: platform
+              platform: platform,
+              status: status
           },
           create: {
               ...rest,
               platform: platform,
+              status: status,
               trainingProviderId: provider.id,
           }
       });
