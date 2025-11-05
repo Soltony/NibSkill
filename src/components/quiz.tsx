@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, Fragment } from 'react';
@@ -106,23 +105,23 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     setScore(finalScore);
     setShowResult(true);
 
-    if (finalScore >= quiz.passingScore) {
-        startTransition(async () => {
-            const result = await completeCourse({
-                userId,
-                courseId: quiz.courseId,
-                score: finalScore,
-            });
-
-            if (!result.success) {
-                toast({
-                title: "Error Saving Completion",
-                description: result.message,
-                variant: "destructive"
-                })
-            }
+    // Always record the attempt, regardless of pass/fail
+    startTransition(async () => {
+        const result = await completeCourse({
+            userId,
+            courseId: quiz.courseId,
+            score: finalScore,
         });
-    }
+
+        if (!result.success) {
+            toast({
+            title: "Error Saving Attempt",
+            description: result.message,
+            variant: "destructive"
+            })
+        }
+    });
+
   }, [answers, quiz, userId, toast]);
   
   useEffect(() => {
@@ -363,3 +362,5 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     </>
   );
 }
+
+    
