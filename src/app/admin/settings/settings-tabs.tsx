@@ -243,7 +243,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
   
   const watchedDistrictId = form.watch("districtId");
   const availableBranches = useMemo(() => {
-    if (!watchedDistrictId) return [];
+    if (!watchedDistrictId || !branches) return [];
     return branches.filter(b => b.districtId === watchedDistrictId);
   }, [watchedDistrictId, branches]);
 
