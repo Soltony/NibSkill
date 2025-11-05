@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 
 const registerSchema = z.object({
   name: z.string().min(2),
-  email: z.string().email(),
+  email: z.string().email().optional().or(z.literal('')),
   password: z.string().min(6),
   department: z.string().optional(),
   district: z.string().optional(),
@@ -29,14 +29,14 @@ export async function POST(request: Request) {
     const existingUser = await prisma.user.findFirst({
         where: {
             OR: [
-                { email },
+                { email: email || undefined }, // Don't search for empty string email
                 { phoneNumber }
             ]
         }
     });
 
     if (existingUser) {
-        if (existingUser.email === email) {
+        if (email && existingUser.email === email) {
             return NextResponse.json({ isSuccess: false, errors: ['User with this email already exists.'] }, { status: 409 });
         }
         if (existingUser.phoneNumber === phoneNumber) {
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const user = await prisma.user.create({
       data: {
         name,
-        email,
+        email: email || null,
         password: hashedPassword,
         roleId: staffRole.id,
         departmentId: department,

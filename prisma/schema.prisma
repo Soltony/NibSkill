@@ -10,10 +10,10 @@ generator client {
 model User {
   id                   String                  @id @default(cuid())
   name                 String
-  email                String                  @unique
+  email                String?                 @unique
   password             String
   avatarUrl            String?
-  phoneNumber          String?
+  phoneNumber          String?                 @unique
   activeSessionId      String?
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
@@ -142,8 +142,8 @@ model Quiz {
   id                    String           @id @default(cuid())
   passingScore          Int
   timeLimit             Int // in minutes, 0 for no limit
-  maxAttempts           Int              @default(0) // 0 for unlimited
   quizType              QuizType
+  maxAttempts           Int              @default(0) // 0 for unlimited
   requiresManualGrading Boolean          @default(false)
   courseId              String           @unique
   course                Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -239,6 +239,7 @@ model LiveSession {
   platform           LiveSessionPlatform
   joinUrl            String
   recordingUrl       String?
+  status             LiveSessionStatus         @default(UPCOMING)
   trainingProviderId String
   trainingProvider   TrainingProvider          @relation(fields: [trainingProviderId], references: [id])
   attendedBy         UserAttendedLiveSession[]
@@ -249,6 +250,12 @@ model LiveSession {
 enum LiveSessionPlatform {
   Zoom
   Google_Meet
+}
+
+enum LiveSessionStatus {
+  UPCOMING
+  LIVE
+  ENDED
 }
 
 model LiveSessionAllowedUser {

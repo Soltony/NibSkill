@@ -36,7 +36,7 @@ import { initialRegistrationFields, FieldType } from "@/lib/data";
 
 const baseSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal('')),
   password: z.string().min(6, "Password must be at least 6 characters"),
   phoneNumber: z.string().min(1, "Phone number is required"),
 });
@@ -268,7 +268,7 @@ export default function RegisterPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email (Optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="user@company.com" {...field} />
                     </FormControl>
