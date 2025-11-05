@@ -74,6 +74,9 @@ const registerUserSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
   phoneNumber: z.string().optional(),
+  departmentId: z.string().optional(),
+  districtId: z.string().optional(),
+  branchId: z.string().optional(),
 })
 
 export async function registerUser(values: z.infer<typeof registerUserSchema>) {
@@ -88,7 +91,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
             return { success: false, message: 'Invalid data provided.' };
         }
 
-        const { name, email, password, roleId, phoneNumber } = validatedFields.data;
+        const { name, email, password, roleId, phoneNumber, departmentId, districtId, branchId } = validatedFields.data;
 
         // Since phone number is the main identifier, check for its uniqueness if provided
         if (phoneNumber) {
@@ -111,6 +114,9 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 phoneNumber: phoneNumber,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
                 trainingProviderId: session.trainingProviderId,
+                departmentId: departmentId || null,
+                districtId: districtId || null,
+                branchId: branchId || null,
             }
         });
 

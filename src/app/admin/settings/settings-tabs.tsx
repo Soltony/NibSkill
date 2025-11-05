@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -70,10 +70,13 @@ type BranchWithDistrict = Branch & { district: District };
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
   password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
   phoneNumber: z.string().optional(),
+  departmentId: z.string().optional(),
+  districtId: z.string().optional(),
+  branchId: z.string().optional(),
 })
 
 const registrationFieldsSchema = z.object({
@@ -237,6 +240,13 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
 
   const filteredRoles = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider' && role.name !== 'Staff');
   const filteredRolesForForms = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider');
+  
+  const watchedDistrictId = form.watch("districtId");
+  const availableBranches = useMemo(() => {
+    if (!watchedDistrictId) return [];
+    return branches.filter(b => b.districtId === watchedDistrictId);
+  }, [watchedDistrictId, branches]);
+
 
   return (
     <>
@@ -454,6 +464,69 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                                     </SelectItem>
                                 ))}
                             </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="departmentId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Department (Optional)</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a department" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">None</SelectItem>
+                            {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="districtId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>District (Optional)</FormLabel>
+                        <Select onValueChange={(value) => { form.setValue("branchId", ""); field.onChange(value); }} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a district" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">None</SelectItem>
+                            {districts.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="branchId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Branch (Optional)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchedDistrictId}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={!watchedDistrictId ? "Select a district first" : "Select a branch"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">None</SelectItem>
+                            {availableBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                          </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
