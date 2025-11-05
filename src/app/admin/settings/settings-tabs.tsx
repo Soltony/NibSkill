@@ -235,7 +235,8 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     }
   }
 
-  const filteredRoles = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider');
+  const filteredRoles = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider' && role.name !== 'Staff');
+  const filteredRolesForRegistration = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider');
 
   return (
     <>
@@ -447,7 +448,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                {filteredRoles.map(role => (
+                                {filteredRolesForRegistration.map(role => (
                                     <SelectItem key={role.id} value={role.id}>
                                         {role.name}
                                     </SelectItem>
