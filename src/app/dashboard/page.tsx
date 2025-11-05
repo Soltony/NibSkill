@@ -1,5 +1,4 @@
 
-
 import {
   Card,
   CardContent,
@@ -14,13 +13,15 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { DashboardClient } from './dashboard-client';
-import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider } from '@prisma/client';
+import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse } from '@prisma/client';
 
 type CourseWithProgress = Course & {
   progress: number;
   product: Product | null;
   modules: Module[];
   trainingProvider: TrainingProvider | null;
+  isLocked: boolean;
+  learningPathId?: string;
 };
 
 async function getDashboardData(userId: string): Promise<{
@@ -30,6 +31,7 @@ async function getDashboardData(userId: string): Promise<{
   trainingProviders: TrainingProvider[];
 }> {
     const courses = await prisma.course.findMany({
+        where: { status: 'PUBLISHED' },
         include: { 
             modules: true, 
             product: true,
@@ -60,11 +62,43 @@ async function getDashboardData(userId: string): Promise<{
         where: { userId: userId },
         select: { courseId: true, score: true }
     });
+    const completedCourseIds = new Set(userCompletions.map(c => c.courseId));
 
     const userModuleCompletions = await prisma.userCompletedModule.findMany({
       where: { userId: userId },
       select: { moduleId: true }
     });
+
+    const allLearningPathCourses = await prisma.learningPathCourse.findMany({
+      include: { learningPath: true },
+      orderBy: { order: 'asc' },
+    });
+    
+    // Group courses by learning path
+    const paths: Record<string, LearningPathCourse[]> = {};
+    allLearningPathCourses.forEach(lpc => {
+      if (!paths[lpc.learningPathId]) {
+        paths[lpc.learningPathId] = [];
+      }
+      paths[lpc.learningPathId].push(lpc);
+    });
+
+    const lockedCourseMap = new Map<string, string>(); // Map<courseId, learningPathId>
+
+    for (const pathId in paths) {
+      const pathCourses = paths[pathId];
+      let firstUncompletedFound = false;
+      for (const lpc of pathCourses) {
+        if (!completedCourseIds.has(lpc.courseId)) {
+          if (firstUncompletedFound) {
+            // This course is locked because a prior one is not done
+            lockedCourseMap.set(lpc.courseId, pathId);
+          }
+          firstUncompletedFound = true;
+        }
+      }
+    }
+
 
     const completedModulesByCourse = userModuleCompletions.reduce((acc, completion) => {
       const module = courses.flatMap(c => c.modules).find(m => m.id === completion.moduleId);
@@ -80,12 +114,18 @@ async function getDashboardData(userId: string): Promise<{
     const completionsMap = new Map(userCompletions.map(c => [c.courseId, c.score]));
 
     const coursesWithProgress = courses.map(course => {
+        let progress = 0;
         if (completionsMap.has(course.id)) {
-            return { ...course, progress: 100 };
+            progress = 100;
+        } else {
+            const completedModuleCount = completedModulesByCourse[course.id]?.size || 0;
+            progress = course.modules.length > 0 ? Math.round((completedModuleCount / course.modules.length) * 100) : 0;
         }
-        const completedModuleCount = completedModulesByCourse[course.id]?.size || 0;
-        const progress = course.modules.length > 0 ? Math.round((completedModuleCount / course.modules.length) * 100) : 0;
-        return { ...course, progress };
+
+        const isLocked = lockedCourseMap.has(course.id);
+        const learningPathId = lockedCourseMap.get(course.id);
+
+        return { ...course, progress, isLocked, learningPathId };
     });
 
     return {
