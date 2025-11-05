@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, User } from '@prisma/client';
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const cookieStore = cookies();
     const miniAppToken = cookieStore.get('miniapp-auth-token')?.value;
 
-    let user;
+    let user: (User & { role: any }) | null | undefined;
     let loginAs: 'admin' | 'staff' | undefined;
 
     if (miniAppToken) {
@@ -73,13 +73,29 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ isSuccess: false, errors: ['Phone number and password are required.'] }, { status: 400 });
       }
 
-      user = await prisma.user.findFirst({
+      const usersWithPhoneNumber = await prisma.user.findMany({
         where: { phoneNumber },
         include: { role: true },
       });
 
-      if (!user || !user.password) {
+      if (usersWithPhoneNumber.length === 0) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+      }
+
+      if (usersWithPhoneNumber.length > 1 && loginAs) {
+          user = usersWithPhoneNumber.find(u => {
+              const permissions = u.role.permissions as Prisma.JsonObject;
+              const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
+              if (loginAs === 'admin') return hasAdminPermissions;
+              if (loginAs === 'staff') return !hasAdminPermissions;
+              return false;
+          });
+      } else {
+          user = usersWithPhoneNumber[0];
+      }
+      
+      if (!user || !user.password) {
+        return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials for the selected role.'] }, { status: 401 });
       }
       
       const isValid = await bcrypt.compare(password, user.password);
