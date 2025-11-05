@@ -114,4 +114,3 @@ export async function updateTrainingProvider(id: string, values: z.infer<typeof 
         return { success: false, message: "Failed to update provider." };
     }
 }
-
