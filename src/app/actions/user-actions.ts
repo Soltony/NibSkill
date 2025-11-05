@@ -32,7 +32,31 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             return { success: false, message: "Course not found." };
         }
 
-        // Always record the attempt, regardless of pass/fail
+        const passed = course.quiz ? score >= course.quiz.passingScore : true;
+        const maxAttempts = course.quiz?.maxAttempts ?? 0;
+
+        // Fetch existing attempts BEFORE creating the new one
+        const previousAttempts = await prisma.userCompletedCourse.findMany({
+            where: { userId, courseId }
+        });
+
+        if (!passed && maxAttempts > 0) {
+            // Check if the user has attempts left *before* this new attempt
+            if (previousAttempts.length < maxAttempts) {
+                // User failed and has attempts left, so reset their module progress for this course.
+                const moduleIds = course.modules.map(m => m.id);
+                if (moduleIds.length > 0) {
+                  await prisma.userCompletedModule.deleteMany({
+                      where: {
+                          userId: userId,
+                          moduleId: { in: moduleIds }
+                      }
+                  });
+                }
+            }
+        }
+
+        // Now, upsert the current attempt record
         await prisma.userCompletedCourse.upsert({
             where: {
                 userId_courseId: {
@@ -51,25 +75,6 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             }
         });
 
-        const passed = course.quiz ? score >= course.quiz.passingScore : true;
-        const maxAttempts = course.quiz?.maxAttempts ?? 0;
-
-        if (!passed && maxAttempts > 0) {
-            const attempts = await prisma.userCompletedCourse.count({
-                where: { userId, courseId }
-            });
-
-            if (attempts < maxAttempts) {
-                // User failed and has attempts left, so reset their module progress for this course.
-                const moduleIds = course.modules.map(m => m.id);
-                await prisma.userCompletedModule.deleteMany({
-                    where: {
-                        userId: userId,
-                        moduleId: { in: moduleIds }
-                    }
-                });
-            }
-        }
 
         if (passed && course.hasCertificate) {
             revalidatePath(`/courses/${courseId}/certificate`);
