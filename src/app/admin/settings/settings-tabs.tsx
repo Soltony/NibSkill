@@ -339,7 +339,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                   <TableRow>
                     <TableHead className="w-[150px]">Role Name</TableHead>
                     {permissionKeys.map(key => (
-                      <TableHead key={key} className="capitalize text-center">{key}</TableHead>
+                      <TableHead key={key} className="capitalize text-center">{key.replace(/([A-Z])/g, ' $1')}</TableHead>
                     ))}
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -411,7 +411,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>Email (Optional)</FormLabel>
                         <FormControl>
                           <Input placeholder="user@company.com" {...field} />
                         </FormControl>
@@ -475,14 +475,13 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Department (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a department" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">None</SelectItem>
                             {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -496,14 +495,13 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>District (Optional)</FormLabel>
-                        <Select onValueChange={(value) => { form.setValue("branchId", ""); field.onChange(value); }} defaultValue={field.value}>
+                        <Select onValueChange={(value) => { form.setValue("branchId", ""); field.onChange(value); }} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a district" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">None</SelectItem>
                             {districts.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -517,14 +515,13 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Branch (Optional)</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!watchedDistrictId}>
+                        <Select onValueChange={field.onChange} value={field.value || ""} disabled={!watchedDistrictId}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder={!watchedDistrictId ? "Select a district first" : "Select a branch"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">None</SelectItem>
                             {availableBranches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                           </SelectContent>
                         </Select>
