@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency, LiveSessionStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -13,8 +13,7 @@ import {
     learningPaths as initialLearningPaths,
     liveSessions as initialLiveSessions,
     roles as initialRoles,
-    initialRegistrationFields,
-    initialQuizzes
+    initialRegistrationFields
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -22,31 +21,61 @@ const prisma = new PrismaClient()
 async function main() {
   console.log(`Start seeding ...`)
 
-  // Seed Districts
-  await prisma.district.createMany({
-    data: initialDistricts,
-    skipDuplicates: true,
+  const provider = await prisma.trainingProvider.upsert({
+    where: { name: 'NIB Training' },
+    update: {},
+    create: {
+      name: 'NIB Training',
+      address: '123 Training Ave, Skill City, USA',
+      accountNumber: 'NIB-001',
+    },
   });
+  console.log('Upserted training provider');
+
+
+  // Seed Districts
+  for (const district of initialDistricts) {
+    await prisma.district.upsert({
+      where: { id: district.id },
+      update: { name: district.name },
+      create: { ...district, trainingProviderId: provider.id }
+    });
+  }
   console.log('Seeded districts');
 
   // Seed Departments
-  await prisma.department.createMany({
-    data: initialDepartments,
-    skipDuplicates: true,
-  });
+  for (const department of initialDepartments) {
+    await prisma.department.upsert({
+      where: { id: department.id },
+      update: { name: department.name },
+      create: { ...department, trainingProviderId: provider.id }
+    });
+  }
   console.log('Seeded departments');
 
   // Seed Branches
-  await prisma.branch.createMany({
-    data: initialBranches,
-    skipDuplicates: true,
-  })
+  for (const branch of initialBranches) {
+    await prisma.branch.upsert({
+      where: { id: branch.id },
+      update: { name: branch.name, districtId: branch.districtId },
+      create: { ...branch, trainingProviderId: provider.id }
+    })
+  }
   console.log('Seeded branches');
   
   // Seed Roles and Permissions
   for (const role of initialRoles) {
+    const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
+    
+    let whereClause;
+    if (isGlobal) {
+        whereClause = { id: role.id };
+    } else {
+        whereClause = { name_trainingProviderId: { name: role.name, trainingProviderId: provider.id } };
+    }
+
     await prisma.role.upsert({
-      where: { name: role.name },
+      where: whereClause,
       update: {
         permissions: role.permissions as any,
       },
@@ -54,6 +83,7 @@ async function main() {
         id: role.id,
         name: role.name,
         permissions: role.permissions as any,
+        trainingProviderId: isGlobal ? undefined : provider.id,
       },
     });
   }
@@ -64,13 +94,20 @@ async function main() {
     const { id, department, district, branch, role, password, ...userData } = user as any;
 
     // Find related records
-    const departmentRecord = await prisma.department.findUnique({ where: { name: department } });
-    const districtRecord = await prisma.district.findUnique({ where: { name: district } });
-    const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id } });
-    const roleRecord = await prisma.role.findUnique({ where: { name: role === 'admin' ? 'Admin' : 'Staff' } });
+    const departmentRecord = await prisma.department.findFirst({ where: { name: department, trainingProviderId: provider.id } });
+    const districtRecord = await prisma.district.findFirst({ where: { name: district, trainingProviderId: provider.id } });
+    const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id, trainingProviderId: provider.id } });
+    
+    let roleRecord;
+    if (role === 'admin') roleRecord = await prisma.role.findFirst({ where: { name: 'Admin', trainingProviderId: provider.id } });
+    else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'super-admin' } });
+    else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'provider-admin' } });
+    else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: provider.id } });
     
     // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    const isSuperAdmin = role === 'super-admin';
 
     await prisma.user.upsert({
       where: { email: user.email },
@@ -78,7 +115,7 @@ async function main() {
         password: hashedPassword,
       },
       create: {
-        id: user.id, // Explicitly use the ID from data for stable relations
+        id: user.id,
         name: user.name,
         email: user.email,
         avatarUrl: user.avatarUrl,
@@ -87,6 +124,8 @@ async function main() {
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
         roleId: roleRecord!.id,
+        trainingProviderId: isSuperAdmin ? null : provider.id,
+        phoneNumber: user.phoneNumber
       },
     });
   }
@@ -133,6 +172,7 @@ async function main() {
             description: product.description,
             imageUrl: product.image.imageUrl,
             imageHint: product.image.imageHint,
+            trainingProviderId: provider.id,
         }
     })
   }
@@ -150,7 +190,8 @@ async function main() {
         isPaid: courseData.isPaid,
         price: courseData.price,
         currency: courseData.currency,
-        hasCertificate: courseData.hasCertificate
+        hasCertificate: courseData.hasCertificate,
+        status: courseData.status,
       },
       create: {
         id: courseData.id,
@@ -163,15 +204,18 @@ async function main() {
         imageUrl: image?.imageUrl,
         imageDescription: image?.description,
         imageHint: image?.imageHint,
-        hasCertificate: courseData.hasCertificate
+        hasCertificate: courseData.hasCertificate,
+        status: courseData.status || 'PENDING',
+        trainingProviderId: provider.id,
       }
     });
 
     for (const module of modules) {
+      const moduleType = module.type.toUpperCase() as ModuleType;
       await prisma.module.upsert({
         where: { id: module.id },
-        update: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
-        create: { ...module, type: module.type as ModuleType, courseId: createdCourse.id },
+        update: { ...module, type: moduleType, courseId: createdCourse.id },
+        create: { ...module, type: moduleType, courseId: createdCourse.id },
       });
     }
   }
@@ -181,11 +225,15 @@ async function main() {
   for (const path of initialLearningPaths) {
     await prisma.learningPath.upsert({
       where: { id: path.id },
-      update: {},
+      update: {
+        hasCertificate: path.hasCertificate,
+      },
       create: {
         id: path.id,
         title: path.title,
         description: path.description,
+        hasCertificate: path.hasCertificate,
+        trainingProviderId: provider.id,
         courses: {
           create: path.courseIds.map((courseId, index) => ({
             order: index + 1,
@@ -203,63 +251,34 @@ async function main() {
   for (const session of initialLiveSessions) {
       const { attendees, ...sessionData } = session;
       const { allowedAttendees, ...rest } = sessionData as any;
+      const platform = session.platform.replace(' ', '_') as LiveSessionPlatform;
+      
+      const now = new Date();
+      const sessionTime = new Date(session.dateTime);
+      const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000);
+      let status: LiveSessionStatus = 'UPCOMING';
+      if (now >= sessionTime && now <= endTime) {
+        status = 'LIVE';
+      } else if (now > endTime) {
+        status = 'ENDED';
+      }
+
       await prisma.liveSession.upsert({
           where: { id: session.id },
           update: {
               ...rest,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: platform,
+              status: status
           },
           create: {
               ...rest,
-              platform: session.platform.replace(' ', '_') as LiveSessionPlatform
+              platform: platform,
+              status: status,
+              trainingProviderId: provider.id,
           }
       });
   }
   console.log('Seeded live sessions');
-
-  // Seed Quizzes and Questions
-  for (const quiz of initialQuizzes) {
-    const { questions, ...quizData } = quiz;
-    const requiresManualGrading = quiz.quizType === 'CLOSED_LOOP' && questions.some(q => q.type === 'FILL_IN_THE_BLANK' || q.type === 'SHORT_ANSWER');
-
-    const createdQuiz = await prisma.quiz.upsert({
-        where: { id: quiz.id },
-        update: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
-        create: { ...quizData, quizType: quizData.quizType as QuizType, requiresManualGrading },
-    });
-
-    for (const question of questions) {
-        const { options, ...questionData } = question;
-        const questionType = question.type as QuestionType
-        const createdQuestion = await prisma.question.upsert({
-            where: { id: question.id },
-            update: {
-                ...questionData,
-                type: questionType,
-                quizId: createdQuiz.id
-            },
-            create: {
-                ...questionData,
-                type: questionType,
-                quizId: createdQuiz.id
-            }
-        });
-
-        if (question.type === 'MULTIPLE_CHOICE' || question.type === 'TRUE_FALSE') {
-            await prisma.option.deleteMany({ where: { questionId: createdQuestion.id } });
-            for (const option of options) {
-                await prisma.option.create({
-                    data: {
-                        id: option.id,
-                        text: option.text,
-                        questionId: createdQuestion.id,
-                    }
-                });
-            }
-        }
-    }
-  }
-  console.log('Seeded quizzes and questions');
   
   // Seed UserCompletedCourse
   const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
@@ -282,15 +301,16 @@ async function main() {
   
   // Seed Certificate Template
   await prisma.certificateTemplate.upsert({
-    where: { id: "singleton" },
+    where: { trainingProviderId: provider.id },
     update: {},
     create: {
-        id: 'singleton',
         title: "Certificate of Completion",
-        organization: "NIB Training Inc.",
+        organization: provider.name,
         body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
         signatoryName: "Jane Doe",
         signatoryTitle: "Head of Training & Development",
+        logoUrl: null,
+        trainingProviderId: provider.id,
     }
   });
   console.log('Seeded certificate template');
@@ -330,3 +350,7 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
+
+    
