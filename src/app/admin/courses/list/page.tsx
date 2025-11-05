@@ -136,7 +136,6 @@ export default async function CourseManagementPage() {
                           className={cn(
                             course.status === 'PUBLISHED' && 'text-green-600 border-green-600',
                             course.status === 'PENDING' && 'text-amber-600 border-amber-600',
-                            course.status === 'REJECTED' && 'text-destructive border-destructive'
                           )}
                         >
                           {course.status}

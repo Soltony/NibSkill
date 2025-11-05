@@ -102,8 +102,8 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
     const result = await updateCourse(course.id, values);
     if (result.success) {
         toast({
-            title: "Course Updated",
-            description: `The course "${values.title}" has been successfully updated.`,
+            title: "Success",
+            description: result.message,
         })
         setOpen(false)
     } else {
@@ -115,6 +115,8 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
     }
   }
 
+  const isRejected = course.status === 'REJECTED';
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -123,6 +125,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
           <DialogTitle>Edit Course</DialogTitle>
           <DialogDescription>
             Update the details for the course below.
+            {isRejected && " Saving will resubmit the course for approval."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -276,7 +279,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
                     </Select>
                     {(course.status === 'PENDING' || course.status === 'REJECTED') && (
                         <FormDescription>
-                            Change status via the "Approvals" page or by re-submitting.
+                           This status cannot be changed directly. {isRejected ? "Saving will resubmit it for approval." : "Change status via the 'Approvals' page."}
                         </FormDescription>
                     )}
                   <FormMessage />
@@ -285,7 +288,10 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
             />
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                {form.formState.isSubmitting 
+                  ? (isRejected ? 'Resubmitting...' : 'Saving...')
+                  : (isRejected ? 'Save & Resubmit' : 'Save Changes')
+                }
               </Button>
             </DialogFooter>
           </form>

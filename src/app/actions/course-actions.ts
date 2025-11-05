@@ -77,12 +77,22 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
             return { success: false, message: "Invalid data provided." }
         }
         
+        const existingCourse = await prisma.course.findUnique({ where: { id } });
+        if (!existingCourse) {
+            return { success: false, message: "Course not found." };
+        }
+
         const product = await prisma.product.findUnique({
             where: { id: validatedFields.data.productId }
         });
 
         if (!product) {
             return { success: false, message: "Associated product not found." }
+        }
+
+        let newStatus = validatedFields.data.status;
+        if (existingCourse.status === 'REJECTED') {
+            newStatus = 'PENDING';
         }
 
         await prisma.course.update({
@@ -98,7 +108,8 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description,
-                status: validatedFields.data.status,
+                status: newStatus,
+                rejectionReason: newStatus === 'PENDING' ? null : existingCourse.rejectionReason,
             }
         });
 
@@ -106,7 +117,8 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
         revalidatePath('/admin/courses/approvals');
         revalidatePath(`/admin/courses/${id}`);
         revalidatePath(`/courses/${id}`);
-        return { success: true, message: 'Course updated successfully.' }
+        const message = newStatus === 'PENDING' ? 'Course resubmitted for approval.' : 'Course updated successfully.';
+        return { success: true, message };
     } catch (error) {
         console.error("Error updating course:", error);
         return { success: false, message: "Failed to update course." }
