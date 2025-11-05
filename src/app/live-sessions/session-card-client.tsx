@@ -32,17 +32,25 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, 
     const isPast = now > endTime;
     const isLive = now >= sessionTime && now <= endTime;
     
-    const handleAttend = async (sessionId: string) => {
-        if (hasAttended) return;
+    const handleJoinAndAttend = async (e: React.MouseEvent) => {
+        if (!isAllowed || hasAttended) return;
 
-        const result = await markAttendance(sessionId, userId);
-        if (result.success) {
-            setHasAttended(true);
-            toast({ title: "Attendance Marked", description: "Your attendance has been recorded." });
-        } else {
+        // Prevent opening the link immediately if we are marking attendance
+        e.preventDefault();
+
+        setHasAttended(true); // Optimistic update
+        const result = await markAttendance(session.id, userId);
+
+        if (!result.success) {
+            setHasAttended(false); // Revert on failure
             toast({ title: "Error", description: result.message, variant: "destructive" });
+        } else {
+            toast({ title: "Attendance Marked", description: "Your attendance has been recorded." });
+            // Now proceed to open the link
+            window.open(session.joinUrl, '_blank', 'noopener,noreferrer');
         }
     }
+
 
     return (
         <Card className={cn("flex flex-col", !isAllowed && "bg-muted/50 border-dashed")}>
@@ -101,16 +109,10 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, 
                     )
                 ) : (
                      <Button asChild disabled={!isAllowed}>
-                        <a href={isAllowed ? session.joinUrl : undefined} target="_blank" rel="noopener noreferrer">
+                        <a href={isAllowed ? session.joinUrl : undefined} target="_blank" rel="noopener noreferrer" onClick={handleJoinAndAttend}>
                             <Mic className="mr-2 h-4 w-4" />
-                            {isAllowed ? 'Join Session' : 'Session Restricted'}
+                            {hasAttended ? 'Re-Join Session' : (isAllowed ? 'Join Session' : 'Session Restricted')}
                         </a>
-                    </Button>
-                )}
-                {!isPast && isAllowed && (
-                     <Button variant="secondary" onClick={() => handleAttend(session.id)} disabled={hasAttended}>
-                        <CheckSquare className="mr-2 h-4 w-4" />
-                        {hasAttended ? "Attendance Marked" : "I Attended"}
                     </Button>
                 )}
             </CardFooter>
