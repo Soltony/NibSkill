@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Search, FileDown, FileText, Loader2 } from "lucide-react"
+import { Search, FileDown, FileText, Loader2, RotateCcw } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -12,12 +12,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Course, Department, District, Branch } from '@prisma/client';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { resetQuizAttempts } from '@/app/actions/analytics-actions';
+import { useToast } from '@/hooks/use-toast';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -56,6 +68,8 @@ export function ProgressReportClient({
   const [currentPage, setCurrentPage] = useState(1);
   const [isGeneratingCsv, setIsGeneratingCsv] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [itemToReset, setItemToReset] = useState<ReportDataItem | null>(null);
+  const { toast } = useToast();
 
   const filteredReport = useMemo(() => {
     return reportData.filter(item => {
@@ -159,6 +173,24 @@ export function ProgressReportClient({
     doc.save('progress_report.pdf');
     setIsGeneratingPdf(false);
   }
+  
+  const handleResetConfirm = async () => {
+    if (!itemToReset) return;
+    const result = await resetQuizAttempts(itemToReset.userId, itemToReset.courseId);
+    if (result.success) {
+        toast({
+            title: "Attempts Reset",
+            description: `Quiz attempts for ${itemToReset.userName} on "${itemToReset.courseTitle}" have been reset.`
+        });
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive"
+        });
+    }
+    setItemToReset(null);
+  }
 
   return (
     <div className="space-y-8">
@@ -238,9 +270,8 @@ export function ProgressReportClient({
                 <TableHead>Staff Member</TableHead>
                 <TableHead>Course</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>District</TableHead>
-                <TableHead>Branch</TableHead>
                 <TableHead className="text-right">Score</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -249,13 +280,18 @@ export function ProgressReportClient({
                   <TableCell className="font-medium">{item.userName}</TableCell>
                   <TableCell>{item.courseTitle}</TableCell>
                   <TableCell>{item.department}</TableCell>
-                  <TableCell>{item.district}</TableCell>
-                  <TableCell>{item.branch}</TableCell>
                   <TableCell className="text-right font-medium">
                     {item.score !== null && item.score !== undefined ? (
                       <span>{item.score}%</span>
                     ) : (
                       <span className="text-muted-foreground">Not Taken</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {item.score !== null && item.score !== undefined && (
+                        <Button variant="outline" size="sm" onClick={() => setItemToReset(item)}>
+                            <RotateCcw className="mr-2 h-4 w-4" /> Reset Attempts
+                        </Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -284,6 +320,23 @@ export function ProgressReportClient({
             </div>
         </CardFooter>
       </Card>
+      
+      <AlertDialog open={!!itemToReset} onOpenChange={(open) => !open && setItemToReset(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete all previous quiz attempts for{' '}
+                    <span className="font-bold">{itemToReset?.userName}</span> on the course{' '}
+                    <span className="font-bold">"{itemToReset?.courseTitle}"</span>. The user will be able to retake the quiz from scratch. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleResetConfirm}>Confirm Reset</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

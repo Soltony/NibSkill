@@ -2,6 +2,7 @@
 'use server'
 
 import prisma from "@/lib/db";
+import { revalidatePath } from "next/cache";
 
 function convertToCSV(data: any[], headers: string[]) {
     const headerRow = headers.join(',') + '\n';
@@ -64,4 +65,19 @@ export async function generateProgressReportCsv() {
     }
 }
 
-    
+export async function resetQuizAttempts(userId: string, courseId: string) {
+    try {
+        await prisma.userCompletedCourse.deleteMany({
+            where: {
+                userId: userId,
+                courseId: courseId,
+            }
+        });
+        
+        revalidatePath('/admin/analytics/progress-report');
+        return { success: true, message: 'Quiz attempts have been reset.' };
+    } catch (error) {
+        console.error("Error resetting quiz attempts:", error);
+        return { success: false, message: 'Failed to reset quiz attempts.' };
+    }
+}
