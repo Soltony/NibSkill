@@ -158,7 +158,10 @@ export async function POST(request: NextRequest) {
     let redirectTo = '/dashboard'; // Default for staff/members
     if (loginAs === 'admin' && hasAdminPermissions) {
       redirectTo = '/admin/analytics'; // For admins/super-admins logging in as admin
+    } else if (user.role.name === 'Super Admin') {
+      redirectTo = '/super-admin';
     }
+
 
     return NextResponse.json({
       isSuccess: true,

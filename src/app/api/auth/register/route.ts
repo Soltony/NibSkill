@@ -47,20 +47,23 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Find the staff role
+    // Find the staff role for the default training provider
+    const provider = await prisma.trainingProvider.findFirst();
+    if (!provider) {
+        return NextResponse.json({ isSuccess: false, errors: ['Default training provider not found.'] }, { status: 500 });
+    }
+    
     const staffRole = await prisma.role.findFirst({
-        where: { name: 'Staff' }
+        where: { 
+            name: 'Staff',
+            trainingProviderId: provider.id
+        }
     });
 
     if (!staffRole) {
-        return NextResponse.json({ isSuccess: false, errors: ['Staff role not found. Please seed the database.'] }, { status: 500 });
+        return NextResponse.json({ isSuccess: false, errors: ['Staff role not found for the provider.'] }, { status: 500 });
     }
     
-    const provider = await prisma.trainingProvider.findFirst();
-    if (!provider) {
-        return NextResponse.json({ isSuccess: false, errors: ['Training provider not found. Please seed the database.'] }, { status: 500 });
-    }
-
     const user = await prisma.user.create({
       data: {
         name,

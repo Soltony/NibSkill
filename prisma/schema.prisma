@@ -142,8 +142,8 @@ model Quiz {
   id                    String           @id @default(cuid())
   passingScore          Int
   timeLimit             Int // in minutes, 0 for no limit
-  quizType              QuizType
   maxAttempts           Int              @default(0) // 0 for unlimited
+  quizType              QuizType
   requiresManualGrading Boolean          @default(false)
   courseId              String           @unique
   course                Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -326,20 +326,20 @@ model Notification {
 }
 
 model CertificateTemplate {
-  id               String           @id @default(cuid())
-  title            String
-  organization     String
-  body             String
-  logoUrl          String?
-  signatoryName    String
-  signatoryTitle   String
-  signatureUrl     String?
-  stampUrl         String?
-  primaryColor     String?
-  borderStyle      String?
-  templateStyle    String?
+  id                 String           @id @default(cuid())
+  title              String
+  organization       String
+  body               String
+  logoUrl            String?
+  signatoryName      String
+  signatoryTitle     String
+  signatureUrl       String?
+  stampUrl           String?
+  primaryColor       String?
+  borderStyle        String?
+  templateStyle      String?
   trainingProviderId String           @unique
-  trainingProvider TrainingProvider @relation(fields: [trainingProviderId], references: [id])
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id])
 }
 
 model LoginHistory {
