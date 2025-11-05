@@ -270,6 +270,8 @@ export function ProgressReportClient({
                 <TableHead>Staff Member</TableHead>
                 <TableHead>Course</TableHead>
                 <TableHead>Department</TableHead>
+                <TableHead>District</TableHead>
+                <TableHead>Branch</TableHead>
                 <TableHead className="text-right">Score</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -280,6 +282,8 @@ export function ProgressReportClient({
                   <TableCell className="font-medium">{item.userName}</TableCell>
                   <TableCell>{item.courseTitle}</TableCell>
                   <TableCell>{item.department}</TableCell>
+                  <TableCell>{item.district}</TableCell>
+                  <TableCell>{item.branch}</TableCell>
                   <TableCell className="text-right font-medium">
                     {item.score !== null && item.score !== undefined ? (
                       <span>{item.score}%</span>
@@ -297,7 +301,7 @@ export function ProgressReportClient({
                 </TableRow>
               )) : (
                 <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                         No results match your filters.
                     </TableCell>
                 </TableRow>

@@ -204,7 +204,7 @@ export function AttendanceReportClient({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             <Select value={sessionFilter} onValueChange={setSessionFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by Session" />
@@ -241,7 +241,16 @@ export function AttendanceReportClient({
                 {districts.map(d => <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>)}
               </SelectContent>
             </Select>
-             <Button variant="ghost" onClick={resetFilters} className="lg:col-start-4">Reset Filters</Button>
+            <Select value={branchFilter} onValueChange={setBranchFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Branch" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Branches</SelectItem>
+                {branches.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+             <Button variant="ghost" onClick={resetFilters} className="xl:col-start-5">Reset Filters</Button>
           </div>
           <Table>
             <TableHeader>
@@ -250,6 +259,7 @@ export function AttendanceReportClient({
                 <TableHead>Staff Member</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>District</TableHead>
+                <TableHead>Branch</TableHead>
                 <TableHead>Attended At</TableHead>
               </TableRow>
             </TableHeader>
@@ -260,11 +270,12 @@ export function AttendanceReportClient({
                   <TableCell>{item.userName}</TableCell>
                   <TableCell>{item.department}</TableCell>
                   <TableCell>{item.district}</TableCell>
+                  <TableCell>{item.branch}</TableCell>
                   <TableCell>{format(item.attendedAt, 'yyyy-MM-dd HH:mm')}</TableCell>
                 </TableRow>
               )) : (
                 <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                         No attendance records match your filters.
                     </TableCell>
                 </TableRow>
