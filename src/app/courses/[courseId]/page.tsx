@@ -1,4 +1,5 @@
 
+
 import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
@@ -26,11 +27,16 @@ async function getCourseData(courseId: string, userId: string) {
           },
         },
       },
+      completedBy: {
+        where: {
+          userId: userId,
+        }
+      }
     },
   });
 
   if (!course) {
-    return { course: null, completedModules: [], user: null };
+    return { course: null, completedModules: [], user: null, previousAttempts: [] };
   }
 
   const completedModules = await prisma.userCompletedModule.findMany({
@@ -48,7 +54,7 @@ async function getCourseData(courseId: string, userId: string) {
     include: { role: true }
   });
 
-  return { course, completedModules, user };
+  return { course, completedModules, user, previousAttempts: course.completedBy };
 }
 
 export default async function CourseDetailPage({ params }: { params: { courseId: string } }) {
@@ -58,7 +64,7 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
   }
 
   const { courseId } = params;
-  const { course, completedModules, user } = await getCourseData(courseId, session.id);
+  const { course, completedModules, user, previousAttempts } = await getCourseData(courseId, session.id);
 
   if (!course || !user) {
     notFound();
@@ -67,13 +73,13 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
   return (
     <div className="space-y-8">
         <Button asChild variant="outline" size="sm">
-            <Link href="/courses">
+            <Link href="/dashboard">
                 <MoveLeft className="mr-2 h-4 w-4" />
-                Back to Courses
+                Back to Dashboard
             </Link>
         </Button>
         <CourseDetailClient 
-            courseData={{ course, completedModules, user }} 
+            courseData={{ course, completedModules, user, previousAttempts }} 
         />
     </div>
   );

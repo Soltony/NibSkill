@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useContext } from 'react';
@@ -14,11 +15,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2 } from 'lucide-react';
+import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2, Award, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency } from '@prisma/client';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse } from '@prisma/client';
 import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
 import { toggleModuleCompletion } from '@/app/actions/user-actions';
 import { UserContext } from '@/app/layout';
@@ -46,6 +47,7 @@ type CourseData = {
     course: CourseWithRelations;
     completedModules: { moduleId: string }[];
     user: User & { role?: any };
+    previousAttempts: UserCompletedCourse[];
 }
 
 type CourseDetailClientProps = {
@@ -198,6 +200,48 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     return '';
   }
 
+  const { hasPassed, attemptsUsed, maxAttempts, canAttempt } = useMemo(() => {
+    if (!quiz) return { hasPassed: false, attemptsUsed: 0, maxAttempts: 0, canAttempt: true };
+    
+    const attempts = courseData.previousAttempts || [];
+    const hasPassed = attempts.some(attempt => attempt.score >= quiz.passingScore);
+    const attemptsUsed = attempts.length;
+    const maxAttempts = quiz.maxAttempts;
+    const canAttempt = maxAttempts === 0 || attemptsUsed < maxAttempts;
+    
+    return { hasPassed, attemptsUsed, maxAttempts, canAttempt };
+  }, [quiz, courseData.previousAttempts]);
+
+  const renderQuizButton = () => {
+    if (course.isPaid) return null;
+    if (!quiz) return <p className="text-muted-foreground">Quiz not available for this course.</p>;
+    if (!allModulesCompleted) return <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>;
+
+    if (quiz.quizType === 'CLOSED_LOOP' && hasPassed) {
+        return (
+             <Button size="lg" disabled>
+                <ShieldCheck className="mr-2 h-5 w-5" />
+                Quiz Passed
+            </Button>
+        );
+    }
+    
+    if (quiz.quizType === 'CLOSED_LOOP' && !canAttempt) {
+        return (
+             <Button size="lg" disabled>
+                <ShieldCheck className="mr-2 h-5 w-5" />
+                No Attempts Left
+            </Button>
+        );
+    }
+
+    return (
+        <Button size="lg" asChild>
+            <Link href={`/courses/${course.id}/quiz`}>Take Quiz</Link>
+        </Button>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-4xl">
       <div className="relative mb-8 h-64 w-full overflow-hidden rounded-lg shadow-lg">
@@ -314,20 +358,9 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                         {isPaying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
                         {isPaying ? 'Processing...' : 'Buy the course'}
                     </Button>
-                ) : quiz ? (
-                    allModulesCompleted ? (
-                        <Button size="lg" asChild>
-                            <Link href={`/courses/${course.id}/quiz`}>Take Quiz</Link>
-                        </Button>
-                    ) : (
-                        <Button size="lg" disabled>
-                            Take Quiz
-                        </Button>
-                    )
                 ) : (
-                    <p className="text-muted-foreground">Quiz not available for this course.</p>
+                    renderQuizButton()
                 )}
-                {!allModulesCompleted && quiz && !course.isPaid && <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>}
             </div>
     </div>
   );
