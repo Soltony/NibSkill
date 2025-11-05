@@ -22,7 +22,17 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
         const { userId, courseId, score } = validatedFields.data;
 
-        // Use upsert to handle cases where the user might retake a quiz
+        // Get course and quiz details to check passing score and attempts
+        const course = await prisma.course.findUnique({
+            where: { id: courseId },
+            include: { quiz: true, modules: { select: { id: true }} },
+        });
+
+        if (!course) {
+            return { success: false, message: "Course not found." };
+        }
+
+        // Always record the attempt, regardless of pass/fail
         await prisma.userCompletedCourse.upsert({
             where: {
                 userId_courseId: {
@@ -41,12 +51,33 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             }
         });
 
-        const course = await prisma.course.findUnique({ where: { id: courseId } });
-        if (course?.hasCertificate) {
+        const passed = course.quiz ? score >= course.quiz.passingScore : true;
+        const maxAttempts = course.quiz?.maxAttempts ?? 0;
+
+        if (!passed && maxAttempts > 0) {
+            const attempts = await prisma.userCompletedCourse.count({
+                where: { userId, courseId }
+            });
+
+            if (attempts < maxAttempts) {
+                // User failed and has attempts left, so reset their module progress for this course.
+                const moduleIds = course.modules.map(m => m.id);
+                await prisma.userCompletedModule.deleteMany({
+                    where: {
+                        userId: userId,
+                        moduleId: { in: moduleIds }
+                    }
+                });
+            }
+        }
+
+        if (passed && course.hasCertificate) {
             revalidatePath(`/courses/${courseId}/certificate`);
         }
 
         revalidatePath('/profile');
+        revalidatePath(`/courses/${courseId}`); // Revalidate to show new progress
+        revalidatePath('/dashboard');
         
         return { success: true, message: 'Course completion recorded.' }
     } catch (error) {
@@ -62,7 +93,7 @@ export async function logout() {
 
 const profileFormSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters."),
-    email: z.string().email("Invalid email address."),
+    email: z.string().email("Invalid email address.").optional().or(z.literal('')),
     phoneNumber: z.string().optional(),
 })
 
@@ -80,8 +111,8 @@ export async function updateUserProfile(values: z.infer<typeof profileFormSchema
 
         const { name, email, phoneNumber } = validatedFields.data;
         
-        if (email !== session.email) {
-            const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (email && email !== session.email) {
+            const existingUser = await prisma.user.findFirst({ where: { email } });
             if (existingUser && existingUser.id !== session.id) {
                 return { success: false, message: "Email is already in use by another account." };
             }
@@ -91,24 +122,28 @@ export async function updateUserProfile(values: z.infer<typeof profileFormSchema
             where: { id: session.id },
             data: {
                 name,
-                email,
+                email: email || null,
                 phoneNumber: phoneNumber || null,
             }
         });
 
         revalidatePath('/profile');
         
-        // If email has changed, user needs to log in again with new email.
-        // We will clear the session cookie to force re-login.
-        if (email !== session.email) {
-             cookies().set('session', '', { expires: new Date(0) });
-             return { success: true, message: 'Profile updated. Please log in again with your new email.' };
+        // If email has changed, user might need to log in again if email is used for login.
+        // We can optionally clear the session to force re-login.
+        if (email && email !== session.email) {
+             // Let's not force re-login for just an email change if phone is primary.
+             // cookies().set('session', '', { expires: new Date(0) });
+             // return { success: true, message: 'Profile updated. Please log in again with your new email.' };
         }
         
         return { success: true, message: 'Profile updated successfully.' };
 
     } catch (error) {
         console.error("Error updating profile:", error);
+        if ((error as any).code === 'P2002') { // Unique constraint violation
+            return { success: false, message: "A user with that email or phone number already exists." };
+        }
         return { success: false, message: "Failed to update profile." };
     }
 }
