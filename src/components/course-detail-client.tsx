@@ -107,17 +107,15 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     );
   }
   
-  const handleModuleCompletion = useCallback(async (moduleId: string, completed: boolean) => {
+  const handleModuleCompletion = useCallback(async (moduleId: string) => {
+    if (localCompletedModules.has(moduleId)) return;
+
     // Optimistic UI update
     const newCompletions = new Set(localCompletedModules);
-    if (completed) {
-        newCompletions.add(moduleId);
-    } else {
-        newCompletions.delete(moduleId);
-    }
+    newCompletions.add(moduleId);
     setLocalCompletedModules(newCompletions);
 
-    const result = await toggleModuleCompletion(course.id, { moduleId, completed });
+    const result = await toggleModuleCompletion(course.id, { moduleId, completed: true });
     
     if (!result.success) {
       toast({
@@ -128,6 +126,11 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
       // Revert optimistic update
       const originalCompletions = new Set(initialCourseData.completedModules.map(cm => cm.moduleId));
       setLocalCompletedModules(originalCompletions);
+    } else {
+        toast({
+            title: "Module Completed!",
+            description: "Your progress has been saved.",
+        })
     }
   }, [course.id, initialCourseData.completedModules, localCompletedModules, toast]);
 
@@ -302,7 +305,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                         <div className="space-y-4 p-4 bg-muted/50 rounded-md">
                             <ModuleContent 
                               module={module} 
-                              onAutoComplete={() => handleModuleCompletion(module.id, true)} 
+                              onAutoComplete={() => handleModuleCompletion(module.id)} 
                               isCompleted={localCompletedModules.has(module.id)}
                             />
                             <div className="flex items-center justify-between pt-4 border-t">

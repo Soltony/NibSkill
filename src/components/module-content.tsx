@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Module } from '@prisma/client';
 import { Button } from './ui/button';
-import { ExternalLink, CheckCircle } from 'lucide-react';
+import { ExternalLink, CheckCircle, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const YouTubeEmbed = ({ url, onEnded }: { url: string, onEnded: () => void }) => {
@@ -42,33 +42,34 @@ const EmbeddedDocument = ({ url }: { url: string }) => {
     const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
     useEffect(() => {
+        let currentObjectUrl: string | null = null;
         if (url.startsWith('data:')) {
             const fetchBlob = async () => {
                 const response = await fetch(url);
                 const blob = await response.blob();
-                const objUrl = URL.createObjectURL(blob);
-                setObjectUrl(objUrl);
+                currentObjectUrl = URL.createObjectURL(blob);
+                setObjectUrl(currentObjectUrl);
             };
             fetchBlob();
 
             return () => {
-                if (objectUrl) {
-                    URL.revokeObjectURL(objectUrl);
+                if (currentObjectUrl) {
+                    URL.revokeObjectURL(currentObjectUrl);
                 }
             };
         }
-    }, [url, objectUrl]);
+    }, [url]);
     
     const displayUrl = url.startsWith('data:') ? objectUrl : url;
 
-    if (!displayUrl) {
+    if (url.startsWith('data:') && !displayUrl) {
         return <p>Loading document...</p>;
     }
 
     return (
         <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
             <iframe
-                src={displayUrl}
+                src={displayUrl!}
                 className="w-full h-full"
                 title="Document viewer"
                 frameBorder="0"
@@ -104,21 +105,29 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
     const [timeRemaining, setTimeRemaining] = useState(module.duration * 60);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const isMedia = module.type === 'VIDEO' || module.type === 'AUDIO';
     const isDocument = module.type === 'PDF' || module.type === 'SLIDES';
 
     useEffect(() => {
-        if (isDocument && !isCompleted && !isTimerRunning) {
+        // Timer logic only for documents that are not yet completed
+        if (isDocument && !isCompleted) {
             setIsTimerRunning(true);
+            setTimeRemaining(module.duration * 60); // Reset timer on module change
             timerRef.current = setInterval(() => {
                 setTimeRemaining(prev => {
                     if (prev <= 1) {
                         clearInterval(timerRef.current!);
+                        onAutoComplete();
                         return 0;
                     }
                     return prev - 1;
                 });
             }, 1000);
+        } else {
+             // Stop timer if module is already completed or not a document
+             if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
+            setIsTimerRunning(false);
         }
 
         return () => {
@@ -126,17 +135,9 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
                 clearInterval(timerRef.current);
             }
         };
-    }, [isDocument, isCompleted, isTimerRunning, module.duration]);
+    }, [module.id, isDocument, isCompleted, module.duration, onAutoComplete]);
 
 
-    const handleCompleteClick = () => {
-        onAutoComplete();
-        toast({
-            title: "Module Completed",
-            description: `You have completed "${module.title}".`,
-        });
-    };
-    
     const isExternalUrl = module.content.startsWith('https://');
     const isYouTubeUrl = isExternalUrl && (module.content.includes('youtube.com') || module.content.includes('youtu.be'));
     const isDataUrl = module.content.startsWith('data:');
@@ -181,13 +182,24 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
                 }
                 break;
             case 'PDF':
-            case 'SLIDES':
-                if (isDataUrl) {
+                if (isDataUrl || isExternalUrl) {
                     return <EmbeddedDocument url={module.content} />;
                 }
-                if (isExternalUrl) {
+                break;
+            case 'SLIDES':
+                if (isExternalUrl) { // Only embed public URLs for slides
                     const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(module.content)}&embedded=true`;
                     return <EmbeddedDocument url={viewerUrl} />;
+                }
+                if (isDataUrl) { // Fallback to download for uploaded slides
+                    return (
+                        <Button asChild variant="outline">
+                            <a href={module.content} download={module.title}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download Presentation
+                            </a>
+                        </Button>
+                    );
                 }
                 break;
         }
@@ -210,11 +222,11 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
             {isDocument && !isCompleted && (
                  <div className="flex items-center justify-center pt-4">
                     <Button
-                        onClick={handleCompleteClick}
                         disabled={timeRemaining > 0}
+                        className="cursor-default"
                     >
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        {timeRemaining > 0 ? `Complete in ${formatTime(timeRemaining)}` : 'Complete Module'}
+                        {timeRemaining > 0 ? `Completed in ${formatTime(timeRemaining)}` : 'Module Completed!'}
                     </Button>
                 </div>
             )}
