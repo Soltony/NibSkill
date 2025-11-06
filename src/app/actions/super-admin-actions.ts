@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -56,7 +57,6 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
                 name,
                 address,
                 accountNumber,
-                isActive: true,
                 users: {
                     create: {
                         name: `${adminFirstName} ${adminLastName}`,
@@ -140,17 +140,17 @@ export async function updateTrainingProvider(values: z.infer<typeof updateProvid
 }
 
 
-export async function toggleProviderStatus(providerId: string, isActive: boolean) {
+export async function deleteTrainingProvider(providerId: string) {
     try {
-        await prisma.trainingProvider.update({
-            where: { id: providerId },
-            data: { isActive: isActive }
+        // This is a dangerous operation, ensure cascading deletes are set up correctly in your schema
+        // or handle related data manually.
+        await prisma.trainingProvider.delete({
+            where: { id: providerId }
         });
         revalidatePath('/super-admin');
-        const message = isActive ? "Provider activated successfully." : "Provider deactivated successfully.";
-        return { success: true, message };
+        return { success: true, message: "Provider deleted successfully." };
     } catch (error: any) {
-        console.error("Error toggling provider status:", error);
-        return { success: false, message: "Failed to update provider status." };
+        console.error("Error deleting provider:", error);
+        return { success: false, message: "Failed to delete provider." };
     }
 }

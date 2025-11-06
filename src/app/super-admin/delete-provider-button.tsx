@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react";
@@ -14,23 +15,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { toggleProviderStatus } from "@/app/actions/super-admin-actions";
 import type { TrainingProvider } from "@prisma/client";
-import { cn } from "@/lib/utils";
+import { deleteTrainingProvider } from "@/app/actions/super-admin-actions";
 
-type ToggleProviderStatusButtonProps = {
+type DeleteProviderButtonProps = {
   provider: TrainingProvider;
 };
 
-export function ToggleProviderStatusButton({ provider }: ToggleProviderStatusButtonProps) {
+export function DeleteProviderButton({ provider }: DeleteProviderButtonProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
-  const handleConfirmToggle = async () => {
-    const result = await toggleProviderStatus(provider.id, !provider.isActive);
+  const handleConfirmDelete = async () => {
+    const result = await deleteTrainingProvider(provider.id);
     if (result.success) {
       toast({
-        title: "Provider Status Updated",
+        title: "Provider Deleted",
         description: result.message,
       });
     } else {
@@ -43,37 +43,30 @@ export function ToggleProviderStatusButton({ provider }: ToggleProviderStatusBut
     setOpen(false);
   };
 
-  const isDeactivating = provider.isActive;
-
   return (
     <>
       <Button
-        variant={isDeactivating ? "destructive-outline" : "secondary"}
+        variant="destructive-outline"
         size="sm"
         onClick={() => setOpen(true)}
       >
-        {isDeactivating ? "Deactivate" : "Activate"}
+        Delete
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will {isDeactivating ? "deactivate" : "activate"} the provider{" "}
-              <span className="font-semibold">"{provider.name}"</span>. 
-              {isDeactivating 
-                ? " Their admins and users will not be able to log in."
-                : " Their admins and users will regain access to the system."
-              }
+              This action cannot be undone. This will permanently delete the provider{" "}
+              <span className="font-semibold">"{provider.name}"</span> and all associated data, including users, courses, and analytics.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmToggle}
-              className={cn(!isDeactivating && "bg-green-600 hover:bg-green-700")}
+              onClick={handleConfirmDelete}
             >
-              Confirm {isDeactivating ? "Deactivation" : "Activation"}
+              Confirm Deletion
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

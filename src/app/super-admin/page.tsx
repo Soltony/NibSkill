@@ -19,10 +19,10 @@ import prisma from "@/lib/db"
 import { AddProviderDialog } from "./add-provider-dialog"
 import type { TrainingProvider, User } from "@prisma/client"
 import { EditProviderDialog } from "./edit-provider-dialog"
-import { ToggleProviderStatusButton } from "./toggle-provider-status-button"
 import { BookCopy, Building, Radio, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { DeleteProviderButton } from "./delete-provider-button"
 
 type ProviderWithAdmin = TrainingProvider & { users: User[] };
 export const dynamic = "force-dynamic";
@@ -137,7 +137,6 @@ export default async function SuperAdminDashboard() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Provider Name</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Admin Name</TableHead>
                   <TableHead>Admin Email</TableHead>
                   <TableHead>Account Number</TableHead>
@@ -152,21 +151,13 @@ export default async function SuperAdminDashboard() {
                       <TableCell className="font-medium">
                           {provider.name}
                       </TableCell>
-                       <TableCell>
-                        <Badge
-                          variant={provider.isActive ? "secondary" : "outline"}
-                          className={cn(provider.isActive ? "text-green-600 border-green-600" : "text-destructive")}
-                        >
-                            {provider.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
                       <TableCell>{admin?.name || 'N/A'}</TableCell>
                       <TableCell>{admin?.email || 'N/A'}</TableCell>
                       <TableCell>{provider.accountNumber}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                             <EditProviderDialog provider={provider} admin={admin} />
-                            <ToggleProviderStatusButton provider={provider} />
+                            <DeleteProviderButton provider={provider} />
                         </div>
                       </TableCell>
                     </TableRow>
