@@ -89,10 +89,9 @@ export async function POST(request: NextRequest) {
 
       if (usersWithPhoneNumber.length > 1 && loginAs) {
           user = usersWithPhoneNumber.find(u => {
-              const permissions = u.role.permissions as Prisma.JsonObject;
-              const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
-              if (loginAs === 'admin') return hasAdminPermissions;
-              if (loginAs === 'staff') return !hasAdminPermissions;
+              const roleName = u.role.name;
+              if (loginAs === 'admin') return roleName === 'Admin' || roleName === 'Super Admin' || roleName === 'Training Provider';
+              if (loginAs === 'staff') return roleName === 'Staff';
               return false;
           }) as UserWithRelations | undefined;
       } else {
@@ -167,7 +166,7 @@ export async function POST(request: NextRequest) {
 
     let redirectTo = '/dashboard'; // Default for staff/members
     if (loginAs === 'admin' && hasAdminPermissions) {
-      redirectTo = '/admin/analytics'; // For admins/super-admins logging in as admin
+      redirectTo = '/admin/analytics'; // For admins logging in as admin
     } else if (user.role.name === 'Super Admin') {
       redirectTo = '/super-admin';
     }
