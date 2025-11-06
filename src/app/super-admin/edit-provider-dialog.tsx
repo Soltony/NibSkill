@@ -18,6 +18,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -153,7 +154,7 @@ export function EditProviderDialog({ provider, admin }: EditProviderDialogProps)
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Admin Email</FormLabel>
-                    <FormControl><Input type="email" {...field} /></FormControl>
+                    <FormControl><Input type="email" {...field} value={field.value || ''} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -164,7 +165,7 @@ export function EditProviderDialog({ provider, admin }: EditProviderDialogProps)
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Admin Phone Number</FormLabel>
-                    <FormControl><Input type="tel" {...field} /></FormControl>
+                    <FormControl><Input type="tel" {...field} value={field.value || ''} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
