@@ -1,4 +1,5 @@
 
+
 import {
   Card,
   CardContent,
@@ -24,14 +25,20 @@ type CourseWithProgress = Course & {
   learningPathId?: string;
 };
 
-async function getDashboardData(userId: string): Promise<{
+async function getDashboardData(userId: string, userProviderId: string | undefined): Promise<{
   courses: CourseWithProgress[];
   products: Product[];
   liveSessions: any[];
   trainingProviders: TrainingProvider[];
 }> {
     const courses = await prisma.course.findMany({
-        where: { status: 'PUBLISHED' },
+        where: {
+            status: 'PUBLISHED',
+            OR: [
+                { isPublic: true },
+                { trainingProviderId: userProviderId }
+            ]
+        },
         include: { 
             modules: true, 
             product: true,
@@ -144,7 +151,7 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(currentUser.id);
+  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(currentUser.id, currentUser.trainingProviderId);
 
   return (
     <div className="space-y-8">

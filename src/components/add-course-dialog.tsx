@@ -49,6 +49,7 @@ const formSchema = z.object({
   price: z.coerce.number().optional(),
   currency: z.nativeEnum(Currency).optional(),
   hasCertificate: z.boolean().default(false),
+  isPublic: z.boolean().default(true),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -74,6 +75,7 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
       price: undefined,
       currency: undefined,
       hasCertificate: false,
+      isPublic: true,
     },
   })
   
@@ -161,6 +163,26 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
                     />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="isPublic"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Public Course</FormLabel>
+                    <FormDescription>
+                      Should this course be visible to everyone?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />
