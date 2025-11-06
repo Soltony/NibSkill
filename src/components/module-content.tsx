@@ -28,7 +28,6 @@ const YouTubeEmbed = ({ url, onEnded }: { url: string, onEnded: () => void }) =>
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
-                    onEnded={onEnded}
                 ></iframe>
             </div>
         );
@@ -38,17 +37,35 @@ const YouTubeEmbed = ({ url, onEnded }: { url: string, onEnded: () => void }) =>
 };
 
 const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }) => {
-    const formRef = useRef<HTMLFormElement>(null);
+    const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
     useEffect(() => {
-        if (type === 'SLIDES' && url.startsWith('data:') && formRef.current) {
-            formRef.current.submit();
+        let tempUrl: string | null = null;
+        if (type === 'PDF' && url.startsWith('data:')) {
+            const [meta, data] = url.split(',');
+            if (meta && data) {
+                const byteString = atob(data);
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: meta.split(':')[1].split(';')[0] });
+                tempUrl = URL.createObjectURL(blob);
+                setObjectUrl(tempUrl);
+            }
         }
+
+        return () => {
+            if (tempUrl) {
+                URL.revokeObjectURL(tempUrl);
+            }
+        };
     }, [url, type]);
-    
+
     if (url.startsWith('https://')) {
         const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
-         return (
+        return (
             <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
                 <iframe
                     src={viewerUrl}
@@ -59,72 +76,38 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
             </div>
         );
     }
-    
-    if (type === 'PDF' && url.startsWith('data:')) {
-        const [meta, data] = url.split(',');
-        if (!meta || !data) return <p>Invalid PDF data.</p>;
-        const mime = meta.split(':')[1].split(';')[0];
-        const byteString = atob(data);
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
-        }
-        const blob = new Blob([ab], { type: mime });
-        const objectUrl = URL.createObjectURL(blob);
 
+    if (type === 'PDF' && objectUrl) {
         return (
             <div className="aspect-video w-full border rounded-lg bg-gray-100">
                 <iframe
                     src={objectUrl}
                     className="w-full h-full"
-                    title="Document viewer"
+                    title="PDF viewer"
                     frameBorder="0"
-                    onLoad={() => URL.revokeObjectURL(objectUrl)}
                 />
             </div>
         );
     }
     
-    if (type === 'SLIDES' && url.startsWith('data:')) {
-        const base64Data = url.split(',')[1];
-        if (!base64Data) return <p>Invalid slide data.</p>;
+    // Fallback for uploaded SLIDES or other data URIs that can't be embedded
+    if (url.startsWith('data:')) {
         return (
-             <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
-                 <iframe 
-                    name="office-viewer-frame" 
-                    className="w-full h-full"
-                    title="Document viewer"
-                    frameBorder="0"
-                 >
-                 </iframe>
-                 <form 
-                    ref={formRef}
-                    action="https://view.officeapps.live.com/op/embed.aspx" 
-                    method="post" 
-                    target="office-viewer-frame" 
-                    className="hidden"
-                >
-                    <input name="base64" value={base64Data} type="hidden" />
-                 </form>
-             </div>
+            <div className="aspect-video w-full border rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4 text-center">
+                <h3 className="font-semibold text-lg">Download to View</h3>
+                <p className="text-sm text-muted-foreground mb-4">This file format cannot be previewed directly. Please download it to view the content.</p>
+                <Button asChild>
+                    <a href={url} download={`module_content`}>
+                        <Download className="mr-2 h-4 w-4"/>
+                        Download File
+                    </a>
+                </Button>
+            </div>
         );
     }
 
-    return (
-        <div className="aspect-video w-full border rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4 text-center">
-            <h3 className="font-semibold text-lg">Download to View</h3>
-            <p className="text-sm text-muted-foreground mb-4">This file format cannot be previewed directly. Please download it to view the content.</p>
-            <Button asChild>
-                <a href={url} download={`module_content`}>
-                    <Download className="mr-2 h-4 w-4"/>
-                    Download File
-                </a>
-            </Button>
-        </div>
-    );
+    return <p className="text-destructive">Unsupported content format or invalid URL.</p>;
 };
-
 
 const NativePlayer = ({ url, onEnded, type }: { url: string, onEnded: () => void, type: 'video' | 'audio' }) => {
     if (type === 'video') {
@@ -237,23 +220,18 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
             </div>
             {isDocument && (
                  <div className="flex items-center justify-center pt-4">
-                    <Button
-                        variant="ghost"
-                        disabled={true}
-                        className="cursor-default text-muted-foreground"
-                    >
+                    <div className="text-sm text-muted-foreground">
                         {isCompleted ? (
-                            <>
-                                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                            <div className="flex items-center gap-2 text-green-600">
+                                <CheckCircle className="h-4 w-4" />
                                 Module Completed
-                            </>
+                            </div>
                         ) : (
-                            <>
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                {timeRemaining > 0 ? `Completed in ${formatTime(timeRemaining)}` : 'Module Completed!'}
-                            </>
+                            <span>
+                                {timeRemaining > 0 ? `Module completes in: ${formatTime(timeRemaining)}` : 'Completing...'}
+                            </span>
                         )}
-                    </Button>
+                    </div>
                 </div>
             )}
         </div>
