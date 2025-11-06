@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -27,6 +28,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { updateTrainingProvider } from "@/app/actions/super-admin-actions"
 import type { TrainingProvider, User } from "@prisma/client"
+import { Eye, EyeOff } from "lucide-react"
 
 const formSchema = z.object({
   providerId: z.string(),
@@ -37,6 +39,7 @@ const formSchema = z.object({
   adminName: z.string().min(2, "Admin name is required."),
   adminEmail: z.string().email("A valid email is required."),
   adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
+  adminPassword: z.string().min(6, "Password must be at least 6 characters.").optional().or(z.literal('')),
 })
 
 type EditProviderDialogProps = {
@@ -47,6 +50,7 @@ type EditProviderDialogProps = {
 export function EditProviderDialog({ provider, admin }: EditProviderDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
+  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -63,6 +67,7 @@ export function EditProviderDialog({ provider, admin }: EditProviderDialogProps)
         adminName: admin.name,
         adminEmail: admin.email ?? '',
         adminPhoneNumber: admin.phoneNumber ?? '',
+        adminPassword: '',
       })
     }
   }, [open, provider, admin, form])
@@ -131,7 +136,7 @@ export function EditProviderDialog({ provider, admin }: EditProviderDialogProps)
                 </FormItem>
               )}
             />
-            <div className="border-t pt-4">
+            <div className="border-t pt-4 space-y-4">
                  <FormField
                 control={form.control}
                 name="adminName"
@@ -164,6 +169,41 @@ export function EditProviderDialog({ provider, admin }: EditProviderDialogProps)
                     <FormMessage />
                     </FormItem>
                 )}
+                />
+                <FormField
+                  control={form.control}
+                  name="adminPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New Password (Optional)</FormLabel>
+                       <FormDescription>Leave blank to keep the current password.</FormDescription>
+                      <div className="relative">
+                        <FormControl>
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            {...field}
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                          <span className="sr-only">
+                            {showPassword ? "Hide password" : "Show password"}
+                          </span>
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
             </div>
             <DialogFooter>

@@ -89,6 +89,7 @@ const updateProviderSchema = z.object({
   adminName: z.string().min(2, "Admin name is required."),
   adminEmail: z.string().email("A valid email is required."),
   adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
+  adminPassword: z.string().min(6, "Password must be at least 6 characters.").optional().or(z.literal('')),
 })
 
 export async function updateTrainingProvider(values: z.infer<typeof updateProviderSchema>) {
@@ -98,22 +99,30 @@ export async function updateTrainingProvider(values: z.infer<typeof updateProvid
             return { success: false, message: "Invalid data provided." };
         }
 
-        const { providerId, name, address, accountNumber, adminId, adminName, adminEmail, adminPhoneNumber } = validatedFields.data;
+        const { providerId, name, address, accountNumber, adminId, adminName, adminEmail, adminPhoneNumber, adminPassword } = validatedFields.data;
 
-        await prisma.$transaction([
-            prisma.trainingProvider.update({
+        await prisma.$transaction(async (tx) => {
+            await tx.trainingProvider.update({
                 where: { id: providerId },
                 data: { name, address, accountNumber }
-            }),
-            prisma.user.update({
+            });
+            
+            let userUpdateData: any = { 
+                name: adminName,
+                email: adminEmail,
+                phoneNumber: adminPhoneNumber
+            };
+            
+            if (adminPassword) {
+                const hashedPassword = await bcrypt.hash(adminPassword, 10);
+                userUpdateData.password = hashedPassword;
+            }
+
+            await tx.user.update({
                 where: { id: adminId },
-                data: { 
-                    name: adminName,
-                    email: adminEmail,
-                    phoneNumber: adminPhoneNumber
-                }
-            })
-        ]);
+                data: userUpdateData
+            });
+        });
 
         revalidatePath('/super-admin/providers');
         return { success: true, message: "Provider updated successfully." };
