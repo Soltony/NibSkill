@@ -14,23 +14,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { deleteTrainingProvider } from "@/app/actions/super-admin-actions";
+import { toggleProviderStatus } from "@/app/actions/super-admin-actions";
+import type { TrainingProvider } from "@prisma/client";
+import { cn } from "@/lib/utils";
 
-type DeleteProviderButtonProps = {
-  providerId: string;
-  providerName: string;
+type ToggleProviderStatusButtonProps = {
+  provider: TrainingProvider;
 };
 
-export function DeleteProviderButton({ providerId, providerName }: DeleteProviderButtonProps) {
+export function ToggleProviderStatusButton({ provider }: ToggleProviderStatusButtonProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
-  const handleConfirmDelete = async () => {
-    const result = await deleteTrainingProvider(providerId);
+  const handleConfirmToggle = async () => {
+    const result = await toggleProviderStatus(provider.id, !provider.isActive);
     if (result.success) {
       toast({
-        title: "Provider Deleted",
-        description: `The provider "${providerName}" has been permanently deleted.`,
+        title: "Provider Status Updated",
+        description: result.message,
       });
     } else {
       toast({
@@ -42,30 +43,37 @@ export function DeleteProviderButton({ providerId, providerName }: DeleteProvide
     setOpen(false);
   };
 
+  const isDeactivating = provider.isActive;
+
   return (
     <>
       <Button
-        variant="destructive-outline"
+        variant={isDeactivating ? "destructive-outline" : "secondary"}
         size="sm"
         onClick={() => setOpen(true)}
       >
-        Delete
+        {isDeactivating ? "Deactivate" : "Activate"}
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              provider <span className="font-semibold">"{providerName}"</span> and
-              all of their associated data, including users, courses, and
-              progress.
+              This will {isDeactivating ? "deactivate" : "activate"} the provider{" "}
+              <span className="font-semibold">"{provider.name}"</span>. 
+              {isDeactivating 
+                ? " Their admins and users will not be able to log in."
+                : " Their admins and users will regain access to the system."
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete}>
-              Confirm Delete
+            <AlertDialogAction
+              onClick={handleConfirmToggle}
+              className={cn(!isDeactivating && "bg-green-600 hover:bg-green-700")}
+            >
+              Confirm {isDeactivating ? "Deactivation" : "Activation"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

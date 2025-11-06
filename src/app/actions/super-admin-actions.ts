@@ -56,6 +56,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
                 name,
                 address,
                 accountNumber,
+                isActive: true,
                 users: {
                     create: {
                         name: `${adminFirstName} ${adminLastName}`,
@@ -139,17 +140,17 @@ export async function updateTrainingProvider(values: z.infer<typeof updateProvid
 }
 
 
-export async function deleteTrainingProvider(providerId: string) {
+export async function toggleProviderStatus(providerId: string, isActive: boolean) {
     try {
-        // Due to cascading deletes defined in the schema, 
-        // deleting the provider will also delete related records.
-        await prisma.trainingProvider.delete({
-            where: { id: providerId }
+        await prisma.trainingProvider.update({
+            where: { id: providerId },
+            data: { isActive: isActive }
         });
         revalidatePath('/super-admin');
-        return { success: true, message: "Provider deleted successfully." };
+        const message = isActive ? "Provider activated successfully." : "Provider deactivated successfully.";
+        return { success: true, message };
     } catch (error: any) {
-        console.error("Error deleting provider:", error);
-        return { success: false, message: "Failed to delete provider. Ensure all associated data is handled." };
+        console.error("Error toggling provider status:", error);
+        return { success: false, message: "Failed to update provider status." };
     }
 }

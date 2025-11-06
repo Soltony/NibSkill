@@ -1,4 +1,3 @@
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -11,7 +10,7 @@ generator client {
 model User {
   id                   String                  @id @default(cuid())
   name                 String
-  email                String?
+  email                String?                 
   password             String
   avatarUrl            String?
   phoneNumber          String?
@@ -377,6 +376,7 @@ model TrainingProvider {
   name                String               @unique
   address             String
   accountNumber       String               @unique
+  isActive            Boolean              @default(true)
   users               User[]
   products            Product[]
   courses             Course[]
