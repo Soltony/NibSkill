@@ -87,30 +87,69 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
 }
 
 const updateProviderSchema = z.object({
+  providerId: z.string(),
   name: z.string().min(2, "Provider name is required."),
   address: z.string().min(5, "Address is required."),
   accountNumber: z.string().min(5, "Account number is required."),
+  adminId: z.string(),
+  adminName: z.string().min(2, "Admin name is required."),
+  adminEmail: z.string().email("A valid email is required."),
+  adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
 })
 
-export async function updateTrainingProvider(id: string, values: z.infer<typeof updateProviderSchema>) {
+export async function updateTrainingProvider(values: z.infer<typeof updateProviderSchema>) {
     try {
         const validatedFields = updateProviderSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." };
         }
 
-        await prisma.trainingProvider.update({
-            where: { id },
-            data: validatedFields.data
-        });
+        const { providerId, name, address, accountNumber, adminId, adminName, adminEmail, adminPhoneNumber } = validatedFields.data;
+
+        await prisma.$transaction([
+            prisma.trainingProvider.update({
+                where: { id: providerId },
+                data: { name, address, accountNumber }
+            }),
+            prisma.user.update({
+                where: { id: adminId },
+                data: { 
+                    name: adminName,
+                    email: adminEmail,
+                    phoneNumber: adminPhoneNumber
+                }
+            })
+        ]);
 
         revalidatePath('/super-admin');
         return { success: true, message: "Provider updated successfully." };
     } catch (error: any) {
         console.error("Error updating provider:", error);
          if (error.code === 'P2002') {
-            return { success: false, message: "A provider with this name or account number already exists." }
+            const target = error.meta?.target as string[];
+            if (target.includes('name') || target.includes('accountNumber')) {
+                return { success: false, message: "A provider with this name or account number already exists." }
+            }
+            if (target.includes('email') || target.includes('phoneNumber')) {
+                return { success: false, message: "An admin with this email or phone number already exists." }
+            }
         }
         return { success: false, message: "Failed to update provider." };
+    }
+}
+
+
+export async function deleteTrainingProvider(providerId: string) {
+    try {
+        // Due to cascading deletes defined in the schema, 
+        // deleting the provider will also delete related records.
+        await prisma.trainingProvider.delete({
+            where: { id: providerId }
+        });
+        revalidatePath('/super-admin');
+        return { success: true, message: "Provider deleted successfully." };
+    } catch (error: any) {
+        console.error("Error deleting provider:", error);
+        return { success: false, message: "Failed to delete provider. Ensure all associated data is handled." };
     }
 }

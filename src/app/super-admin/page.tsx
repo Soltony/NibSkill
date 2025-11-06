@@ -18,6 +18,7 @@ import prisma from "@/lib/db"
 import { AddProviderDialog } from "./add-provider-dialog"
 import type { TrainingProvider, User } from "@prisma/client"
 import { EditProviderDialog } from "./edit-provider-dialog"
+import { DeleteProviderButton } from "./delete-provider-button"
 
 type ProviderWithAdmin = TrainingProvider & { users: User[] };
 export const dynamic = "force-dynamic";
@@ -74,7 +75,10 @@ export default async function SuperAdminDashboard() {
                       <TableCell>{admin?.email || 'N/A'}</TableCell>
                       <TableCell>{provider.accountNumber}</TableCell>
                       <TableCell className="text-right">
-                        <EditProviderDialog provider={provider} />
+                        <div className="flex justify-end gap-2">
+                            <EditProviderDialog provider={provider} admin={admin} />
+                            <DeleteProviderButton providerId={provider.id} providerName={provider.name} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   )

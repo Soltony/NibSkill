@@ -26,43 +26,49 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { updateTrainingProvider } from "@/app/actions/super-admin-actions"
-import type { TrainingProvider } from "@prisma/client"
+import type { TrainingProvider, User } from "@prisma/client"
 
 const formSchema = z.object({
+  providerId: z.string(),
   name: z.string().min(2, "Provider name is required."),
   address: z.string().min(5, "Address is required."),
   accountNumber: z.string().min(5, "Account number is required."),
+  adminId: z.string(),
+  adminName: z.string().min(2, "Admin name is required."),
+  adminEmail: z.string().email("A valid email is required."),
+  adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
 })
 
 type EditProviderDialogProps = {
-  provider: TrainingProvider
+  provider: TrainingProvider;
+  admin: User;
 }
 
-export function EditProviderDialog({ provider }: EditProviderDialogProps) {
+export function EditProviderDialog({ provider, admin }: EditProviderDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: provider.name,
-      address: provider.address,
-      accountNumber: provider.accountNumber,
-    },
   })
 
   useEffect(() => {
     if (open) {
       form.reset({
+        providerId: provider.id,
         name: provider.name,
         address: provider.address,
         accountNumber: provider.accountNumber,
+        adminId: admin.id,
+        adminName: admin.name,
+        adminEmail: admin.email ?? '',
+        adminPhoneNumber: admin.phoneNumber ?? '',
       })
     }
-  }, [open, provider, form])
+  }, [open, provider, admin, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = await updateTrainingProvider(provider.id, values);
+    const result = await updateTrainingProvider(values);
     if (result.success) {
         toast({
             title: "Provider Updated",
@@ -83,7 +89,7 @@ export function EditProviderDialog({ provider }: EditProviderDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">Edit</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Training Provider</DialogTitle>
           <DialogDescription>
@@ -91,8 +97,8 @@ export function EditProviderDialog({ provider }: EditProviderDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <FormField
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
@@ -125,6 +131,41 @@ export function EditProviderDialog({ provider }: EditProviderDialogProps) {
                 </FormItem>
               )}
             />
+            <div className="border-t pt-4">
+                 <FormField
+                control={form.control}
+                name="adminName"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Admin Name</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                 <FormField
+                control={form.control}
+                name="adminEmail"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Admin Email</FormLabel>
+                    <FormControl><Input type="email" {...field} /></FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                 <FormField
+                control={form.control}
+                name="adminPhoneNumber"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Admin Phone Number</FormLabel>
+                    <FormControl><Input type="tel" {...field} /></FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            </div>
             <DialogFooter>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
