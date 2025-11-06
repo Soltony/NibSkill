@@ -22,7 +22,6 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
         const { userId, courseId, score } = validatedFields.data;
 
-        // Get course and quiz details to check passing score and attempts
         const course = await prisma.course.findUnique({
             where: { id: courseId },
             include: { quiz: true, modules: { select: { id: true }} },
@@ -35,28 +34,11 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         const passed = course.quiz ? score >= course.quiz.passingScore : true;
         const maxAttempts = course.quiz?.maxAttempts ?? 0;
 
-        // Fetch existing attempts BEFORE creating the new one
         const previousAttempts = await prisma.userCompletedCourse.findMany({
             where: { userId, courseId }
         });
 
-        if (!passed && maxAttempts > 0) {
-            // Check if the user has attempts left *before* this new attempt
-            if (previousAttempts.length < maxAttempts) {
-                // User failed and has attempts left, so reset their module progress for this course.
-                const moduleIds = course.modules.map(m => m.id);
-                if (moduleIds.length > 0) {
-                  await prisma.userCompletedModule.deleteMany({
-                      where: {
-                          userId: userId,
-                          moduleId: { in: moduleIds }
-                      }
-                  });
-                }
-            }
-        }
-
-        // Now, upsert the current attempt record
+        // Upsert the current attempt record first. This is crucial for the UI to see the new score.
         await prisma.userCompletedCourse.upsert({
             where: {
                 userId_courseId: {
@@ -75,6 +57,21 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             }
         });
 
+        // Now, check if we need to reset progress.
+        if (!passed && maxAttempts > 0) {
+            if (previousAttempts.length < maxAttempts) {
+                // User failed and has attempts left. Reset module progress.
+                const moduleIds = course.modules.map(m => m.id);
+                if (moduleIds.length > 0) {
+                  await prisma.userCompletedModule.deleteMany({
+                      where: {
+                          userId: userId,
+                          moduleId: { in: moduleIds }
+                      }
+                  });
+                }
+            }
+        }
 
         if (passed && course.hasCertificate) {
             revalidatePath(`/courses/${courseId}/certificate`);
@@ -134,12 +131,8 @@ export async function updateUserProfile(values: z.infer<typeof profileFormSchema
 
         revalidatePath('/profile');
         
-        // If email has changed, user might need to log in again if email is used for login.
-        // We can optionally clear the session to force re-login.
         if (email && email !== session.email) {
              // Let's not force re-login for just an email change if phone is primary.
-             // cookies().set('session', '', { expires: new Date(0) });
-             // return { success: true, message: 'Profile updated. Please log in again with your new email.' };
         }
         
         return { success: true, message: 'Profile updated successfully.' };
