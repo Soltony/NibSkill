@@ -1,10 +1,11 @@
 
+
 "use client";
 
 import React from 'react';
 import type { Module } from '@prisma/client';
 import { Button } from './ui/button';
-import { ExternalLink, Download } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 const YouTubeEmbed = ({ url }: { url: string }) => {
     try {
@@ -119,27 +120,15 @@ export const ModuleContent = ({ module, onAutoComplete }: ModuleContentProps) =>
 
             case 'PDF':
             case 'SLIDES':
-                if (isUploadedContent) {
-                    return (
-                        <Button asChild>
-                            <a href={module.content} download={`nibtraining_${module.type.toLowerCase()}_${module.id}`}>
-                                <Download className="mr-2 h-4 w-4" />
-                                Download Material
-                            </a>
-                        </Button>
-                    );
-                }
-                if (isExternalUrl) {
-                    return (
-                        <Button asChild variant="outline">
-                            <a href={module.content} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Open External Material
-                            </a>
-                        </Button>
-                    );
-                }
-                break;
+                return (
+                  <div className="aspect-video w-full border rounded-lg bg-gray-100">
+                    <iframe
+                      src={module.content}
+                      className="w-full h-full"
+                      title={module.title}
+                    />
+                  </div>
+                );
         }
 
         return <p className="text-muted-foreground">Unsupported or invalid content link for this module.</p>;

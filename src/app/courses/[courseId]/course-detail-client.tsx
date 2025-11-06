@@ -308,16 +308,6 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                             <ModuleContent module={module as any} onAutoComplete={() => handleModuleCompletion(module.id, true)} />
                             <div className="flex items-center justify-between pt-4 border-t">
                                 <div className="flex items-center gap-4">
-                                    {!isUploadedMedia && (
-                                        <div className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={`complete-${module.id}`}
-                                                checked={localCompletedModules.has(module.id)}
-                                                onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
-                                            />
-                                            <Label htmlFor={`complete-${module.id}`} className="cursor-pointer">Mark as completed</Label>
-                                        </div>
-                                    )}
                                     <FeatureNotImplementedDialog
                                         title="Bookmark Module"
                                         description="This feature is not yet implemented. In the future, you will be able to bookmark modules to easily find them later."
