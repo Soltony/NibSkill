@@ -38,45 +38,95 @@ const YouTubeEmbed = ({ url, onEnded }: { url: string, onEnded: () => void }) =>
     }
 };
 
-const EmbeddedDocument = ({ url }: { url: string }) => {
+const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }) => {
     const [objectUrl, setObjectUrl] = useState<string | null>(null);
+    const formRef = useRef<HTMLFormElement>(null);
 
     useEffect(() => {
         let currentObjectUrl: string | null = null;
-        if (url.startsWith('data:application/pdf')) {
-            const fetchBlob = async () => {
-                const response = await fetch(url);
-                const blob = await response.blob();
-                currentObjectUrl = URL.createObjectURL(blob);
-                setObjectUrl(currentObjectUrl);
-            };
-            fetchBlob();
+        if (url.startsWith('data:')) {
+            const isPdf = type === 'PDF';
+            if (isPdf) {
+                 const fetchBlob = async () => {
+                    const response = await fetch(url);
+                    const blob = await response.blob();
+                    currentObjectUrl = URL.createObjectURL(blob);
+                    setObjectUrl(currentObjectUrl);
+                };
+                fetchBlob();
+            } else { // Handle slides
+                // For slides, we use the form-post method which doesn't need a blob URL
+                if (formRef.current) {
+                    formRef.current.submit();
+                }
+            }
 
             return () => {
-                if (currentObjectUrl) {
+                if (isPdf && currentObjectUrl) {
                     URL.revokeObjectURL(currentObjectUrl);
                 }
             };
         }
-    }, [url]);
+    }, [url, type]);
     
-    const displayUrl = url.startsWith('data:application/pdf') ? objectUrl : url;
-
-    if (url.startsWith('data:application/pdf') && !displayUrl) {
-        return <p>Loading document...</p>;
+    // For publicly hosted files (PDF or Slides)
+    if (url.startsWith('https://')) {
+        const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+         return (
+            <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
+                <iframe
+                    src={viewerUrl}
+                    className="w-full h-full"
+                    title="Document viewer"
+                    frameBorder="0"
+                />
+            </div>
+        );
+    }
+    
+    // For uploaded PDFs
+    if (url.startsWith('data:application/pdf')) {
+        if (!objectUrl) return <p>Loading PDF...</p>;
+        return (
+            <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
+                <iframe
+                    src={objectUrl}
+                    className="w-full h-full"
+                    title="Document viewer"
+                    frameBorder="0"
+                />
+            </div>
+        );
+    }
+    
+    // For uploaded Slides
+    if (url.startsWith('data:')) {
+        const base64Data = url.split(',')[1];
+        return (
+             <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
+                 <iframe 
+                    name="office-viewer-frame" 
+                    className="w-full h-full"
+                    title="Document viewer"
+                    frameBorder="0"
+                 >
+                 </iframe>
+                 <form 
+                    ref={formRef}
+                    action="https://view.officeapps.live.com/op/embed.aspx" 
+                    method="post" 
+                    target="office-viewer-frame" 
+                    className="hidden"
+                >
+                    <input name="base64" value={base64Data} type="hidden" />
+                 </form>
+             </div>
+        );
     }
 
-    return (
-        <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
-            <iframe
-                src={displayUrl!}
-                className="w-full h-full"
-                title="Document viewer"
-                frameBorder="0"
-            />
-        </div>
-    );
+    return <p className="text-destructive">Unsupported document URL.</p>;
 };
+
 
 const NativePlayer = ({ url, onEnded, type }: { url: string, onEnded: () => void, type: 'video' | 'audio' }) => {
     if (type === 'video') {
@@ -168,28 +218,9 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
                  }
                 break;
             case 'PDF':
-                if (isDataUrl || isExternalUrl) {
-                    return <EmbeddedDocument url={module.content} />;
-                }
-                break;
             case 'SLIDES':
-                if (isExternalUrl) { 
-                    const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(module.content)}&embedded=true`;
-                    return <EmbeddedDocument url={viewerUrl} />;
-                }
-                if (isDataUrl) { 
-                    return (
-                        <div className="p-4 bg-yellow-100/50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 rounded-md space-y-2">
-                             <p className="font-semibold">Uploaded Presentation</p>
-                             <p className="text-sm">To view this presentation, please download it. Embedded viewing for uploaded slides is not currently supported.</p>
-                             <Button asChild variant="secondary" size="sm">
-                                <a href={module.content} download={module.title}>
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Download Presentation
-                                </a>
-                            </Button>
-                        </div>
-                    );
+                if (isDataUrl || isExternalUrl) {
+                    return <EmbeddedDocument url={module.content} type={module.type} />;
                 }
                 break;
         }
@@ -209,15 +240,24 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
             <div>
                {renderContent()}
             </div>
-            {isDocument && !isCompleted && (
+            {isDocument && (
                  <div className="flex items-center justify-center pt-4">
                     <Button
                         variant="ghost"
                         disabled={true}
                         className="cursor-default text-muted-foreground"
                     >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        {timeRemaining > 0 ? `Completed in ${formatTime(timeRemaining)}` : 'Module Completed!'}
+                        {isCompleted ? (
+                            <>
+                                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                                Module Completed
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                {timeRemaining > 0 ? `Completed in ${formatTime(timeRemaining)}` : 'Module Completed!'}
+                            </>
+                        )}
                     </Button>
                 </div>
             )}

@@ -11,8 +11,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2, Award, ShieldCheck } from 'lucide-react';
@@ -109,17 +107,15 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     );
   }
   
-  const handleModuleCompletion = async (moduleId: string, completed: boolean) => {
+  const handleModuleCompletion = useCallback(async (moduleId: string) => {
+    if (localCompletedModules.has(moduleId)) return;
+
     // Optimistic UI update
     const newCompletions = new Set(localCompletedModules);
-    if (completed) {
-        newCompletions.add(moduleId);
-    } else {
-        newCompletions.delete(moduleId);
-    }
+    newCompletions.add(moduleId);
     setLocalCompletedModules(newCompletions);
 
-    const result = await toggleModuleCompletion(course.id, { moduleId, completed });
+    const result = await toggleModuleCompletion(course.id, { moduleId, completed: true });
     
     if (!result.success) {
       toast({
@@ -128,9 +124,15 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         variant: "destructive"
       });
       // Revert optimistic update
-      setLocalCompletedModules(new Set(courseData?.completedModules.map(cm => cm.moduleId)))
+      const originalCompletions = new Set(initialCourseData.completedModules.map(cm => cm.moduleId));
+      setLocalCompletedModules(originalCompletions);
+    } else {
+        toast({
+            title: "Module Completed!",
+            description: "Your progress has been saved.",
+        })
     }
-  };
+  }, [course.id, initialCourseData.completedModules, localCompletedModules, toast]);
 
 
   const handleBuyCourse = async () => {
@@ -290,8 +292,6 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         <>
             <Accordion type="single" collapsible className="w-full" defaultValue={course.modules.length > 0 ? course.modules[0].id : undefined}>
                 {course.modules.map((module) => {
-                  const isUploadedMedia = (module.type === 'VIDEO' || module.type === 'AUDIO') && module.content.startsWith('data:');
-
                   return (
                     <AccordionItem value={module.id} key={module.id}>
                         <AccordionTrigger className="font-semibold hover:no-underline">
@@ -303,29 +303,21 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                         </AccordionTrigger>
                         <AccordionContent>
                         <div className="space-y-4 p-4 bg-muted/50 rounded-md">
-                            <ModuleContent module={module as any} onAutoComplete={() => handleModuleCompletion(module.id, true)} />
+                            <ModuleContent 
+                              module={module} 
+                              onAutoComplete={() => handleModuleCompletion(module.id)} 
+                              isCompleted={localCompletedModules.has(module.id)}
+                            />
                             <div className="flex items-center justify-between pt-4 border-t">
-                                <div className="flex items-center gap-4">
-                                    <FeatureNotImplementedDialog
-                                        title="Bookmark Module"
-                                        description="This feature is not yet implemented. In the future, you will be able to bookmark modules to easily find them later."
-                                    >
-                                        <Button variant="ghost" size="sm">
-                                            <Bookmark className="mr-2 h-4 w-4" />
-                                            Bookmark
-                                        </Button>
-                                    </FeatureNotImplementedDialog>
-                                     <div className="flex items-center space-x-2">
-                                        <Checkbox 
-                                            id={`complete-${module.id}`} 
-                                            checked={localCompletedModules.has(module.id)}
-                                            onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
-                                        />
-                                        <Label htmlFor={`complete-${module.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                            Mark as completed
-                                        </Label>
-                                    </div>
-                                </div>
+                                <FeatureNotImplementedDialog
+                                    title="Bookmark Module"
+                                    description="This feature is not yet implemented. In the future, you will be able to bookmark modules to easily find them later."
+                                >
+                                    <Button variant="ghost" size="sm">
+                                        <Bookmark className="mr-2 h-4 w-4" />
+                                        Bookmark
+                                    </Button>
+                                </FeatureNotImplementedDialog>
                                 {userRole === 'admin' && (
                                     <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
                                         <Button variant="ghost" size="sm">
