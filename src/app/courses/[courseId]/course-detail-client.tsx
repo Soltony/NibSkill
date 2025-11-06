@@ -110,9 +110,6 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   }
   
   const handleModuleCompletion = async (moduleId: string, completed: boolean) => {
-    // Prevent re-toggling if already in the desired state
-    if (completed === localCompletedModules.has(moduleId)) return;
-    
     // Optimistic UI update
     const newCompletions = new Set(localCompletedModules);
     if (completed) {
@@ -134,6 +131,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
       setLocalCompletedModules(new Set(courseData?.completedModules.map(cm => cm.moduleId)))
     }
   };
+
 
   const handleBuyCourse = async () => {
     console.log('[Client] "Buy Course" button clicked.');
@@ -304,7 +302,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
-                          <div className="space-y-4 p-4 bg-muted/50 rounded-md">
+                        <div className="space-y-4 p-4 bg-muted/50 rounded-md">
                             <ModuleContent module={module as any} onAutoComplete={() => handleModuleCompletion(module.id, true)} />
                             <div className="flex items-center justify-between pt-4 border-t">
                                 <div className="flex items-center gap-4">
@@ -317,6 +315,16 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                                             Bookmark
                                         </Button>
                                     </FeatureNotImplementedDialog>
+                                     <div className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`complete-${module.id}`} 
+                                            checked={localCompletedModules.has(module.id)}
+                                            onCheckedChange={(checked) => handleModuleCompletion(module.id, !!checked)}
+                                        />
+                                        <Label htmlFor={`complete-${module.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                            Mark as completed
+                                        </Label>
+                                    </div>
                                 </div>
                                 {userRole === 'admin' && (
                                     <EditModuleDialog module={module as any} onModuleUpdated={handleModuleUpdated}>
