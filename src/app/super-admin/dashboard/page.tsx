@@ -8,6 +8,9 @@ import {
 } from "@/components/ui/card"
 import prisma from "@/lib/db"
 import { BookCopy, Building, Radio, Users } from "lucide-react"
+import { SuperAdminCharts } from "./super-admin-charts"
+import { subDays, format } from "date-fns";
+
 
 async function getSuperAdminData() {
     const totalProviders = await prisma.trainingProvider.count();
@@ -26,12 +29,68 @@ async function getSuperAdminData() {
     const activeLiveSessions = await prisma.liveSession.count({
         where: { status: 'LIVE' }
     });
+    
+    // Data for New Registrations chart
+    const thirtyDaysAgo = subDays(new Date(), 30);
+    const newRegistrations = await prisma.user.groupBy({
+        by: ['createdAt'],
+        where: {
+            roleId: { in: staffRoleIds },
+            createdAt: {
+                gte: thirtyDaysAgo
+            }
+        },
+        _count: {
+            id: true
+        },
+        orderBy: {
+            createdAt: 'asc'
+        }
+    });
+
+    // Process data for the chart
+    const dailyRegistrations = new Map<string, number>();
+    for (let i = 0; i < 30; i++) {
+        const date = subDays(new Date(), i);
+        dailyRegistrations.set(format(date, 'yyyy-MM-dd'), 0);
+    }
+    
+    newRegistrations.forEach(reg => {
+        const dateStr = format(reg.createdAt, 'yyyy-MM-dd');
+        if (dailyRegistrations.has(dateStr)) {
+            dailyRegistrations.set(dateStr, (dailyRegistrations.get(dateStr) || 0) + reg._count.id);
+        }
+    });
+    
+    const registrationChartData = Array.from(dailyRegistrations.entries()).map(([date, count]) => ({
+        date: format(new Date(date), 'MMM dd'),
+        registrations: count
+    })).reverse();
+
+
+    // Data for Provider Activity chart
+    const providerActivity = await prisma.trainingProvider.findMany({
+        select: {
+            name: true,
+            _count: {
+                select: { courses: true }
+            }
+        }
+    });
+
+    const providerActivityChartData = providerActivity.map(p => ({
+        provider: p.name,
+        courses: p._count.courses,
+    }));
+
 
     return {
         totalProviders,
         totalTrainees,
         totalCourses,
         activeLiveSessions,
+        registrationChartData,
+        providerActivityChartData,
     }
 }
 
@@ -91,30 +150,10 @@ export default async function SuperAdminDashboard() {
             </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle>New Registrations</CardTitle>
-                    <CardDescription>Chart showing new trainee registrations over the last 30 days.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-60 flex items-center justify-center text-muted-foreground text-sm">
-                        Chart coming soon...
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Provider Activity</CardTitle>
-                    <CardDescription>Chart showing course creation activity by provider.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <div className="h-60 flex items-center justify-center text-muted-foreground text-sm">
-                        Chart coming soon...
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+        <SuperAdminCharts
+            registrationData={stats.registrationChartData}
+            providerActivityData={stats.providerActivityChartData}
+        />
       </div>
   )
 }
