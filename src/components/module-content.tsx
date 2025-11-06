@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -45,29 +44,27 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
     useEffect(() => {
         let currentObjectUrl: string | null = null;
         if (url.startsWith('data:')) {
-            const isPdf = type === 'PDF';
-            if (isPdf) {
-                 const fetchBlob = async () => {
+            if (type === 'PDF') {
+                const fetchBlob = async () => {
                     const response = await fetch(url);
                     const blob = await response.blob();
                     currentObjectUrl = URL.createObjectURL(blob);
                     setObjectUrl(currentObjectUrl);
                 };
                 fetchBlob();
-            } else { // Handle slides
-                // For slides, we use the form-post method which doesn't need a blob URL
+            } else if (type === 'SLIDES') {
                 if (formRef.current) {
                     formRef.current.submit();
                 }
             }
-
-            return () => {
-                if (isPdf && currentObjectUrl) {
-                    URL.revokeObjectURL(currentObjectUrl);
-                }
-            };
         }
-    }, [url, type]);
+
+        return () => {
+            if (type === 'PDF' && currentObjectUrl) {
+                URL.revokeObjectURL(currentObjectUrl);
+            }
+        };
+    }, [url, type, formRef]);
     
     // For publicly hosted files (PDF or Slides)
     if (url.startsWith('https://')) {
@@ -85,10 +82,10 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
     }
     
     // For uploaded PDFs
-    if (url.startsWith('data:application/pdf')) {
+    if (type === 'PDF' && url.startsWith('data:')) {
         if (!objectUrl) return <p>Loading PDF...</p>;
         return (
-            <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
+            <div className="aspect-video w-full border rounded-lg bg-gray-100">
                 <iframe
                     src={objectUrl}
                     className="w-full h-full"
@@ -100,7 +97,7 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
     }
     
     // For uploaded Slides
-    if (url.startsWith('data:')) {
+    if (type === 'SLIDES' && url.startsWith('data:')) {
         const base64Data = url.split(',')[1];
         return (
              <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
