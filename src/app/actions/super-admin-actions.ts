@@ -28,18 +28,6 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
 
         const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPassword, adminPhoneNumber } = validatedFields.data;
 
-        const existingUser = await prisma.user.findFirst({
-            where: { 
-                OR: [
-                    { email: adminEmail },
-                    { phoneNumber: adminPhoneNumber }
-                ]
-             }
-        });
-        if (existingUser) {
-            return { success: false, message: "A user with this email or phone number already exists." };
-        }
-
         const providerAdminRole = await prisma.role.findFirst({
             where: { name: 'Training Provider' }
         });
@@ -81,7 +69,12 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
     } catch (error: any) {
         console.error("Error registering training provider:", error);
         if (error.code === 'P2002') {
-            return { success: false, message: "A provider with this name or account number already exists." }
+            const target = error.meta?.target as string[];
+            if (target.includes('name') || target.includes('accountNumber')) {
+                 return { success: false, message: "A provider with this name or account number already exists." }
+            }
+            // Fallback for other unique constraint issues, though less likely now
+            return { success: false, message: "A user with this email or phone number might already exist in a conflicting context." };
         }
         return { success: false, message: "Failed to register training provider." }
     }
@@ -151,5 +144,18 @@ export async function toggleProviderStatus(providerId: string, isActive: boolean
     } catch (error: any) {
         console.error("Error updating provider status:", error);
         return { success: false, message: "Failed to update provider status." };
+    }
+}
+
+export async function deleteTrainingProvider(providerId: string) {
+    try {
+        await prisma.trainingProvider.delete({
+            where: { id: providerId }
+        });
+        revalidatePath('/super-admin/providers');
+        return { success: true, message: 'Provider deleted successfully.' };
+    } catch (error: any) {
+        console.error("Error deleting provider:", error);
+        return { success: false, message: 'Failed to delete provider.' };
     }
 }
