@@ -18,7 +18,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, BookCopy, BookMarked, Radio, ShieldCheck, User, CheckCircle, Package, ClipboardCheck, Edit, FilePieChart, UserCheck, Award, Settings, LogOut, Users } from 'lucide-react';
+import { LayoutDashboard, BookCopy, BookMarked, Radio, ShieldCheck, User, CheckCircle, Package, ClipboardCheck, Edit, FilePieChart, UserCheck, Award, Settings, LogOut, Users, Building } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
 import { NotificationCenter } from '@/components/notification-center';
@@ -93,7 +93,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { href: '/admin/settings', icon: Settings, label: 'Settings', permission: permissions?.settings?.r },
   ];
 
-  const superAdminNavItems = [{ href: '/super-admin', icon: ShieldCheck, label: 'Super Admin' }];
+  const superAdminNavItems = [
+      { href: '/super-admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { href: '/super-admin/providers', icon: Building, label: 'Providers' }
+  ];
   const isAdminPath = pathname.startsWith('/admin');
   const isSuperAdminPath = pathname.startsWith('/super-admin');
 
@@ -137,14 +140,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  const isLinkActive = (path: string) =>
-    path === '/admin/analytics' && pathname === '/admin/analytics'
-      ? true
-      : path !== '/admin/analytics' && pathname.startsWith(path)
-      ? true
-      : path === '/courses' && pathname.startsWith('/courses/')
-      ? true
-      : false;
+  const isLinkActive = (path: string) => {
+    if (path === '/super-admin/dashboard' || path === '/admin/analytics') {
+      return pathname === path;
+    }
+    return pathname.startsWith(path);
+  }
 
   const handleLogout = async () => {
     await logout();

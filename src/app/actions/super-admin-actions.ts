@@ -76,7 +76,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
             }
         });
 
-        revalidatePath('/super-admin');
+        revalidatePath('/super-admin/providers');
         return { success: true, message: 'Training provider registered successfully.' }
     } catch (error: any) {
         console.error("Error registering training provider:", error);
@@ -122,7 +122,7 @@ export async function updateTrainingProvider(values: z.infer<typeof updateProvid
             })
         ]);
 
-        revalidatePath('/super-admin');
+        revalidatePath('/super-admin/providers');
         return { success: true, message: "Provider updated successfully." };
     } catch (error: any) {
         console.error("Error updating provider:", error);
@@ -140,17 +140,16 @@ export async function updateTrainingProvider(values: z.infer<typeof updateProvid
 }
 
 
-export async function deleteTrainingProvider(providerId: string) {
+export async function toggleProviderStatus(providerId: string, isActive: boolean) {
     try {
-        // This is a dangerous operation, ensure cascading deletes are set up correctly in your schema
-        // or handle related data manually.
-        await prisma.trainingProvider.delete({
-            where: { id: providerId }
+        await prisma.trainingProvider.update({
+            where: { id: providerId },
+            data: { isActive: isActive }
         });
-        revalidatePath('/super-admin');
-        return { success: true, message: "Provider deleted successfully." };
+        revalidatePath('/super-admin/providers');
+        return { success: true, message: `Provider status has been updated to ${isActive ? "Active" : "Inactive"}.` };
     } catch (error: any) {
-        console.error("Error deleting provider:", error);
-        return { success: false, message: "Failed to delete provider." };
+        console.error("Error updating provider status:", error);
+        return { success: false, message: "Failed to update provider status." };
     }
 }
