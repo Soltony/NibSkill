@@ -44,9 +44,8 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
         if (type === 'SLIDES' && url.startsWith('data:') && formRef.current) {
             formRef.current.submit();
         }
-    }, [url, type, formRef]);
+    }, [url, type]);
     
-    // For publicly hosted files (PDF or Slides)
     if (url.startsWith('https://')) {
         const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
          return (
@@ -61,9 +60,9 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
         );
     }
     
-    // For uploaded PDFs
     if (type === 'PDF' && url.startsWith('data:')) {
         const [meta, data] = url.split(',');
+        if (!meta || !data) return <p>Invalid PDF data.</p>;
         const mime = meta.split(':')[1].split(';')[0];
         const byteString = atob(data);
         const ab = new ArrayBuffer(byteString.length);
@@ -81,15 +80,15 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
                     className="w-full h-full"
                     title="Document viewer"
                     frameBorder="0"
-                    onLoad={() => URL.revokeObjectURL(objectUrl)} // Clean up the object URL
+                    onLoad={() => URL.revokeObjectURL(objectUrl)}
                 />
             </div>
         );
     }
     
-    // For uploaded Slides
     if (type === 'SLIDES' && url.startsWith('data:')) {
         const base64Data = url.split(',')[1];
+        if (!base64Data) return <p>Invalid slide data.</p>;
         return (
              <div className="aspect-[4/3] w-full border rounded-lg bg-gray-100">
                  <iframe 
