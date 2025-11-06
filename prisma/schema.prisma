@@ -377,6 +377,7 @@ model TrainingProvider {
   name                String               @unique
   address             String
   accountNumber       String               @unique
+  isActive            Boolean              @default(true)
   users               User[]
   products            Product[]
   courses             Course[]
