@@ -2,7 +2,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Module } from '@prisma/client';
 import { Button } from './ui/button';
 import { ExternalLink } from 'lucide-react';
@@ -66,6 +66,47 @@ const LocalAudioPlayer = ({ url, onEnded }: { url: string, onEnded: () => void }
     );
 }
 
+const EmbeddedDocument = ({ module }: { module: Module }) => {
+    const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (module.content.startsWith('data:')) {
+            const fetchAndCreateUrl = async () => {
+                const response = await fetch(module.content);
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                setObjectUrl(url);
+            };
+
+            fetchAndCreateUrl();
+
+            return () => {
+                if (objectUrl) {
+                    URL.revokeObjectURL(objectUrl);
+                }
+            };
+        } else {
+            setObjectUrl(module.content);
+        }
+    // We only want this to run when the module content changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [module.content]);
+
+    if (!objectUrl) {
+        return <p>Loading document...</p>;
+    }
+    
+    return (
+        <div className="aspect-video w-full border rounded-lg bg-gray-100">
+            <iframe
+                src={objectUrl}
+                className="w-full h-full"
+                title={module.title}
+            />
+        </div>
+    );
+};
+
 type ModuleContentProps = {
     module: Module;
     onAutoComplete: () => void;
@@ -120,15 +161,7 @@ export const ModuleContent = ({ module, onAutoComplete }: ModuleContentProps) =>
 
             case 'PDF':
             case 'SLIDES':
-                return (
-                  <div className="aspect-video w-full border rounded-lg bg-gray-100">
-                    <iframe
-                      src={module.content}
-                      className="w-full h-full"
-                      title={module.title}
-                    />
-                  </div>
-                );
+                return <EmbeddedDocument module={module} />;
         }
 
         return <p className="text-muted-foreground">Unsupported or invalid content link for this module.</p>;
