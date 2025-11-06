@@ -43,7 +43,7 @@ const EmbeddedDocument = ({ url }: { url: string }) => {
 
     useEffect(() => {
         let currentObjectUrl: string | null = null;
-        if (url.startsWith('data:')) {
+        if (url.startsWith('data:application/pdf')) {
             const fetchBlob = async () => {
                 const response = await fetch(url);
                 const blob = await response.blob();
@@ -60,9 +60,9 @@ const EmbeddedDocument = ({ url }: { url: string }) => {
         }
     }, [url]);
     
-    const displayUrl = url.startsWith('data:') ? objectUrl : url;
+    const displayUrl = url.startsWith('data:application/pdf') ? objectUrl : url;
 
-    if (url.startsWith('data:') && !displayUrl) {
+    if (url.startsWith('data:application/pdf') && !displayUrl) {
         return <p>Loading document...</p>;
     }
 
@@ -78,18 +78,30 @@ const EmbeddedDocument = ({ url }: { url: string }) => {
     );
 };
 
-const NativePlayer = ({ url, onEnded }: { url: string, onEnded: () => void }) => {
+const NativePlayer = ({ url, onEnded, type }: { url: string, onEnded: () => void, type: 'video' | 'audio' }) => {
+    if (type === 'video') {
+        return (
+            <div className="aspect-video w-full">
+                <video
+                    controls
+                    src={url}
+                    onEnded={onEnded}
+                    className="w-full h-full rounded-lg bg-black"
+                >
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        );
+    }
     return (
-        <div className="aspect-video w-full">
-            <video
-                controls
-                src={url}
-                onEnded={onEnded}
-                className="w-full h-full rounded-lg bg-black"
-            >
-                Your browser does not support the video tag.
-            </video>
-        </div>
+        <audio
+            controls
+            src={url}
+            onEnded={onEnded}
+            className="w-full"
+        >
+            Your browser does not support the audio element.
+        </audio>
     );
 }
 
@@ -100,18 +112,14 @@ type ModuleContentProps = {
 }
 
 export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleContentProps) => {
-    const { toast } = useToast();
-    const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [timeRemaining, setTimeRemaining] = useState(module.duration * 60);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     const isDocument = module.type === 'PDF' || module.type === 'SLIDES';
 
     useEffect(() => {
-        // Timer logic only for documents that are not yet completed
         if (isDocument && !isCompleted) {
-            setIsTimerRunning(true);
-            setTimeRemaining(module.duration * 60); // Reset timer on module change
+            setTimeRemaining(module.duration * 60); 
             timerRef.current = setInterval(() => {
                 setTimeRemaining(prev => {
                     if (prev <= 1) {
@@ -123,11 +131,9 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
                 });
             }, 1000);
         } else {
-             // Stop timer if module is already completed or not a document
              if (timerRef.current) {
                 clearInterval(timerRef.current);
             }
-            setIsTimerRunning(false);
         }
 
         return () => {
@@ -152,34 +158,14 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
                 if (isYouTubeUrl) {
                     return <YouTubeEmbed url={module.content} onEnded={onAutoComplete} />;
                 }
-                if (isDataUrl) {
-                    return <NativePlayer url={module.content} onEnded={onAutoComplete} />
-                }
-                if (isExternalUrl) {
-                     return (
-                        <Button asChild variant="outline">
-                            <a href={module.content} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Open External Video
-                            </a>
-                        </Button>
-                    );
+                if (isDataUrl || isExternalUrl) {
+                    return <NativePlayer url={module.content} onEnded={onAutoComplete} type="video" />
                 }
                 break;
             case 'AUDIO':
-                 if (isDataUrl) {
-                    return <audio controls src={module.content} onEnded={onAutoComplete} className="w-full" />
+                 if (isDataUrl || isExternalUrl) {
+                    return <NativePlayer url={module.content} onEnded={onAutoComplete} type="audio" />
                  }
-                 if (isExternalUrl) {
-                    return (
-                        <Button asChild variant="outline">
-                            <a href={module.content} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Open External Audio
-                            </a>
-                        </Button>
-                    );
-                }
                 break;
             case 'PDF':
                 if (isDataUrl || isExternalUrl) {
@@ -187,18 +173,22 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
                 }
                 break;
             case 'SLIDES':
-                if (isExternalUrl) { // Only embed public URLs for slides
+                if (isExternalUrl) { 
                     const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(module.content)}&embedded=true`;
                     return <EmbeddedDocument url={viewerUrl} />;
                 }
-                if (isDataUrl) { // Fallback to download for uploaded slides
+                if (isDataUrl) { 
                     return (
-                        <Button asChild variant="outline">
-                            <a href={module.content} download={module.title}>
-                                <Download className="mr-2 h-4 w-4" />
-                                Download Presentation
-                            </a>
-                        </Button>
+                        <div className="p-4 bg-yellow-100/50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 rounded-md space-y-2">
+                             <p className="font-semibold">Uploaded Presentation</p>
+                             <p className="text-sm">To view this presentation, please download it. Embedded viewing for uploaded slides is not currently supported.</p>
+                             <Button asChild variant="secondary" size="sm">
+                                <a href={module.content} download={module.title}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Download Presentation
+                                </a>
+                            </Button>
+                        </div>
                     );
                 }
                 break;
@@ -222,8 +212,9 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
             {isDocument && !isCompleted && (
                  <div className="flex items-center justify-center pt-4">
                     <Button
-                        disabled={timeRemaining > 0}
-                        className="cursor-default"
+                        variant="ghost"
+                        disabled={true}
+                        className="cursor-default text-muted-foreground"
                     >
                         <CheckCircle className="mr-2 h-4 w-4" />
                         {timeRemaining > 0 ? `Completed in ${formatTime(timeRemaining)}` : 'Module Completed!'}
