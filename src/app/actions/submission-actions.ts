@@ -62,7 +62,15 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
     try {
         const submission = await prisma.quizSubmission.findUnique({
             where: { id: submissionId },
-            include: { quiz: { include: { course: true } } }
+            include: { 
+                quiz: { 
+                    include: { 
+                        course: {
+                            include: { modules: { select: { id: true } } }
+                        } 
+                    } 
+                } 
+            }
         });
         
         if (!submission || !submission.quiz || !submission.quiz.course) {
@@ -78,7 +86,7 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             }
         });
         
-        // Always record the attempt, regardless of whether the user passed or failed.
+        // Always record the attempt.
         await prisma.userCompletedCourse.upsert({
             where: {
                 userId_courseId: {
@@ -97,8 +105,30 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             }
         });
 
-        // Create a notification for the user
+        // If the user failed and has attempts left, reset their module progress for the course.
         const passed = finalScore >= submission.quiz.passingScore;
+        const maxAttempts = submission.quiz.maxAttempts ?? 0;
+        
+        if (!passed && maxAttempts > 0) {
+            const previousAttempts = await prisma.userCompletedCourse.findMany({
+                where: { userId: submission.userId, courseId: submission.quiz.courseId }
+            });
+
+             if (previousAttempts.length < maxAttempts) {
+                const moduleIds = submission.quiz.course.modules.map(m => m.id);
+                if (moduleIds.length > 0) {
+                  await prisma.userCompletedModule.deleteMany({
+                      where: {
+                          userId: submission.userId,
+                          moduleId: { in: moduleIds }
+                      }
+                  });
+                }
+            }
+        }
+
+
+        // Create a notification for the user
         await prisma.notification.create({
             data: {
                 userId: submission.userId,
