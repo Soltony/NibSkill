@@ -86,11 +86,15 @@ const EmbeddedDocument = ({ module }: { module: Module }) => {
                 }
             };
         } else {
-            setObjectUrl(module.content);
+             if (module.type === 'SLIDES') {
+                setObjectUrl(`https://docs.google.com/gview?url=${encodeURIComponent(module.content)}&embedded=true`);
+            } else {
+                setObjectUrl(module.content);
+            }
         }
     // We only want this to run when the module content changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [module.content]);
+    }, [module.content, module.type]);
 
     if (!objectUrl) {
         return <p>Loading document...</p>;
@@ -102,6 +106,7 @@ const EmbeddedDocument = ({ module }: { module: Module }) => {
                 src={objectUrl}
                 className="w-full h-full"
                 title={module.title}
+                frameBorder="0"
             />
         </div>
     );
