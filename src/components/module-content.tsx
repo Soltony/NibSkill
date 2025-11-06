@@ -5,7 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import type { Module } from '@prisma/client';
 import { Button } from './ui/button';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Download } from 'lucide-react';
 
 const YouTubeEmbed = ({ url }: { url: string }) => {
     try {
@@ -70,34 +70,52 @@ const EmbeddedDocument = ({ module }: { module: Module }) => {
     const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
     useEffect(() => {
+        let urlToRevoke: string | null = null;
         if (module.content.startsWith('data:')) {
             const fetchAndCreateUrl = async () => {
-                const response = await fetch(module.content);
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                setObjectUrl(url);
+                try {
+                    const response = await fetch(module.content);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    urlToRevoke = url;
+                    setObjectUrl(url);
+                } catch (e) {
+                    console.error("Error creating object URL for data URI", e);
+                    setObjectUrl(null);
+                }
             };
 
             fetchAndCreateUrl();
 
-            return () => {
-                if (objectUrl) {
-                    URL.revokeObjectURL(objectUrl);
-                }
-            };
+        } else if (module.type === 'SLIDES') {
+             // For external URLs to slides, use Google Docs viewer
+            setObjectUrl(`https://docs.google.com/gview?url=${encodeURIComponent(module.content)}&embedded=true`);
         } else {
-             if (module.type === 'SLIDES') {
-                setObjectUrl(`https://docs.google.com/gview?url=${encodeURIComponent(module.content)}&embedded=true`);
-            } else {
-                setObjectUrl(module.content);
-            }
+            // For external PDFs
+            setObjectUrl(module.content);
         }
-    // We only want this to run when the module content changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+        return () => {
+            if (urlToRevoke) {
+                URL.revokeObjectURL(urlToRevoke);
+            }
+        };
     }, [module.content, module.type]);
 
     if (!objectUrl) {
         return <p>Loading document...</p>;
+    }
+    
+    // For uploaded slides, we can't embed them with gview. Show a download button.
+    if (module.type === 'SLIDES' && module.content.startsWith('data:')) {
+      return (
+          <Button asChild>
+              <a href={objectUrl} download={module.title || "presentation.pptx"}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Presentation
+              </a>
+          </Button>
+      );
     }
     
     return (
