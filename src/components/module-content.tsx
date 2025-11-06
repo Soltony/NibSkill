@@ -38,32 +38,12 @@ const YouTubeEmbed = ({ url, onEnded }: { url: string, onEnded: () => void }) =>
 };
 
 const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }) => {
-    const [objectUrl, setObjectUrl] = useState<string | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
 
     useEffect(() => {
-        let currentObjectUrl: string | null = null;
-        if (url.startsWith('data:')) {
-            if (type === 'PDF') {
-                const fetchBlob = async () => {
-                    const response = await fetch(url);
-                    const blob = await response.blob();
-                    currentObjectUrl = URL.createObjectURL(blob);
-                    setObjectUrl(currentObjectUrl);
-                };
-                fetchBlob();
-            } else if (type === 'SLIDES') {
-                if (formRef.current) {
-                    formRef.current.submit();
-                }
-            }
+        if (type === 'SLIDES' && url.startsWith('data:') && formRef.current) {
+            formRef.current.submit();
         }
-
-        return () => {
-            if (type === 'PDF' && currentObjectUrl) {
-                URL.revokeObjectURL(currentObjectUrl);
-            }
-        };
     }, [url, type, formRef]);
     
     // For publicly hosted files (PDF or Slides)
@@ -83,7 +63,17 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
     
     // For uploaded PDFs
     if (type === 'PDF' && url.startsWith('data:')) {
-        if (!objectUrl) return <p>Loading PDF...</p>;
+        const [meta, data] = url.split(',');
+        const mime = meta.split(':')[1].split(';')[0];
+        const byteString = atob(data);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mime });
+        const objectUrl = URL.createObjectURL(blob);
+
         return (
             <div className="aspect-video w-full border rounded-lg bg-gray-100">
                 <iframe
@@ -91,6 +81,7 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
                     className="w-full h-full"
                     title="Document viewer"
                     frameBorder="0"
+                    onLoad={() => URL.revokeObjectURL(objectUrl)} // Clean up the object URL
                 />
             </div>
         );
@@ -121,7 +112,18 @@ const EmbeddedDocument = ({ url, type }: { url: string, type: 'PDF' | 'SLIDES' }
         );
     }
 
-    return <p className="text-destructive">Unsupported document URL.</p>;
+    return (
+        <div className="aspect-video w-full border rounded-lg bg-gray-100 flex flex-col items-center justify-center p-4 text-center">
+            <h3 className="font-semibold text-lg">Download to View</h3>
+            <p className="text-sm text-muted-foreground mb-4">This file format cannot be previewed directly. Please download it to view the content.</p>
+            <Button asChild>
+                <a href={url} download={`module_content`}>
+                    <Download className="mr-2 h-4 w-4"/>
+                    Download File
+                </a>
+            </Button>
+        </div>
+    );
 };
 
 
@@ -216,10 +218,7 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
                 break;
             case 'PDF':
             case 'SLIDES':
-                if (isDataUrl || isExternalUrl) {
-                    return <EmbeddedDocument url={module.content} type={module.type} />;
-                }
-                break;
+                return <EmbeddedDocument url={module.content} type={module.type} />;
         }
 
         return <p className="text-destructive">Unsupported content format.</p>
