@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
-import type { Prisma, User } from '@prisma/client';
+import type { Prisma, User, TrainingProvider } from '@prisma/client';
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
@@ -21,12 +21,17 @@ const getJwtSecret = () => {
   return new TextEncoder().encode(secret);
 };
 
+type UserWithRelations = User & { 
+  role: any,
+  trainingProvider: TrainingProvider | null 
+};
+
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
     const miniAppToken = cookieStore.get('miniapp-auth-token')?.value;
 
-    let user: (User & { role: any }) | null | undefined;
+    let user: UserWithRelations | null | undefined;
     let loginAs: 'admin' | 'staff' | undefined;
 
     if (miniAppToken) {
@@ -49,7 +54,7 @@ export async function POST(request: NextRequest) {
 
       user = await prisma.user.findFirst({
         where: { phoneNumber },
-        include: { role: true },
+        include: { role: true, trainingProvider: true },
       });
 
       if (!user) {
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
 
       const usersWithPhoneNumber = await prisma.user.findMany({
         where: { phoneNumber },
-        include: { role: true },
+        include: { role: true, trainingProvider: true },
       });
 
       if (usersWithPhoneNumber.length === 0) {
@@ -89,9 +94,9 @@ export async function POST(request: NextRequest) {
               if (loginAs === 'admin') return hasAdminPermissions;
               if (loginAs === 'staff') return !hasAdminPermissions;
               return false;
-          });
+          }) as UserWithRelations | undefined;
       } else {
-          user = usersWithPhoneNumber[0];
+          user = usersWithPhoneNumber[0] as UserWithRelations;
       }
       
       if (!user || !user.password) {
@@ -112,6 +117,11 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // --- Check if Training Provider is active ---
+    if (user.trainingProvider && !user.trainingProvider.isActive) {
+      return NextResponse.json({ isSuccess: false, errors: ["Your organization's account has been deactivated. Please contact support."] }, { status: 403 });
+    }
+
     // --- Create login history record ---
     await prisma.loginHistory.create({
         data: {
