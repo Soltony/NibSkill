@@ -30,15 +30,12 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         if (!course) {
             return { success: false, message: "Course not found." };
         }
-
-        const passed = course.quiz ? score >= course.quiz.passingScore : true;
-        const maxAttempts = course.quiz?.maxAttempts ?? 0;
-
+        
         const previousAttempts = await prisma.userCompletedCourse.findMany({
             where: { userId, courseId }
         });
 
-        // Upsert the current attempt record first. This is crucial for the UI to see the new score.
+        // Always record the new attempt first
         await prisma.userCompletedCourse.upsert({
             where: {
                 userId_courseId: {
@@ -57,9 +54,12 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             }
         });
 
-        // Now, check if we need to reset progress.
+        // Now, check if progress should be reset
+        const passed = course.quiz ? score >= course.quiz.passingScore : true;
+        const maxAttempts = course.quiz?.maxAttempts ?? 0;
+        
         if (!passed && maxAttempts > 0) {
-            if (previousAttempts.length < maxAttempts) {
+             if (previousAttempts.length < maxAttempts) {
                 // User failed and has attempts left. Reset module progress.
                 const moduleIds = course.modules.map(m => m.id);
                 if (moduleIds.length > 0) {
@@ -72,7 +72,7 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
                 }
             }
         }
-
+        
         if (passed && course.hasCertificate) {
             revalidatePath(`/courses/${courseId}/certificate`);
         }

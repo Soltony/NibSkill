@@ -177,13 +177,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   };
 
   const handleRetry = () => {
-    // Reset local state for a new attempt
-    setAnswers({});
-    setShowResult(false);
-    setScore(0);
-    setTimeLeft(quiz.timeLimit ? quiz.timeLimit * 60 : null);
-    setCurrentQuestionIndex(0);
-    setIsUnderReview(false);
+    // Force a page reload to get the fresh server state (progress reset)
+    window.location.href = `/courses/${quiz.courseId}`;
   }
 
   if (!currentQuestion) {
@@ -339,7 +334,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                     <p className="text-6xl font-bold text-primary">{score}%</p>
                     <p className="text-sm text-muted-foreground">Passing Score: {quiz.passingScore}%</p>
                     <p className="text-lg text-muted-foreground mt-2">
-                        {passed ? "Excellent work! You've successfully passed the assessment." : "Good effort! Your progress has been reset. Please review the materials and try again."}
+                        {passed ? "Excellent work! You've successfully passed the assessment." : "Good effort! Please review the course materials and try again."}
                     </p>
                 </>
               )}
@@ -361,7 +356,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             ) : null }
 
              {!isUnderReview && (
-                <Button variant="outline" onClick={passed ? onComplete : handleRetry} disabled={isPending}>
+                <Button variant="outline" onClick={passed || quiz.quizType === 'OPEN_LOOP' ? onComplete : handleRetry} disabled={isPending}>
                     {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookCopy className="mr-2 h-4 w-4" />}
                     {passed || quiz.quizType === 'OPEN_LOOP' ? 'Back to Course' : 'Review and Retry'}
                 </Button>
