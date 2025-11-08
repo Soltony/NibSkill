@@ -31,14 +31,38 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             return { success: false, message: "Course not found." };
         }
         
-        // Record the new attempt first
-        await prisma.userCompletedCourse.createMany({
-            data: [{
-                userId,
-                courseId,
-                score,
-            }]
+        // Upsert logic: Update existing record or create a new one.
+        const existingCompletion = await prisma.userCompletedCourse.findUnique({
+            where: {
+                userId_courseId: {
+                    userId: userId,
+                    courseId: courseId
+                }
+            }
         });
+
+        if (existingCompletion) {
+             await prisma.userCompletedCourse.update({
+                where: {
+                    userId_courseId: {
+                        userId: userId,
+                        courseId: courseId
+                    }
+                },
+                data: {
+                    score: score,
+                    completionDate: new Date()
+                }
+            });
+        } else {
+             await prisma.userCompletedCourse.create({
+                data: {
+                    userId,
+                    courseId,
+                    score,
+                }
+            });
+        }
         
         const previousAttempts = await prisma.userCompletedCourse.findMany({
             where: { userId, courseId }

@@ -87,13 +87,37 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
         });
         
         // Always record the attempt.
-        await prisma.userCompletedCourse.createMany({
-            data: [{
-                userId: submission.userId,
-                courseId: submission.quiz.courseId,
-                score: finalScore,
-            }]
+        const existingCompletion = await prisma.userCompletedCourse.findUnique({
+            where: {
+                userId_courseId: {
+                    userId: submission.userId,
+                    courseId: submission.quiz.courseId
+                }
+            }
         });
+
+        if (existingCompletion) {
+            await prisma.userCompletedCourse.update({
+                where: {
+                    userId_courseId: {
+                        userId: submission.userId,
+                        courseId: submission.quiz.courseId
+                    }
+                },
+                data: {
+                    score: finalScore,
+                    completionDate: new Date(),
+                }
+            });
+        } else {
+            await prisma.userCompletedCourse.create({
+                data: {
+                    userId: submission.userId,
+                    courseId: submission.quiz.courseId,
+                    score: finalScore,
+                }
+            });
+        }
 
         // If the user failed and has attempts left, reset their module progress for the course.
         const passed = finalScore >= submission.quiz.passingScore;
