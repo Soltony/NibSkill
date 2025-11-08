@@ -87,18 +87,8 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
         });
         
         // Always record the attempt.
-        await prisma.userCompletedCourse.upsert({
-            where: {
-                userId_courseId: {
-                    userId: submission.userId,
-                    courseId: submission.quiz.courseId,
-                }
-            },
-            update: {
-                score: finalScore,
-                completionDate: new Date(),
-            },
-            create: {
+        await prisma.userCompletedCourse.create({
+            data: {
                 userId: submission.userId,
                 courseId: submission.quiz.courseId,
                 score: finalScore,

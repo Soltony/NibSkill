@@ -31,28 +31,19 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             return { success: false, message: "Course not found." };
         }
         
-        const previousAttempts = await prisma.userCompletedCourse.findMany({
-            where: { userId, courseId }
-        });
-
-        // Always record the new attempt first
-        await prisma.userCompletedCourse.upsert({
-            where: {
-                userId_courseId: {
-                    userId,
-                    courseId,
-                }
-            },
-            update: {
-                score,
-                completionDate: new Date(),
-            },
-            create: {
+        // Record the new attempt first
+        await prisma.userCompletedCourse.create({
+            data: {
                 userId,
                 courseId,
                 score,
             }
         });
+        
+        const previousAttempts = await prisma.userCompletedCourse.findMany({
+            where: { userId, courseId }
+        });
+
 
         // Now, check if progress should be reset
         const passed = course.quiz ? score >= course.quiz.passingScore : true;
@@ -167,14 +158,14 @@ export async function toggleModuleCompletion(courseId: string, values: z.infer<t
 
     try {
         if (completed) {
-            await prisma.userCompletedModule.create({
+            await prisma.userCompletedCourse.create({
                 data: {
                     userId,
                     moduleId
                 }
             });
         } else {
-            await prisma.userCompletedModule.delete({
+            await prisma.userCompletedCourse.delete({
                 where: {
                     userId_moduleId: {
                         userId,
