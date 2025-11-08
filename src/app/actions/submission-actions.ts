@@ -88,10 +88,6 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
         
         const courseId = submission.quiz.courseId;
         const userId = submission.userId;
-
-        const previousAttempts = await prisma.userCompletedCourse.findMany({
-            where: { userId, courseId }
-        });
         
         const newAttempt = {
             userId,
@@ -100,32 +96,30 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             completionDate: new Date()
         };
 
-        const existingCompletionForThisAttempt = await prisma.userCompletedCourse.findFirst({
+        const existingCompletion = await prisma.userCompletedCourse.findUnique({
             where: {
-                userId,
-                courseId,
+                userId_courseId: { userId, courseId }
             }
         });
 
-        // Upsert logic
-        if (existingCompletionForThisAttempt) {
+        if (existingCompletion) {
             await prisma.userCompletedCourse.update({
-                where: { id: existingCompletionForThisAttempt.id },
+                where: { userId_courseId: { userId, courseId } },
                 data: { score: finalScore, completionDate: new Date() }
             });
         } else {
              await prisma.userCompletedCourse.create({ data: newAttempt });
         }
-
+        
+        const allAttempts = await prisma.userCompletedCourse.findMany({ where: { userId, courseId }});
 
         // Logic for resetting progress
         const passed = finalScore >= submission.quiz.passingScore;
         const maxAttempts = submission.quiz.maxAttempts ?? 0;
         
         if (!passed && maxAttempts > 0) {
-            const allAttempts = await prisma.userCompletedCourse.findMany({ where: { userId, courseId }});
-
              if (allAttempts.length < maxAttempts) {
+                // User failed and has attempts left. Reset module progress.
                 const moduleIds = submission.quiz.course.modules.map(m => m.id);
                 if (moduleIds.length > 0) {
                   await prisma.userCompletedModule.deleteMany({
@@ -137,7 +131,6 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
                 }
             }
         }
-
 
         // Create a notification for the user
         await prisma.notification.create({
