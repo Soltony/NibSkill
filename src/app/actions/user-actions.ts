@@ -50,7 +50,7 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         const maxAttempts = course.quiz?.maxAttempts ?? 0;
         
         if (!passed && maxAttempts > 0) {
-             if (previousAttempts.length < maxAttempts) {
+             if (previousAttempts.length <= maxAttempts) {
                 // User failed and has attempts left. Reset module progress.
                 const moduleIds = course.modules.map(m => m.id);
                 if (moduleIds.length > 0) {
@@ -158,14 +158,14 @@ export async function toggleModuleCompletion(courseId: string, values: z.infer<t
 
     try {
         if (completed) {
-            await prisma.userCompletedCourse.create({
+            await prisma.userCompletedModule.create({
                 data: {
                     userId,
                     moduleId
                 }
             });
         } else {
-            await prisma.userCompletedCourse.delete({
+            await prisma.userCompletedModule.delete({
                 where: {
                     userId_moduleId: {
                         userId,
