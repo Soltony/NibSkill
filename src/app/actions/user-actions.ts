@@ -32,12 +32,12 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         }
         
         // Record the new attempt first
-        await prisma.userCompletedCourse.create({
-            data: {
+        await prisma.userCompletedCourse.createMany({
+            data: [{
                 userId,
                 courseId,
                 score,
-            }
+            }]
         });
         
         const previousAttempts = await prisma.userCompletedCourse.findMany({
