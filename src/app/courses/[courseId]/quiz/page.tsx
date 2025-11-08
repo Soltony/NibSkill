@@ -37,7 +37,8 @@ async function getQuizData(courseId: string, userId: string) {
         where: {
             userId: userId,
             courseId: courseId
-        }
+        },
+        orderBy: { completionDate: 'desc' }
     });
 
     return { quiz, user, previousAttempts };

@@ -31,24 +31,15 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             return { success: false, message: "Course not found." };
         }
         
-        // Upsert logic: Update existing record or create a new one.
         const existingCompletion = await prisma.userCompletedCourse.findUnique({
             where: {
-                userId_courseId: {
-                    userId: userId,
-                    courseId: courseId
-                }
+                userId_courseId: { userId, courseId }
             }
         });
 
         if (existingCompletion) {
              await prisma.userCompletedCourse.update({
-                where: {
-                    userId_courseId: {
-                        userId: userId,
-                        courseId: courseId
-                    }
-                },
+                where: { id: existingCompletion.id },
                 data: {
                     score: score,
                     completionDate: new Date()
@@ -56,11 +47,7 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             });
         } else {
              await prisma.userCompletedCourse.create({
-                data: {
-                    userId,
-                    courseId,
-                    score,
-                }
+                data: { userId, courseId, score }
             });
         }
         
@@ -74,7 +61,7 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         const maxAttempts = course.quiz?.maxAttempts ?? 0;
         
         if (!passed && maxAttempts > 0) {
-             if (previousAttempts.length <= maxAttempts) {
+             if (previousAttempts.length < maxAttempts) {
                 // User failed and has attempts left. Reset module progress.
                 const moduleIds = course.modules.map(m => m.id);
                 if (moduleIds.length > 0) {

@@ -86,49 +86,46 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             }
         });
         
-        // Always record the attempt.
-        const existingCompletion = await prisma.userCompletedCourse.findUnique({
+        const courseId = submission.quiz.courseId;
+        const userId = submission.userId;
+
+        const previousAttempts = await prisma.userCompletedCourse.findMany({
+            where: { userId, courseId }
+        });
+        
+        const newAttempt = {
+            userId,
+            courseId,
+            score: finalScore,
+            completionDate: new Date()
+        };
+
+        const existingCompletionForThisAttempt = await prisma.userCompletedCourse.findFirst({
             where: {
-                userId_courseId: {
-                    userId: submission.userId,
-                    courseId: submission.quiz.courseId
-                }
+                userId,
+                courseId,
             }
         });
 
-        if (existingCompletion) {
+        // Upsert logic
+        if (existingCompletionForThisAttempt) {
             await prisma.userCompletedCourse.update({
-                where: {
-                    userId_courseId: {
-                        userId: submission.userId,
-                        courseId: submission.quiz.courseId
-                    }
-                },
-                data: {
-                    score: finalScore,
-                    completionDate: new Date(),
-                }
+                where: { id: existingCompletionForThisAttempt.id },
+                data: { score: finalScore, completionDate: new Date() }
             });
         } else {
-            await prisma.userCompletedCourse.create({
-                data: {
-                    userId: submission.userId,
-                    courseId: submission.quiz.courseId,
-                    score: finalScore,
-                }
-            });
+             await prisma.userCompletedCourse.create({ data: newAttempt });
         }
 
-        // If the user failed and has attempts left, reset their module progress for the course.
+
+        // Logic for resetting progress
         const passed = finalScore >= submission.quiz.passingScore;
         const maxAttempts = submission.quiz.maxAttempts ?? 0;
         
         if (!passed && maxAttempts > 0) {
-            const previousAttempts = await prisma.userCompletedCourse.findMany({
-                where: { userId: submission.userId, courseId: submission.quiz.courseId }
-            });
+            const allAttempts = await prisma.userCompletedCourse.findMany({ where: { userId, courseId }});
 
-             if (previousAttempts.length <= maxAttempts) {
+             if (allAttempts.length < maxAttempts) {
                 const moduleIds = submission.quiz.course.modules.map(m => m.id);
                 if (moduleIds.length > 0) {
                   await prisma.userCompletedModule.deleteMany({
