@@ -76,79 +76,77 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
         if (!submission || !submission.quiz || !submission.quiz.course) {
             return { success: false, message: "Submission, quiz, or course not found." };
         }
-
-        await prisma.quizSubmission.update({
-            where: { id: submissionId },
-            data: {
-                score: finalScore,
-                status: 'COMPLETED',
-                gradedAt: new Date(),
-            }
-        });
         
         const courseId = submission.quiz.courseId;
         const userId = submission.userId;
-        
-        const newAttempt = {
-            userId,
-            courseId,
-            score: finalScore,
-            completionDate: new Date()
-        };
 
-        const existingCompletion = await prisma.userCompletedCourse.findUnique({
-            where: {
-                userId_courseId: { userId, courseId }
+        await prisma.$transaction(async (tx) => {
+            await tx.quizSubmission.update({
+                where: { id: submissionId },
+                data: {
+                    score: finalScore,
+                    status: 'COMPLETED',
+                    gradedAt: new Date(),
+                }
+            });
+            
+            const newAttempt = {
+                userId,
+                courseId,
+                score: finalScore,
+                completionDate: new Date()
+            };
+
+            const existingCompletion = await tx.userCompletedCourse.findUnique({
+                where: {
+                    userId_courseId: { userId, courseId }
+                }
+            });
+
+            if (existingCompletion) {
+                await tx.userCompletedCourse.update({
+                    where: { userId_courseId: { userId, courseId } },
+                    data: { score: finalScore, completionDate: new Date() }
+                });
+            } else {
+                 await tx.userCompletedCourse.create({ data: newAttempt });
+            }
+            
+            const allAttempts = await tx.userCompletedCourse.findMany({ where: { userId, courseId }});
+
+            const passed = finalScore >= submission.quiz.passingScore;
+            const maxAttempts = submission.quiz.maxAttempts ?? 0;
+            
+            if (!passed && maxAttempts > 0) {
+                 if (allAttempts.length < maxAttempts) {
+                    const moduleIds = submission.quiz.course.modules.map(m => m.id);
+                    if (moduleIds.length > 0) {
+                      await tx.userCompletedModule.deleteMany({
+                          where: {
+                              userId: submission.userId,
+                              moduleId: { in: moduleIds }
+                          }
+                      });
+                    }
+                }
             }
         });
 
-        if (existingCompletion) {
-            await prisma.userCompletedCourse.update({
-                where: { userId_courseId: { userId, courseId } },
-                data: { score: finalScore, completionDate: new Date() }
-            });
-        } else {
-             await prisma.userCompletedCourse.create({ data: newAttempt });
-        }
-        
-        const allAttempts = await prisma.userCompletedCourse.findMany({ where: { userId, courseId }});
-
-        // Logic for resetting progress
-        const passed = finalScore >= submission.quiz.passingScore;
-        const maxAttempts = submission.quiz.maxAttempts ?? 0;
-        
-        if (!passed && maxAttempts > 0) {
-             if (allAttempts.length < maxAttempts) {
-                // User failed and has attempts left. Reset module progress.
-                const moduleIds = submission.quiz.course.modules.map(m => m.id);
-                if (moduleIds.length > 0) {
-                  await prisma.userCompletedModule.deleteMany({
-                      where: {
-                          userId: submission.userId,
-                          moduleId: { in: moduleIds }
-                      }
-                  });
-                }
-            }
-        }
-
-        // Create a notification for the user
         await prisma.notification.create({
             data: {
                 userId: submission.userId,
                 title: "Quiz Graded",
-                description: `Your quiz for "${submission.quiz.course.title}" has been graded. You ${passed ? 'passed' : 'failed'} with a score of ${finalScore}%.`,
+                description: `Your quiz for "${submission.quiz.course.title}" has been graded. You scored ${finalScore}%.`,
             }
         });
 
-        // Revalidate paths to update UI
-        if (passed && submission.quiz.course.hasCertificate) {
+        if (finalScore >= submission.quiz.passingScore && submission.quiz.course.hasCertificate) {
              revalidatePath(`/courses/${submission.quiz.courseId}/certificate`);
         }
         revalidatePath(`/courses/${submission.quiz.courseId}`);
         revalidatePath('/admin/grading');
         revalidatePath('/profile');
-        revalidatePath('/layout'); // To update notification bell
+        revalidatePath('/layout');
 
         return { success: true };
     } catch (error) {

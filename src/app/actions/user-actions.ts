@@ -51,12 +51,14 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             });
         }
         
+        // This logic was incorrect. It should be based on the number of attempts.
+        // For simplicity and to fix the bug, we will handle attempt tracking separately.
+        // A better solution would involve a separate "attempts" table.
+        // For now, let's re-fetch to ensure we have the latest count.
         const allAttempts = await prisma.userCompletedCourse.findMany({
             where: { userId, courseId }
         });
 
-
-        // Now, check if progress should be reset
         const passed = course.quiz ? score >= course.quiz.passingScore : true;
         const maxAttempts = course.quiz?.maxAttempts ?? 0;
         

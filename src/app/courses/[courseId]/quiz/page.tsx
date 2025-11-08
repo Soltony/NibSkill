@@ -66,7 +66,7 @@ export default async function QuizPage({ params }: { params: { courseId: string 
 
     const hasPassed = previousAttempts.some(attempt => attempt.score >= quiz.passingScore);
     const attemptsUsed = previousAttempts.length;
-    const maxAttempts = quiz.maxAttempts;
+    const maxAttempts = quiz.maxAttempts ?? 0;
     const canAttempt = maxAttempts === 0 || attemptsUsed < maxAttempts;
 
     if (quiz.quizType === 'CLOSED_LOOP' && hasPassed) {
@@ -110,7 +110,6 @@ export default async function QuizPage({ params }: { params: { courseId: string 
         )
     }
     
-    // Shuffle questions on the server before passing to the client
     const shuffledQuestions = [...quiz.questions].sort(() => Math.random() - 0.5);
     const quizWithShuffled = {
         ...quiz,
