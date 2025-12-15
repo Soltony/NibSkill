@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Search, FileDown, FileText, Loader2, RotateCcw } from "lucide-react"
 import {
   Table,
@@ -11,7 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/table"
+} from "@/components/ui/table"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,10 +21,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/alert-dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/select';
-import { Button } from '@/components/button';
-import { Input } from '@/components/input';
+} from "@/components/ui/alert-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { Course, Department, District, Branch } from '@prisma/client';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';

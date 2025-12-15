@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Search, FileDown, FileText, Loader2 } from "lucide-react"
 import {
   Table,
@@ -11,10 +11,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/select';
-import { Button } from '@/components/button';
-import { Input } from '@/components/input';
+} from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { LiveSession, User, Department, District, Branch, UserAttendedLiveSession } from '@prisma/client';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
