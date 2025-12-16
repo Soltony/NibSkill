@@ -86,26 +86,30 @@ export async function POST(request: NextRequest) {
       if (usersWithPhoneNumber.length === 0) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
       }
+      
+      let candidateUser: UserWithRelations | undefined;
 
       if (usersWithPhoneNumber.length > 1 && loginAs) {
-          user = usersWithPhoneNumber.find(u => {
-              const roleName = u.role.name;
-              if (loginAs === 'admin') return roleName === 'Admin' || roleName === 'Super Admin' || roleName === 'Training Provider';
-              if (loginAs === 'staff') return roleName === 'Staff';
+          candidateUser = usersWithPhoneNumber.find(u => {
+              const roleName = u.role.name.toLowerCase();
+              if (loginAs === 'admin') return ['admin', 'super admin', 'training provider'].includes(roleName);
+              if (loginAs === 'staff') return roleName === 'staff';
               return false;
           }) as UserWithRelations | undefined;
       } else {
-          user = usersWithPhoneNumber[0] as UserWithRelations;
+          candidateUser = usersWithPhoneNumber[0] as UserWithRelations;
       }
       
-      if (!user || !user.password) {
+      if (!candidateUser || !candidateUser.password) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials for the selected role.'] }, { status: 401 });
       }
       
-      const isValid = await bcrypt.compare(password, user.password);
+      const isValid = await bcrypt.compare(password, candidateUser.password);
       if (!isValid) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
       }
+      
+      user = candidateUser;
 
       // Role-based access check
       const permissions = user.role.permissions as Prisma.JsonObject;
