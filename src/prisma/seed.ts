@@ -110,7 +110,7 @@ async function main() {
     const isSuperAdmin = role === 'super-admin';
 
     await prisma.user.upsert({
-      where: { email: user.email },
+      where: { phoneNumber: user.phoneNumber },
       update: {
         password: hashedPassword,
       },
