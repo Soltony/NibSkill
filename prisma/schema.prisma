@@ -152,7 +152,7 @@ model Course {
   price              Float?
   currency           Currency?
   hasCertificate     Boolean          @default(false)
-  status             CourseStatus     @default("PENDING")
+  status             CourseStatus     @default(PENDING)
   rejectionReason    String?
   isPublic           Boolean          @default(true)
   createdAt          DateTime         @default(now())
@@ -365,7 +365,7 @@ model LiveSession {
   joinUrl            String
   recordingUrl       String?
   isRestricted       Boolean                  @default(false)
-  status             LiveSessionStatus        @default("UPCOMING")
+  status             LiveSessionStatus        @default(UPCOMING)
   trainingProviderId String
 
   trainingProvider   TrainingProvider           @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)

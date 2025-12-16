@@ -113,11 +113,13 @@ async function main() {
       where: { email: user.email },
       update: {
         password: hashedPassword,
+        phoneNumber: user.phoneNumber,
       },
       create: {
         id: user.id,
         name: user.name,
         email: user.email,
+        phoneNumber: user.phoneNumber,
         avatarUrl: user.avatarUrl,
         password: hashedPassword,
         departmentId: departmentRecord?.id,
