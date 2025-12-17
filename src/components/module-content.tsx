@@ -28,7 +28,6 @@ const YouTubeEmbed = ({ url, onEnded }: { url: string, onEnded: () => void }) =>
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
-                    onEnded={onEnded}
                 ></iframe>
             </div>
         );
