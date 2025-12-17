@@ -23,7 +23,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent, role: 'admin' | 'staff') => {
     e.preventDefault();
@@ -54,48 +53,51 @@ export default function LoginPage() {
     }
   };
 
-  const LoginForm = ({ role }: { role: 'admin' | 'staff' }) => (
-    <form onSubmit={(e) => handleLogin(e, role)}>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor={`${role}-phoneNumber`}>Phone Number</Label>
-          <Input 
-            id={`${role}-phoneNumber`} 
-            name="phoneNumber"
-            type="tel" 
-            placeholder="e.g. 2519..." 
-            required 
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor={`${role}-password`}>Password</Label>
-          <div className="relative">
+  const LoginForm = ({ role }: { role: 'admin' | 'staff' }) => {
+    const [showPassword, setShowPassword] = useState(false);
+    return (
+        <form onSubmit={(e) => handleLogin(e, role)}>
+        <CardContent className="space-y-4">
+            <div className="space-y-2">
+            <Label htmlFor={`${role}-phoneNumber`}>Phone Number</Label>
             <Input 
-              id={`${role}-password`}
-              name="password" 
-              type={showPassword ? 'text' : 'password'} 
-              required 
-              className="pr-10"
+                id={`${role}-phoneNumber`} 
+                name="phoneNumber"
+                type="tel" 
+                placeholder="e.g. 2519..." 
+                required 
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </div>
+            <div className="space-y-2">
+            <Label htmlFor={`${role}-password`}>Password</Label>
+            <div className="relative">
+                <Input 
+                id={`${role}-password`}
+                name="password" 
+                type={showPassword ? 'text' : 'password'} 
+                required 
+                className="pr-10"
+                />
+                <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowPassword(!showPassword)}
+                >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+            </div>
+            </div>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-4">
+            <Button type="submit" className="w-full">
+            Sign In as {role === 'admin' ? 'Admin' : 'Member'}
             </Button>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-col gap-4">
-        <Button type="submit" className="w-full">
-          Sign In as {role === 'admin' ? 'Admin' : 'Member'}
-        </Button>
-      </CardFooter>
-    </form>
-  );
+        </CardFooter>
+        </form>
+    );
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-secondary p-4">
