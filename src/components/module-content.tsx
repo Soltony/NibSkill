@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { ExternalLink, CheckCircle, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const YouTubeEmbed = ({ url, onEnded }: { url: string, onEnded: () => void }) => {
+const YouTubeEmbed = ({ url }: { url: string }) => {
     try {
         const urlObj = new URL(url);
         let videoId = urlObj.searchParams.get('v');
@@ -146,7 +146,8 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
     const [timeRemaining, setTimeRemaining] = useState(module.duration * 60);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const isDocument = module.type === 'PDF' || module.type === 'SLIDES';
+    const isYouTubeUrl = module.content.startsWith('https://') && (module.content.includes('youtube.com') || module.content.includes('youtu.be'));
+    const isDocument = module.type === 'PDF' || module.type === 'SLIDES' || (module.type === 'VIDEO' && isYouTubeUrl);
 
     useEffect(() => {
         if (isDocument && !isCompleted) {
@@ -176,7 +177,6 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
 
 
     const isExternalUrl = module.content.startsWith('https://');
-    const isYouTubeUrl = isExternalUrl && (module.content.includes('youtube.com') || module.content.includes('youtu.be'));
     const isDataUrl = module.content.startsWith('data:');
     
     const renderContent = () => {
@@ -187,7 +187,7 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
         switch (module.type) {
             case 'VIDEO':
                 if (isYouTubeUrl) {
-                    return <YouTubeEmbed url={module.content} onEnded={onAutoComplete} />;
+                    return <YouTubeEmbed url={module.content} />;
                 }
                 if (isDataUrl || isExternalUrl) {
                     return <NativePlayer url={module.content} onEnded={onAutoComplete} type="video" />
