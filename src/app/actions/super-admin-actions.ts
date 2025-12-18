@@ -65,6 +65,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
         });
 
         revalidatePath('/super-admin/providers');
+        revalidatePath('/super-admin/dashboard');
         return { success: true, message: 'Training provider registered successfully.' }
     } catch (error: any) {
         console.error("Error registering training provider:", error);
