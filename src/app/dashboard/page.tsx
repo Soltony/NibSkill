@@ -25,20 +25,35 @@ type CourseWithProgress = Course & {
   learningPathId?: string;
 };
 
-async function getDashboardData(userId: string, userProviderId: string | undefined): Promise<{
+async function getDashboardData(userId: string, userProviderId: string | undefined | null, userRole: string): Promise<{
   courses: CourseWithProgress[];
   products: Product[];
   liveSessions: any[];
   trainingProviders: TrainingProvider[];
 }> {
-    const courses = await prisma.course.findMany({
-        where: {
+    let courseWhereClause: any = {
+      status: 'PUBLISHED',
+      OR: [
+        { isPublic: true },
+        { trainingProviderId: userProviderId }
+      ]
+    };
+    
+    // If the user is a super admin, they should see all published courses regardless of provider
+    if (userRole === 'Super Admin') {
+        courseWhereClause = {
             status: 'PUBLISHED',
-            OR: [
-                { isPublic: true },
-                { trainingProviderId: userProviderId }
-            ]
-        },
+        };
+    } else if (!userProviderId) {
+        // If a non-super-admin has no provider, only show public courses
+        courseWhereClause = {
+            status: 'PUBLISHED',
+            isPublic: true,
+        };
+    }
+
+    const courses = await prisma.course.findMany({
+        where: courseWhereClause,
         include: { 
             modules: true, 
             product: true,
@@ -151,7 +166,7 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(currentUser.id, currentUser.trainingProviderId);
+  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(currentUser.id, currentUser.trainingProviderId, currentUser.role.name);
 
   return (
     <div className="space-y-8">
