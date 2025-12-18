@@ -86,12 +86,13 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
       <div>
         <h2 className="text-2xl font-semibold font-headline mb-4">Courses in this Path</h2>
         <div className="space-y-4">
-          {coursesWithProgress.map((course, index) => {
-            const isNextCourse = !course.isCompleted && !firstUncompletedFound;
-            if (isNextCourse) {
-              firstUncompletedFound = true;
+          {coursesWithProgress.map((course) => {
+            let isLocked = false;
+            if (firstUncompletedFound) {
+                isLocked = true;
+            } else if (!course.isCompleted) {
+                firstUncompletedFound = true;
             }
-            const isLocked = !course.isCompleted && !isNextCourse;
             
             const displayImageUrl = course.imageUrl ?? course.product?.imageUrl;
             const displayImageHint = course.imageHint ?? course.product?.imageHint;
@@ -128,9 +129,9 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
                   </div>
                   <p className="text-muted-foreground mt-1 mb-4">{course.description}</p>
                   
-                  {isNextCourse || course.isCompleted ? (
-                     <Button asChild variant={isNextCourse ? "default" : "outline"} size="lg" className="w-full sm:w-auto">
-                        <Link href={`/courses/${course.id}`}>{isNextCourse ? 'Start Course' : 'Review Course'}</Link>
+                  {!isLocked ? (
+                     <Button asChild variant={course.isCompleted ? "outline" : "default"} size="lg" className="w-full sm:w-auto">
+                        <Link href={`/courses/${course.id}`}>{course.isCompleted ? 'Review Course' : 'Start Course'}</Link>
                       </Button>
                   ) : (
                     <Button disabled className="w-full sm:w-auto">Complete Previous Step</Button>
