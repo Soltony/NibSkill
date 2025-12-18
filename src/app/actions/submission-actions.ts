@@ -79,6 +79,9 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
         
         const courseId = submission.quiz.courseId;
         const userId = submission.userId;
+        const passed = finalScore >= submission.quiz.passingScore;
+        const notificationTitle = passed ? "Quiz Graded: Passed" : "Quiz Graded: Failed";
+        const notificationDescription = `Your quiz for "${submission.quiz.course.title}" has been graded. You scored ${finalScore}%.`;
 
         await prisma.$transaction(async (tx) => {
             await tx.quizSubmission.update({
@@ -97,28 +100,31 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
                 completionDate: new Date()
             };
 
-            const existingCompletion = await tx.userCompletedCourse.findUnique({
-                where: {
-                    userId_courseId: { userId, courseId }
-                }
-            });
-
-            if (existingCompletion) {
-                await tx.userCompletedCourse.update({
-                    where: { userId_courseId: { userId, courseId } },
-                    data: { score: finalScore, completionDate: new Date() }
+            // Only mark course as completed if the user passed.
+            if (passed) {
+                const existingCompletion = await tx.userCompletedCourse.findUnique({
+                    where: { userId_courseId: { userId, courseId } }
                 });
-            } else {
-                 await tx.userCompletedCourse.create({ data: newAttempt });
-            }
-            
-            const allAttempts = await tx.userCompletedCourse.findMany({ where: { userId, courseId }});
 
-            const passed = finalScore >= submission.quiz.passingScore;
-            const maxAttempts = submission.quiz.maxAttempts ?? 0;
-            
-            if (!passed && maxAttempts > 0) {
-                 if (allAttempts.length < maxAttempts) {
+                if (existingCompletion) {
+                    await tx.userCompletedCourse.update({
+                        where: { userId_courseId: { userId, courseId } },
+                        data: { score: finalScore, completionDate: new Date() }
+                    });
+                } else {
+                     await tx.userCompletedCourse.create({ data: newAttempt });
+                }
+            } else {
+                // If the user failed, we still need to record the attempt to track max attempts.
+                // We'll use the QuizSubmission table for attempts, but if UserCompletedCourse is used
+                // for attempt tracking, we would add the record here regardless of pass/fail.
+                // For now, let's assume failing doesn't create a "completion" record.
+                
+                // If user failed and has attempts left, reset module progress.
+                const allAttempts = await tx.quizSubmission.count({ where: { userId, quizId: submission.quizId }});
+                const maxAttempts = submission.quiz.maxAttempts ?? 0;
+
+                if (!passed && (maxAttempts === 0 || allAttempts < maxAttempts)) {
                     const moduleIds = submission.quiz.course.modules.map(m => m.id);
                     if (moduleIds.length > 0) {
                       await tx.userCompletedModule.deleteMany({
@@ -135,14 +141,15 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
         await prisma.notification.create({
             data: {
                 userId: submission.userId,
-                title: "Quiz Graded",
-                description: `Your quiz for "${submission.quiz.course.title}" has been graded. You scored ${finalScore}%.`,
+                title: notificationTitle,
+                description: notificationDescription,
             }
         });
 
-        if (finalScore >= submission.quiz.passingScore && submission.quiz.course.hasCertificate) {
+        if (passed && submission.quiz.course.hasCertificate) {
              revalidatePath(`/courses/${submission.quiz.courseId}/certificate`);
         }
+        
         revalidatePath(`/courses/${submission.quiz.courseId}`);
         revalidatePath('/admin/grading');
         revalidatePath('/profile');
