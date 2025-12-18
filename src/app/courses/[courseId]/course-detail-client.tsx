@@ -125,18 +125,14 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         variant: "destructive"
       });
       // Revert optimistic update
-      setLocalCompletedModules(prev => {
-          const reverted = new Set(prev);
-          reverted.delete(moduleId);
-          return reverted;
-      });
+      setLocalCompletedModules(new Set(initialCourseData.completedModules.map(cm => cm.moduleId)));
     } else {
         toast({
             title: "Module Completed!",
             description: "Your progress has been saved.",
         })
     }
-  }, [course.id, toast, localCompletedModules]);
+  }, [course.id, toast, localCompletedModules, initialCourseData.completedModules]);
 
 
   const handleBuyCourse = async () => {
@@ -309,7 +305,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                         <div className="space-y-4 p-4 bg-muted/50 rounded-md">
                             <ModuleContent 
                               module={module} 
-                              onAutoComplete={handleModuleCompletion} 
+                              onAutoComplete={() => handleModuleCompletion(module.id)} 
                               isCompleted={localCompletedModules.has(module.id)}
                             />
                             <div className="flex items-center justify-between pt-4 border-t">
