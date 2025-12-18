@@ -20,14 +20,21 @@ import { AddQuiz, ManageQuestions } from "./quiz-client"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
 
-async function getData(trainingProviderId: string) {
+async function getData(trainingProviderId: string | null | undefined, userRole: string) {
+  const courseWhereClause = userRole === 'Super Admin' ? {} : { trainingProviderId };
+  
   const courses = await prisma.course.findMany({
-    where: { trainingProviderId },
+    where: courseWhereClause,
     orderBy: { title: "asc" }
   });
 
+  const quizWhereClause: any = {};
+  if (userRole !== 'Super Admin') {
+    quizWhereClause.course = { trainingProviderId };
+  }
+  
   const quizzes = await prisma.quiz.findMany({
-    where: { course: { trainingProviderId } },
+    where: quizWhereClause,
     include: {
       questions: {
         include: {
@@ -44,11 +51,11 @@ async function getData(trainingProviderId: string) {
 
 export default async function QuizManagementPage() {
   const session = await getSession();
-  if (!session || !session.trainingProviderId) {
+  if (!session?.id) {
     notFound();
   }
 
-  const { courses, quizzes } = await getData(session.trainingProviderId);
+  const { courses, quizzes } = await getData(session.trainingProviderId, session.role.name);
   
   return (
     <div className="space-y-8">

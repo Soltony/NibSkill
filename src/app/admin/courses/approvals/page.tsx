@@ -22,12 +22,14 @@ import Image from "next/image"
 import { ApprovalActions } from "./approval-client"
 import Link from "next/link"
 
-async function getPendingCourses(trainingProviderId: string) {
+async function getPendingCourses(trainingProviderId: string | null | undefined, userRole: string) {
+  const whereClause: any = { status: 'PENDING' };
+  if (userRole !== 'Super Admin') {
+    whereClause.trainingProviderId = trainingProviderId;
+  }
+
   const courses = await prisma.course.findMany({
-    where: { 
-      trainingProviderId,
-      status: 'PENDING' 
-    },
+    where: whereClause,
     orderBy: { createdAt: 'asc' },
     include: {
       modules: true,
@@ -40,11 +42,11 @@ async function getPendingCourses(trainingProviderId: string) {
 
 export default async function CourseApprovalPage() {
   const session = await getSession();
-  if (!session || !session.trainingProviderId) {
+  if (!session?.id) {
     notFound();
   }
 
-  const courses = await getPendingCourses(session.trainingProviderId);
+  const courses = await getPendingCourses(session.trainingProviderId, session.role.name);
 
   return (
       <div className="space-y-8">

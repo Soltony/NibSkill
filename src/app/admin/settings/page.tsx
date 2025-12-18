@@ -6,27 +6,37 @@ import type { User, Role, RegistrationField, LoginHistory, District, Branch, Dep
 import { getSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 
-async function getSettingsData(trainingProviderId: string) {
+async function getSettingsData(trainingProviderId: string | null | undefined, userRole: string) {
+    const whereClause: any = {};
+    if (userRole !== 'Super Admin') {
+        whereClause.trainingProviderId = trainingProviderId;
+    }
+
     const users = await prisma.user.findMany({
-        where: { trainingProviderId },
+        where: whereClause,
         include: { role: true },
         orderBy: { name: "asc" }
     });
-
+    
+    // Roles for Super Admin should be global only, for others it's their own + global non-super-admin roles
+    const rolesWhere: any = {};
+    if (userRole === 'Super Admin') {
+        rolesWhere.trainingProviderId = null;
+    } else {
+        rolesWhere.OR = [
+            { trainingProviderId },
+            { trainingProviderId: null, name: { notIn: ['Super Admin', 'Training Provider'] } }
+        ];
+    }
     const roles = await prisma.role.findMany({
-        where: {
-            OR: [
-                { trainingProviderId },
-                { trainingProviderId: null } // Include global roles
-            ]
-        },
+        where: rolesWhere,
         orderBy: { name: "asc" }
     });
 
     const registrationFields = await prisma.registrationField.findMany({
         where: { 
             OR: [
-                { trainingProviderId },
+                whereClause,
                 { trainingProviderId: null }
             ]
         },
@@ -34,25 +44,25 @@ async function getSettingsData(trainingProviderId: string) {
     });
 
     const loginHistory = await prisma.loginHistory.findMany({
-        where: { user: { trainingProviderId } },
+        where: { user: whereClause },
         include: { user: true },
         orderBy: { loginTime: "desc" },
         take: 100, // Limit to the last 100 logins for performance
     });
 
     const districts = await prisma.district.findMany({ 
-        where: { trainingProviderId },
+        where: whereClause,
         orderBy: { name: 'asc' }
     });
     
     const branches = await prisma.branch.findMany({ 
-        where: { district: { trainingProviderId } },
+        where: userRole === 'Super Admin' ? {} : { district: { trainingProviderId } },
         include: { district: true }, 
         orderBy: { name: 'asc' }
     });
 
     const departments = await prisma.department.findMany({ 
-        where: { trainingProviderId },
+        where: whereClause,
         orderBy: { name: 'asc' }
     });
 
@@ -62,11 +72,11 @@ async function getSettingsData(trainingProviderId: string) {
 
 export default async function SettingsPage() {
   const session = await getSession();
-  if (!session || !session.trainingProviderId) {
+  if (!session?.id) {
     notFound();
   }
 
-  const { users, roles, registrationFields, loginHistory, districts, branches, departments } = await getSettingsData(session.trainingProviderId);
+  const { users, roles, registrationFields, loginHistory, districts, branches, departments } = await getSettingsData(session.trainingProviderId, session.role.name);
   
   return (
     <div className="space-y-8">
@@ -82,7 +92,7 @@ export default async function SettingsPage() {
         registrationFields={registrationFields}
         loginHistory={loginHistory as (LoginHistory & { user: User })[]}
         districts={districts}
-        branches={branches}
+        branches={branches as any}
         departments={departments}
       />
     </div>

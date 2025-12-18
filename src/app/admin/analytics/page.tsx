@@ -4,14 +4,21 @@ import { notFound } from "next/navigation"
 import { AnalyticsDashboard } from "./analytics-dashboard"
 import prisma from "@/lib/db"
 
-async function getAnalyticsData(trainingProviderId: string) {
+async function getAnalyticsData(trainingProviderId: string | null | undefined, userRole: string) {
+    const staffRoleWhere: any = {};
+    if (userRole !== 'Super Admin') {
+        staffRoleWhere.trainingProviderId = trainingProviderId;
+        staffRoleWhere.name = 'Staff';
+    } else {
+        staffRoleWhere.name = 'Staff';
+    }
+    
     const staffRole = await prisma.role.findFirst({
-        where: { name: 'Staff', trainingProviderId },
+        where: staffRoleWhere,
         select: { id: true }
     });
 
     if (!staffRole) {
-        // Handle case where Staff role isn't found, though it should exist
         return {
             kpis: { totalUsers: 0, totalCourses: 0, avgCompletionRate: 0, avgScore: 0 },
             leaderboard: [],
@@ -21,12 +28,22 @@ async function getAnalyticsData(trainingProviderId: string) {
         };
     }
 
+    const usersWhere: any = { roleId: staffRole.id };
+    if (userRole !== 'Super Admin') {
+        usersWhere.trainingProviderId = trainingProviderId;
+    }
+
     const totalUsers = await prisma.user.count({
-        where: { trainingProviderId, roleId: staffRole.id },
+        where: usersWhere,
     });
 
+    const coursesWhere: any = { status: 'PUBLISHED' };
+    if (userRole !== 'Super Admin') {
+        coursesWhere.trainingProviderId = trainingProviderId;
+    }
+
     const courses = await prisma.course.findMany({
-        where: { trainingProviderId, status: 'PUBLISHED' },
+        where: coursesWhere,
         include: { 
             completedBy: {
                 where: { user: { roleId: staffRole.id } }
@@ -37,16 +54,18 @@ async function getAnalyticsData(trainingProviderId: string) {
 
     const totalCourses = courses.length;
     const totalCompletions = courses.reduce((acc, course) => acc + course.completedBy.length, 0);
-    const totalEnrollments = totalUsers * courses.length; // Simplified: assumes all users are enrolled in all courses
+    const totalEnrollments = totalUsers * courses.length;
     const avgCompletionRate = totalEnrollments > 0 ? Math.round((totalCompletions / totalEnrollments) * 100) : 0;
     
-    const allCompletions = await prisma.userCompletedCourse.findMany({
-        where: { user: { trainingProviderId, roleId: staffRole.id } },
-    });
+    const completionsWhere: any = { user: { roleId: staffRole.id } };
+    if (userRole !== 'Super Admin') {
+        completionsWhere.user = { trainingProviderId, roleId: staffRole.id };
+    }
+    const allCompletions = await prisma.userCompletedCourse.findMany({ where: completionsWhere });
     const avgScore = allCompletions.length > 0 ? Math.round(allCompletions.reduce((acc, c) => acc + c.score, 0) / allCompletions.length) : 0;
 
     const leaderboard = await prisma.user.findMany({
-        where: { trainingProviderId, roleId: staffRole.id },
+        where: usersWhere,
         include: {
             completedCourses: true,
             department: true,
@@ -68,11 +87,16 @@ async function getAnalyticsData(trainingProviderId: string) {
             completionRate
         };
     }).sort((a, b) => b.completionRate - a.completionRate);
-
+    
+    const scoresWhere: any = { user: { roleId: staffRole.id } };
+    if (userRole !== 'Super Admin') {
+        scoresWhere.user = { trainingProviderId, roleId: staffRole.id };
+    }
     const scores = await prisma.userCompletedCourse.findMany({
-        where: { user: { trainingProviderId, roleId: staffRole.id } },
+        where: scoresWhere,
         select: { score: true }
     });
+
     const scoresDistribution = scores.reduce((acc, curr) => {
         if (curr.score <= 59) acc['0-59%']++;
         else if (curr.score <= 69) acc['60-69%']++;
@@ -82,8 +106,12 @@ async function getAnalyticsData(trainingProviderId: string) {
         return acc;
     }, { '0-59%': 0, '60-69%': 0, '70-79%': 0, '80-89%': 0, '90-100%': 0 });
     
+    const deptWhere: any = {};
+    if (userRole !== 'Super Admin') {
+        deptWhere.trainingProviderId = trainingProviderId;
+    }
     const completionByDept = await prisma.department.findMany({
-        where: { trainingProviderId },
+        where: deptWhere,
         include: {
             users: {
                 where: { roleId: staffRole.id },
@@ -133,11 +161,11 @@ async function getAnalyticsData(trainingProviderId: string) {
 
 export default async function AnalyticsPage() {
     const session = await getSession();
-    if (!session?.trainingProviderId) {
+    if (!session?.id) {
         return notFound();
     }
 
-    const analyticsData = await getAnalyticsData(session.trainingProviderId);
+    const analyticsData = await getAnalyticsData(session.trainingProviderId, session.role.name);
 
     return <AnalyticsDashboard analyticsData={analyticsData} />;
 }

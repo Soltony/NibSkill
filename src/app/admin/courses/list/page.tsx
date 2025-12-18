@@ -25,11 +25,11 @@ import { notFound } from "next/navigation"
 import { CourseStatus } from "@prisma/client"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
-async function getData(trainingProviderId: string) {
+async function getData(trainingProviderId: string | null | undefined, userRole: string) {
+  const whereClause = userRole === 'Super Admin' ? {} : { trainingProviderId };
+
   const courses = await prisma.course.findMany({
-    where: { 
-      trainingProviderId,
-    },
+    where: whereClause,
     orderBy: { createdAt: 'desc' },
     include: {
       modules: true,
@@ -38,7 +38,7 @@ async function getData(trainingProviderId: string) {
   });
   
   const products = await prisma.product.findMany({
-    where: { trainingProviderId },
+    where: whereClause,
     orderBy: { name: 'asc' }
   });
 
@@ -47,11 +47,11 @@ async function getData(trainingProviderId: string) {
 
 export default async function CourseManagementPage() {
   const session = await getSession();
-  if (!session || !session.trainingProviderId) {
+  if (!session?.id) {
     notFound();
   }
 
-  const { courses, products } = await getData(session.trainingProviderId);
+  const { courses, products } = await getData(session.trainingProviderId, session.role.name);
 
   return (
       <div className="space-y-8">

@@ -23,9 +23,11 @@ import { notFound } from "next/navigation"
 import { LiveSessionStatus } from "@prisma/client"
 import { cn } from "@/lib/utils"
 
-async function getData(trainingProviderId: string) {
+async function getData(trainingProviderId: string | null | undefined, userRole: string) {
+  const whereClause = userRole === 'Super Admin' ? {} : { trainingProviderId };
+
   const sessions = await prisma.liveSession.findMany({
-    where: { trainingProviderId },
+    where: whereClause,
     orderBy: {
       dateTime: 'desc'
     },
@@ -43,11 +45,14 @@ async function getData(trainingProviderId: string) {
     }
   });
 
+  const usersWhere: any = {};
+  if (userRole !== 'Super Admin') {
+    usersWhere.trainingProviderId = trainingProviderId;
+  }
+  usersWhere.role = { name: 'Staff' };
+
   const users = await prisma.user.findMany({ 
-    where: { 
-      trainingProviderId,
-      role: { name: 'Staff' } 
-    } 
+    where: usersWhere
   });
 
   return { sessions, users };
@@ -55,11 +60,11 @@ async function getData(trainingProviderId: string) {
 
 export default async function LiveSessionManagementPage() {
   const sessionData = await getSession();
-  if (!sessionData || !sessionData.trainingProviderId) {
+  if (!sessionData?.id) {
     notFound();
   }
 
-  const { sessions, users } = await getData(sessionData.trainingProviderId);
+  const { sessions, users } = await getData(sessionData.trainingProviderId, sessionData.role.name);
 
   const getStatusVariant = (status: LiveSessionStatus) => {
     switch (status) {

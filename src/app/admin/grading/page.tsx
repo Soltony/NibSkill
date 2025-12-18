@@ -20,39 +20,37 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 
-async function getPendingSubmissions(trainingProviderId: string) {
-    const submissions = await prisma.quizSubmission.findMany({
-        where: {
-            status: 'PENDING_REVIEW',
-            quiz: {
-                course: {
-                    trainingProviderId: trainingProviderId,
-                }
-            }
-        },
+async function getPendingSubmissions(trainingProviderId: string | null | undefined, userRole: string) {
+  const whereClause: any = { status: 'PENDING_REVIEW' };
+  if (userRole !== 'Super Admin') {
+    whereClause.quiz = { course: { trainingProviderId } };
+  }
+
+  const submissions = await prisma.quizSubmission.findMany({
+    where: whereClause,
+    include: {
+      user: true,
+      quiz: {
         include: {
-            user: true,
-            quiz: {
-                include: {
-                    course: true
-                }
-            }
+          course: true,
         },
-        orderBy: {
-            submittedAt: 'asc'
-        }
-    });
-    return submissions;
+      },
+    },
+    orderBy: {
+      submittedAt: 'asc',
+    },
+  });
+  return submissions;
 }
 
 
 export default async function GradingPage() {
     const session = await getSession();
-    if (!session || !session.trainingProviderId) {
+    if (!session?.id) {
         notFound();
     }
 
-    const submissions = await getPendingSubmissions(session.trainingProviderId);
+    const submissions = await getPendingSubmissions(session.trainingProviderId, session.role.name);
 
     return (
         <div className="space-y-8">

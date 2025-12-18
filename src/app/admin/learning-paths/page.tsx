@@ -22,9 +22,11 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { PlusCircle } from "lucide-react"
 
-async function getData(trainingProviderId: string) {
+async function getData(trainingProviderId: string | null | undefined, userRole: string) {
+  const whereClause = userRole === 'Super Admin' ? {} : { trainingProviderId };
+
   const learningPaths = await prisma.learningPath.findMany({
-    where: { trainingProviderId },
+    where: whereClause,
     orderBy: { title: "asc" },
     include: {
       courses: {
@@ -36,7 +38,7 @@ async function getData(trainingProviderId: string) {
   })
   
   const courses = await prisma.course.findMany({
-    where: { trainingProviderId },
+    where: whereClause,
     orderBy: { title: "asc" }
   })
   
@@ -45,11 +47,11 @@ async function getData(trainingProviderId: string) {
 
 export default async function LearningPathManagementPage() {
   const session = await getSession();
-  if (!session || !session.trainingProviderId) {
+  if (!session?.id) {
     notFound();
   }
   
-  const { learningPaths, courses } = await getData(session.trainingProviderId);
+  const { learningPaths, courses } = await getData(session.trainingProviderId, session.role.name);
 
   return (
     <div className="space-y-8">
@@ -92,7 +94,7 @@ export default async function LearningPathManagementPage() {
                     {path.courses.length}
                   </TableCell>
                   <TableCell className="text-right">
-                    <LearningPathActions path={path} courses={courses} />
+                    <LearningPathActions path={path as any} courses={courses} />
                   </TableCell>
                 </TableRow>
               ))}

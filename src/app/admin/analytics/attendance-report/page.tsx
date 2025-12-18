@@ -7,18 +7,23 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { MoveLeft } from "lucide-react"
 
-async function getAttendanceReportData(trainingProviderId: string) {
-  const staffRole = await prisma.role.findFirst({
-      where: { name: 'Staff', trainingProviderId },
-      select: { id: true }
-  });
+async function getAttendanceReportData(trainingProviderId: string | null | undefined, userRole: string) {
+  const staffRoleWhere: any = { name: 'Staff' };
+  if (userRole !== 'Super Admin') {
+    staffRoleWhere.trainingProviderId = trainingProviderId;
+  }
+  const staffRole = await prisma.role.findFirst({ where: staffRoleWhere, select: { id: true } });
 
   if (!staffRole) {
       return { sessions: [], users: [], departments: [], districts: [], branches: [] };
   }
   
+  const sessionsWhere: any = {};
+  if (userRole !== 'Super Admin') {
+    sessionsWhere.trainingProviderId = trainingProviderId;
+  }
   const sessions = await prisma.liveSession.findMany({
-    where: { trainingProviderId },
+    where: sessionsWhere,
     include: {
       attendedBy: {
         where: { user: { roleId: staffRole.id } },
@@ -39,22 +44,24 @@ async function getAttendanceReportData(trainingProviderId: string) {
     orderBy: { dateTime: "desc" },
   });
 
-  const users = await prisma.user.findMany({ 
-    where: { trainingProviderId, roleId: staffRole.id },
-    orderBy: { name: 'asc' }
-  });
-  const departments = await prisma.department.findMany({ 
-    where: { trainingProviderId },
-    orderBy: { name: 'asc' }
-  });
-  const districts = await prisma.district.findMany({ 
-    where: { trainingProviderId },
-    orderBy: { name: 'asc' }
-  });
-  const branches = await prisma.branch.findMany({ 
-    where: { district: { trainingProviderId } },
-    orderBy: { name: 'asc' }
-  });
+  const usersWhere: any = { roleId: staffRole.id };
+  if (userRole !== 'Super Admin') {
+    usersWhere.trainingProviderId = trainingProviderId;
+  }
+  const users = await prisma.user.findMany({ where: usersWhere, orderBy: { name: 'asc' } });
+  
+  const orgWhere: any = {};
+  if (userRole !== 'Super Admin') {
+    orgWhere.trainingProviderId = trainingProviderId;
+  }
+  const departments = await prisma.department.findMany({ where: orgWhere, orderBy: { name: 'asc' } });
+  const districts = await prisma.district.findMany({ where: orgWhere, orderBy: { name: 'asc' } });
+  
+  const branchWhere: any = {};
+  if (userRole !== 'Super Admin') {
+    branchWhere.district = { trainingProviderId };
+  }
+  const branches = await prisma.branch.findMany({ where: branchWhere, orderBy: { name: 'asc' } });
 
   return { 
     sessions,
@@ -67,11 +74,11 @@ async function getAttendanceReportData(trainingProviderId: string) {
 
 export default async function AttendanceReportPage() {
   const session = await getSession();
-  if (!session || !session.trainingProviderId) {
+  if (!session?.id) {
     notFound();
   }
 
-  const { sessions, users, departments, districts, branches } = await getAttendanceReportData(session.trainingProviderId)
+  const { sessions, users, departments, districts, branches } = await getAttendanceReportData(session.trainingProviderId, session.role.name)
   
   return (
     <div className="space-y-8">
@@ -82,7 +89,7 @@ export default async function AttendanceReportPage() {
         </Link>
       </Button>
       <AttendanceReportClient
-          sessions={sessions}
+          sessions={sessions as any}
           users={users}
           departments={departments}
           districts={districts}

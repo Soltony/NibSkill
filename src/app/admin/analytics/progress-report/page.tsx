@@ -7,9 +7,13 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { MoveLeft } from "lucide-react"
 
-async function getProgressReportData(trainingProviderId: string) {
+async function getProgressReportData(trainingProviderId: string | null | undefined, userRole: string) {
+  const staffRoleWhere: any = { name: 'Staff' };
+  if (userRole !== 'Super Admin') {
+    staffRoleWhere.trainingProviderId = trainingProviderId;
+  }
   const staffRole = await prisma.role.findFirst({
-      where: { name: 'Staff', trainingProviderId },
+      where: staffRoleWhere,
       select: { id: true }
   });
 
@@ -17,8 +21,12 @@ async function getProgressReportData(trainingProviderId: string) {
       return { reportData: [], courses: [], departments: [], districts: [], branches: [] };
   }
 
+  const usersWhere: any = { roleId: staffRole.id };
+  if (userRole !== 'Super Admin') {
+    usersWhere.trainingProviderId = trainingProviderId;
+  }
   const users = await prisma.user.findMany({
-    where: { trainingProviderId, roleId: staffRole.id },
+    where: usersWhere,
     include: {
       department: true,
       district: true,
@@ -27,36 +35,39 @@ async function getProgressReportData(trainingProviderId: string) {
     orderBy: { name: "asc" },
   })
 
+  const coursesWhere: any = {};
+  if (userRole !== 'Super Admin') {
+    coursesWhere.trainingProviderId = trainingProviderId;
+  }
   const courses = await prisma.course.findMany({
-    where: { trainingProviderId },
+    where: coursesWhere,
     include: {
       modules: true,
     },
     orderBy: { title: "asc" },
   })
 
+  const completionsWhere: any = { user: { roleId: staffRole.id } };
+  if (userRole !== 'Super Admin') {
+    completionsWhere.user = { trainingProviderId, roleId: staffRole.id };
+  }
   const completions = await prisma.userCompletedCourse.findMany({
-    where: {
-      user: {
-        trainingProviderId,
-        roleId: staffRole.id
-      }
-    }
+    where: completionsWhere
   });
   const completionMap = new Map(completions.map(c => [`${c.userId}-${c.courseId}`, c.score]));
 
-  const departments = await prisma.department.findMany({
-    where: { trainingProviderId },
-    orderBy: { name: "asc" },
-  })
-  const districts = await prisma.district.findMany({
-    where: { trainingProviderId },
-    orderBy: { name: "asc" },
-  })
-  const branches = await prisma.branch.findMany({
-    where: { district: { trainingProviderId } },
-    orderBy: { name: "asc" },
-  })
+  const orgWhere: any = {};
+  if (userRole !== 'Super Admin') {
+    orgWhere.trainingProviderId = trainingProviderId;
+  }
+  const departments = await prisma.department.findMany({ where: orgWhere, orderBy: { name: "asc" } });
+  const districts = await prisma.district.findMany({ where: orgWhere, orderBy: { name: "asc" } });
+
+  const branchWhere: any = {};
+  if (userRole !== 'Super Admin') {
+    branchWhere.district = { trainingProviderId };
+  }
+  const branches = await prisma.branch.findMany({ where: branchWhere, orderBy: { name: "asc" } });
 
   const reportData = users
     .map((user) => {
@@ -87,11 +98,11 @@ async function getProgressReportData(trainingProviderId: string) {
 
 export default async function ProgressReportPage() {
   const session = await getSession();
-  if (!session || !session.trainingProviderId) {
+  if (!session?.id) {
     notFound();
   }
 
-  const { reportData, courses, departments, districts, branches } = await getProgressReportData(session.trainingProviderId)
+  const { reportData, courses, departments, districts, branches } = await getProgressReportData(session.trainingProviderId, session.role.name)
   
   return (
     <div className="space-y-8">

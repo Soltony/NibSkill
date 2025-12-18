@@ -23,9 +23,13 @@ import { DeleteProductDialog } from "@/components/delete-product-dialog"
 import { getSession } from "@/lib/auth"
 import { notFound } from "next/navigation"
 
-async function getProducts(trainingProviderId: string) {
+async function getProducts(trainingProviderId: string | null | undefined, userRole: string) {
+  const whereClause = userRole === 'Super Admin' 
+    ? {} 
+    : { trainingProviderId: trainingProviderId };
+
   const products = await prisma.product.findMany({
-    where: { trainingProviderId },
+    where: whereClause,
     orderBy: {
       name: 'asc'
     }
@@ -35,11 +39,11 @@ async function getProducts(trainingProviderId: string) {
 
 export default async function ProductManagementPage() {
   const session = await getSession();
-  if (!session || !session.trainingProviderId) {
+  if (!session?.id) {
     notFound();
   }
 
-  const products = await getProducts(session.trainingProviderId);
+  const products = await getProducts(session.trainingProviderId, session.role.name);
 
   return (
     <div className="space-y-8">
