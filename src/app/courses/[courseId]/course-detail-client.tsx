@@ -110,11 +110,9 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     if (localCompletedModules.has(moduleId)) return;
 
     // Optimistic UI update
-    setLocalCompletedModules(prev => {
-        const newCompletions = new Set(prev);
-        newCompletions.add(moduleId);
-        return newCompletions;
-    });
+    const newCompletions = new Set(localCompletedModules);
+    newCompletions.add(moduleId);
+    setLocalCompletedModules(newCompletions);
 
     const result = await toggleModuleCompletion(course.id, { moduleId, completed: true });
     
@@ -125,14 +123,15 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         variant: "destructive"
       });
       // Revert optimistic update
-      setLocalCompletedModules(new Set(initialCourseData.completedModules.map(cm => cm.moduleId)));
+      const originalCompletions = new Set(initialCourseData.completedModules.map(cm => cm.moduleId));
+      setLocalCompletedModules(originalCompletions);
     } else {
         toast({
             title: "Module Completed!",
             description: "Your progress has been saved.",
         })
     }
-  }, [course.id, toast, localCompletedModules, initialCourseData.completedModules]);
+  }, [course.id, initialCourseData.completedModules, localCompletedModules, toast]);
 
 
   const handleBuyCourse = async () => {

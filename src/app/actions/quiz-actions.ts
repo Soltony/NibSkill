@@ -58,19 +58,7 @@ const updateQuizFormSchema = z.object({
   timeLimit: z.coerce.number().min(0),
   maxAttempts: z.coerce.number().min(0),
   quizType: z.enum(["OPEN_LOOP", "CLOSED_LOOP"]),
-  questions: z.array(
-    z.object({
-      id: z.string().optional(),
-      text: z.string().min(1, "Question text cannot be empty."),
-      type: z.string(), // Accept string first
-      options: z.array(optionSchema),
-      correctAnswerId: z.string().min(1, "A correct answer is required."),
-      weight: z.coerce.number().min(0.1, "Weight must be greater than 0."),
-    }).transform(data => ({
-      ...data,
-      type: data.type.toUpperCase() as QuestionType, // Then transform to uppercase enum
-    })).pipe(questionSchema) // And finally validate against the schema with the now-uppercase type
-  ),
+  questions: z.array(questionSchema),
 });
 
 
