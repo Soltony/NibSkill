@@ -100,11 +100,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const isAdminPath = pathname.startsWith('/admin');
   const isSuperAdminPath = pathname.startsWith('/super-admin');
 
-  let currentNavItems = navItems;
   let currentNavItem;
 
   if (isSuperAdminPath) {
-    currentNavItems = superAdminNavItems;
     currentNavItem = superAdminNavItems.find(item => pathname.startsWith(item.href));
   } else if (isAdminPath) {
     currentNavItem = adminNavItems.find(item => pathname.startsWith(item.href));
@@ -182,9 +180,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 ) : (
                   <SidebarMenu>
                     <SidebarGroup>
-                      <SidebarGroupLabel>
-                        {isSuperAdminPath ? 'Super Admin' : isAdminPath ? 'Admin Menu' : 'Menu'}
-                      </SidebarGroupLabel>
+                       {!isAdminPath && (
+                        <SidebarGroupLabel>
+                          {isSuperAdminPath ? 'Super Admin' : 'Menu'}
+                        </SidebarGroupLabel>
+                      )}
                       {isStaffView && navItems.map(item => (
                         <SidebarMenuItem key={item.href}>
                           <Link href={item.href}>
@@ -215,44 +215,66 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                          )
                       ))}
                     </SidebarGroup>
-                     <Separator className="my-2 bg-sidebar-border" />
                     
-                    {isSuperAdminRole && (
+                    <SidebarGroup>
+                      {(hasAnyAdminReadAccess || isSuperAdminRole) && <Separator className="my-2 bg-sidebar-border" />}
+                      
+                      {/* For Staff View */}
+                      {isStaffView && (
                         <>
+                          {hasAnyAdminReadAccess && (
                             <SidebarMenuItem>
-                                <Link href="/dashboard">
-                                    <SidebarMenuButton tooltip="Staff View" isActive={isStaffView}><Users /><span>Staff View</span></SidebarMenuButton>
-                                </Link>
+                              <Link href="/admin/analytics">
+                                <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
+                              </Link>
                             </SidebarMenuItem>
-                             {hasAnyAdminReadAccess && (
-                                <SidebarMenuItem>
-                                    <Link href="/admin/analytics">
-                                    <SidebarMenuButton tooltip="Admin View" isActive={isAdminPath}><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
-                                    </Link>
-                                </SidebarMenuItem>
-                            )}
+                          )}
+                          {isSuperAdminRole && (
+                            <SidebarMenuItem>
+                              <Link href="/super-admin">
+                                <SidebarMenuButton tooltip="Super Admin View"><ShieldCheck color="gold" /><span>Super Admin View</span></SidebarMenuButton>
+                              </Link>
+                            </SidebarMenuItem>
+                          )}
                         </>
-                    )}
-                    
-                    {!isSuperAdminRole && (
-                        <>
-                            {isStaffView && hasAnyAdminReadAccess && (
-                                <SidebarMenuItem>
-                                    <Link href="/admin/analytics">
-                                    <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
-                                    </Link>
-                                </SidebarMenuItem>
-                            )}
+                      )}
 
-                            {isAdminPath && (
+                      {/* For Admin View */}
+                      {isAdminPath && (
+                        <>
+                          <SidebarMenuItem>
+                            <Link href="/dashboard">
+                              <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
+                            </Link>
+                          </SidebarMenuItem>
+                          {isSuperAdminRole && (
                             <SidebarMenuItem>
-                                <Link href="/dashboard">
-                                <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
+                              <Link href="/super-admin">
+                                <SidebarMenuButton tooltip="Super Admin View"><ShieldCheck color="gold" /><span>Super Admin View</span></SidebarMenuButton>
+                              </Link>
+                            </SidebarMenuItem>
+                          )}
+                        </>
+                      )}
+
+                       {/* For Super Admin View */}
+                       {isSuperAdminPath && (
+                        <>
+                          <SidebarMenuItem>
+                            <Link href="/dashboard">
+                              <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
+                            </Link>
+                          </SidebarMenuItem>
+                          {hasAnyAdminReadAccess && (
+                             <SidebarMenuItem>
+                                <Link href="/admin/analytics">
+                                <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
                                 </Link>
                             </SidebarMenuItem>
-                            )}
+                          )}
                         </>
-                    )}
+                      )}
+                    </SidebarGroup>
                   </SidebarMenu>
                 )}
               </SidebarContent>
@@ -291,7 +313,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <header className="flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
                 <SidebarTrigger className="md:hidden" />
                 <div className="flex-1">
-                  <h1 className="text-lg font-semibold md:text-xl font-headline">{currentNavItem?.label}</h1>
+                  <h1 className="text-lg font-semibold md:text-xl font-headline">{isAdminPath ? "Admin" : currentNavItem?.label}</h1>
                 </div>
                 {currentUser && <NotificationCenter initialNotifications={currentUser.notifications} />}
               </header>
