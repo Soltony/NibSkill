@@ -107,7 +107,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     currentNavItems = superAdminNavItems;
     currentNavItem = superAdminNavItems.find(item => pathname.startsWith(item.href));
   } else if (isAdminPath) {
-    // We don't set currentNavItems here because we will filter it based on permissions
     currentNavItem = adminNavItems.find(item => pathname.startsWith(item.href));
   } else {
     currentNavItem = navItems.find(item => pathname.startsWith(item.href));
@@ -141,7 +140,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   const isLinkActive = (path: string) => {
-    if (path === '/super-admin/dashboard' || path === '/admin/analytics') {
+    if (path === '/super-admin/dashboard' || path === '/admin/analytics' || path === '/dashboard') {
       return pathname === path;
     }
     return pathname.startsWith(path);
@@ -218,7 +217,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </SidebarGroup>
                      <Separator className="my-2 bg-sidebar-border" />
                     
-                    {isSuperAdminRole ? (
+                    {isSuperAdminRole && (
                         <>
                             <SidebarMenuItem>
                                 <Link href="/dashboard">
@@ -233,9 +232,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                 </SidebarMenuItem>
                             )}
                         </>
-                    ) : (
+                    )}
+                    
+                    {!isSuperAdminRole && (
                         <>
-                             {isStaffView && hasAnyAdminReadAccess && (
+                            {isStaffView && hasAnyAdminReadAccess && (
                                 <SidebarMenuItem>
                                     <Link href="/admin/analytics">
                                     <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
@@ -243,7 +244,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                 </SidebarMenuItem>
                             )}
 
-                            {!isStaffView && !isSuperAdminPath && (
+                            {isAdminPath && (
                             <SidebarMenuItem>
                                 <Link href="/dashboard">
                                 <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
