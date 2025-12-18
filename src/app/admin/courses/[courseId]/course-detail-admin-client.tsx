@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Image from 'next/image';
 import {
   Accordion,
@@ -63,10 +63,15 @@ export function CourseDetailAdminClient({ initialCourse, initialProgress, review
   const handleModuleUpdated = (updatedModule: TModule) => {
     setCourse(prevCourse => {
       if (!prevCourse) return initialCourse;
-      const newModules = prevCourse.modules.map(m => m.id === updatedModule.id ? updatedModule : m);
+      const newModules = prevCourse.modules.map(m => m.id === updatedModule.id ? updatedModule.id : m);
       return { ...prevCourse, modules: newModules };
     });
   };
+
+  const handleAutoComplete = useCallback(() => {
+    // This is a dummy function for the admin view as admins do not track progress.
+    // It's wrapped in useCallback to ensure stability and prevent re-renders.
+  }, []);
   
   const displayImageUrl = course.imageUrl ?? course.product?.imageUrl;
   const displayImageHint = course.imageHint ?? course.product?.imageHint;
@@ -113,14 +118,18 @@ export function CourseDetailAdminClient({ initialCourse, initialProgress, review
                 <AccordionItem value={module.id} key={module.id}>
                     <AccordionTrigger className="font-semibold hover:no-underline">
                         <div className="flex items-center gap-4">
-                            {iconMap[module.type as keyof typeof iconMap]}
+                            {iconMap[module.type.toLowerCase() as keyof typeof iconMap]}
                             <span>{module.title}</span>
                             <span className="text-sm font-normal text-muted-foreground">({module.duration} min)</span>
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
                     <div className="space-y-4 p-4 bg-muted/50 rounded-md">
-                        <ModuleContent module={module as any} />
+                        <ModuleContent 
+                          module={module as any} 
+                          onAutoComplete={handleAutoComplete}
+                          isCompleted={false} // Admins don't complete modules
+                        />
                         <div className="flex items-center justify-between pt-4 border-t">
                             <FeatureNotImplementedDialog
                                 title="Bookmark Module"

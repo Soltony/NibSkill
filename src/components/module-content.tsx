@@ -138,7 +138,7 @@ const NativePlayer = ({ url, onEnded, type }: { url: string, onEnded: () => void
 
 type ModuleContentProps = {
     module: Module;
-    onAutoComplete: () => void;
+    onAutoComplete?: () => void;
     isCompleted: boolean;
 }
 
@@ -150,7 +150,7 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
     const isDocument = module.type === 'PDF' || module.type === 'SLIDES' || (module.type === 'VIDEO' && isYouTubeUrl);
 
     useEffect(() => {
-        if (isDocument && !isCompleted) {
+        if (isDocument && !isCompleted && onAutoComplete) {
             setTimeRemaining(module.duration * 60); 
             timerRef.current = setInterval(() => {
                 setTimeRemaining(prev => {
@@ -184,18 +184,20 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
             return <p className="text-muted-foreground">No content has been assigned to this module yet.</p>
         }
 
+        const handleEnded = onAutoComplete || (() => {});
+
         switch (module.type) {
             case 'VIDEO':
                 if (isYouTubeUrl) {
                     return <YouTubeEmbed url={module.content} />;
                 }
                 if (isDataUrl || isExternalUrl) {
-                    return <NativePlayer url={module.content} onEnded={onAutoComplete} type="video" />
+                    return <NativePlayer url={module.content} onEnded={handleEnded} type="video" />
                 }
                 break;
             case 'AUDIO':
                  if (isDataUrl || isExternalUrl) {
-                    return <NativePlayer url={module.content} onEnded={onAutoComplete} type="audio" />
+                    return <NativePlayer url={module.content} onEnded={handleEnded} type="audio" />
                  }
                 break;
             case 'PDF':
@@ -218,7 +220,7 @@ export const ModuleContent = ({ module, onAutoComplete, isCompleted }: ModuleCon
             <div>
                {renderContent()}
             </div>
-            {isDocument && (
+            {isDocument && onAutoComplete && (
                  <div className="flex items-center justify-center pt-4">
                     <div className="text-sm text-muted-foreground">
                         {isCompleted ? (
