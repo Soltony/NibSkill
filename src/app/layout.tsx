@@ -154,6 +154,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const hasAnyAdminReadAccess = adminNavItems.some(item => item.permission === true);
   const isStaffView = !isAdminPath && !isSuperAdminPath;
+  const isSuperAdminRole = userRole?.name === 'Super Admin';
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -224,7 +225,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       </SidebarMenuItem>
                     )}
 
-                    {!isStaffView && (
+                    {isSuperAdminRole && (isAdminPath || isStaffView) && (
+                      <SidebarMenuItem>
+                          <Link href="/super-admin">
+                              <SidebarMenuButton tooltip="Super Admin View"><ShieldCheck /><span>Super Admin View</span></SidebarMenuButton>
+                          </Link>
+                      </SidebarMenuItem>
+                    )}
+
+                    {!isStaffView && !isSuperAdminPath && (
                       <SidebarMenuItem>
                         <Link href="/dashboard">
                           <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
