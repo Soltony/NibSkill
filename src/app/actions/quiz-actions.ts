@@ -202,15 +202,52 @@ export async function requestQuizReset(userId: string, courseId: string) {
             return { success: false, message: "You already have a pending reset request for this course." };
         }
 
-        await prisma.resetRequest.create({
+        const newRequest = await prisma.resetRequest.create({
             data: {
                 userId,
                 courseId,
                 status: 'PENDING'
+            },
+            include: {
+                user: true,
+                course: {
+                    include: {
+                        trainingProvider: true
+                    }
+                }
             }
         });
+
+        if (newRequest.course.trainingProviderId) {
+            const admins = await prisma.user.findMany({
+                where: {
+                    trainingProviderId: newRequest.course.trainingProviderId,
+                    roles: {
+                        some: {
+                            role: {
+                                name: 'Admin'
+                            }
+                        }
+                    }
+                },
+                select: { id: true }
+            });
+
+            if (admins.length > 0) {
+                await prisma.notification.createMany({
+                    data: admins.map(admin => ({
+                        userId: admin.id,
+                        title: "New Quiz Reset Request",
+                        description: `${newRequest.user.name} has requested a quiz reset for the course "${newRequest.course.title}".`
+                    }))
+                });
+            }
+        }
         
         revalidatePath(`/courses/${courseId}`);
+        revalidatePath('/admin/settings');
+        revalidatePath('/layout');
+
         return { success: true, message: 'Your request to reset quiz attempts has been submitted.' };
 
     } catch (error) {
@@ -222,7 +259,11 @@ export async function requestQuizReset(userId: string, courseId: string) {
 export async function approveResetRequest(requestId: string) {
     try {
         const request = await prisma.resetRequest.findUnique({
-            where: { id: requestId }
+            where: { id: requestId },
+            include: {
+                user: true,
+                course: true
+            }
         });
 
         if (!request) {
@@ -239,6 +280,13 @@ export async function approveResetRequest(requestId: string) {
             prisma.resetRequest.update({
                 where: { id: requestId },
                 data: { status: 'APPROVED' }
+            }),
+             prisma.notification.create({
+                data: {
+                    userId: request.userId,
+                    title: "Request Approved",
+                    description: `Your request to reset the quiz for "${request.course.title}" has been approved.`
+                }
             })
         ]);
 
@@ -254,9 +302,21 @@ export async function approveResetRequest(requestId: string) {
 
 export async function rejectResetRequest(requestId: string) {
     try {
-        await prisma.resetRequest.update({
+       const request = await prisma.resetRequest.update({
             where: { id: requestId },
-            data: { status: 'REJECTED' }
+            data: { status: 'REJECTED' },
+            include: {
+                user: true,
+                course: true
+            }
+        });
+
+        await prisma.notification.create({
+            data: {
+                userId: request.userId,
+                title: "Request Rejected",
+                description: `Your request to reset the quiz for "${request.course.title}" has been rejected.`
+            }
         });
 
         revalidatePath('/admin/settings');
