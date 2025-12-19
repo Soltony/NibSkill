@@ -16,9 +16,9 @@ model TrainingProvider {
   name          String   @unique
   address       String
   accountNumber String   @unique
+  isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  isActive      Boolean  @default(true)
 
   users               User[]
   roles               Role[]
@@ -26,83 +26,67 @@ model TrainingProvider {
   courses             Course[]
   learningPaths       LearningPath[]
   liveSessions        LiveSession[]
+  certificateTemplate CertificateTemplate?
   districts           District[]
   departments         Department[]
   branches            Branch[]
-  certificateTemplate CertificateTemplate?
   registrationFields  RegistrationField[]
 }
 
 model User {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   name            String
-  email           String?  @unique
-  phoneNumber     String?  @unique
+  email           String?
+  phoneNumber     String?
   password        String
   avatarUrl       String?
   activeSessionId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  roleId             String
-  trainingProviderId String?
-
-  role               Role                  @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  trainingProvider   TrainingProvider?     @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-  departmentId       String?
-  department         Department?           @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  districtId         String?
-  district           District?             @relation(fields: [districtId], references: [id], onDelete: SetNull)
-  branchId           String?
-  branch             Branch?               @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  badges             UserBadge[]
-  completedModules   UserCompletedModule[]
-  completedCourses   UserCompletedCourse[]
-  attendedSessions   UserAttendedLiveSession[]
-  allowedLiveSession LiveSessionAllowedUser[]
-  loginHistory       LoginHistory[]
-  quizSubmissions    QuizSubmission[]
-  notifications      Notification[]
-  resetRequests      ResetRequest[]
-}
-
-model LoginHistory {
-  id        String   @id @default(cuid())
-  userId    String
-  loginTime DateTime @default(now())
-  ipAddress String?
-  userAgent String?
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Role {
-  id        String   @id @default(cuid())
-  name      String
-  permissions Json?
-
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  roleId          String
+  role            Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  districtId      String?
+  district        District?   @relation(fields: [districtId], references: [id], onDelete: SetNull)
+  branchId        String?
+  branch          Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  
   trainingProviderId String?
   trainingProvider   TrainingProvider? @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
 
-  users User[]
+  completedCourses UserCompletedCourse[]
+  completedModules UserCompletedModule[]
+  attendedSessions UserAttendedLiveSession[]
+  quizSubmissions  QuizSubmission[]
+  resetRequests    ResetRequest[]
+  loginHistory     LoginHistory[]
+  notifications    Notification[]
+  badges           UserBadge[]
 
-  @@unique([name, trainingProviderId])
+  allowedLiveSessions LiveSessionAllowedUser[]
 }
 
-model Department {
+model Role {
   id                 String   @id @default(cuid())
   name               String
+  permissions        Json
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   users              User[]
-  trainingProviderId String
-  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  trainingProviderId String?
+  trainingProvider   TrainingProvider? @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+
+  @@unique([name, trainingProviderId])
 }
 
 model District {
   id                 String   @id @default(cuid())
   name               String
-  branches           Branch[]
-  users              User[]
   trainingProviderId String
   trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  branches           Branch[]
+  users              User[]
 }
 
 model Branch {
@@ -110,299 +94,126 @@ model Branch {
   name               String
   districtId         String
   district           District @relation(fields: [districtId], references: [id], onDelete: Cascade)
-  users              User[]
   trainingProviderId String
   trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  users              User[]
+}
+
+model Department {
+  id                 String   @id @default(cuid())
+  name               String
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  users              User[]
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  imageUrl    String
-  imageHint   String?
-  courses     Course[]
-
+  id                 String   @id @default(cuid())
+  name               String
+  description        String
+  imageUrl           String
+  imageHint          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  courses            Course[]
   trainingProviderId String
   trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
 }
 
 model Course {
-  id               String   @id @default(cuid())
-  title            String
-  description      String
-  imageUrl         String?
-  imageDescription String?
-  imageHint        String?
-  isPublic         Boolean  @default(true)
-  isPaid           Boolean  @default(false)
-  price            Float?
-  currency         Currency?
-  status           CourseStatus
-  rejectionReason  String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  hasCertificate   Boolean  @default(false)
-
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  modules     Module[]
-  quiz        Quiz?
-  completedBy UserCompletedCourse[]
-  learningPaths LearningPathCourse[]
-
+  id                 String    @id @default(cuid())
+  title              String
+  description        String
+  imageUrl           String?
+  imageDescription   String?
+  imageHint          String?
+  productId          String
+  product            Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modules            Module[]
+  isPaid             Boolean   @default(false)
+  price              Float?
+  currency           Currency?
+  isPublic           Boolean   @default(true)
+  hasCertificate     Boolean   @default(false)
+  status             CourseStatus @default(PENDING)
+  rejectionReason    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
   trainingProviderId String
   trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-  
+
+  completedBy   UserCompletedCourse[]
+  learningPaths LearningPathCourse[]
+  quiz          Quiz?
   resetRequests ResetRequest[]
 }
 
+enum Currency {
+  USD
+  ETB
+}
+
+enum CourseStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
 model Module {
-  id          String                @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String
   type        ModuleType
   duration    Int
   content     String
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
   courseId    String
-  course      Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  completedBy UserCompletedModule[]
-}
-
-model Quiz {
-  id                    String           @id @default(cuid())
-  passingScore          Int
-  timeLimit             Int? // in minutes
-  maxAttempts           Int              @default(0) // 0 for unlimited
-  quizType              QuizType
-  requiresManualGrading Boolean          @default(false)
-  courseId              String           @unique
-  course                Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  questions             Question[]
-  submissions           QuizSubmission[]
-}
-
-model Question {
-  id              String   @id @default(cuid())
-  text            String
-  type            QuestionType
-  weight          Float    @default(1)
-  correctAnswerId String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  quizId  String
-  quiz    Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  options Option[]
-  answers Answer[]
-}
-
-model Option {
-  id         String   @id @default(cuid())
-  text       String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  answers    Answer[]
-}
-
-model LearningPath {
-  id                 String               @id @default(cuid())
-  title              String
-  description        String
-  hasCertificate     Boolean              @default(false)
-  trainingProviderId String
-  trainingProvider   TrainingProvider     @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-  courses            LearningPathCourse[]
-}
-
-model LearningPathCourse {
-  learningPathId String
-  courseId       String
-  order          Int
-  learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
-  course         Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@id([learningPathId, courseId])
-}
-
-
-model UserCompletedModule {
-  userId     String
-  moduleId   String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  module     Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  date       DateTime @default(now())
-
-  @@id([userId, moduleId])
-}
-
-model UserCompletedCourse {
-  userId         String
-  courseId       String
-  completionDate DateTime @default(now())
-  score          Float
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course         Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@id([userId, courseId])
-}
-
-model Badge {
-    id          String      @id @default(cuid())
-    title       String      @unique
-    description String
-    icon        String
-    users       UserBadge[]
-}
-
-model UserBadge {
-    userId  String
-    badgeId String
-    user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-    badge   Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-    date    DateTime @default(now())
-
-    @@id([userId, badgeId])
-}
-
-model LiveSession {
-  id               String                    @id @default(cuid())
-  title            String
-  description      String
-  speaker          String
-  keyTakeaways     String
-  dateTime         DateTime
-  platform         LiveSessionPlatform
-  status           LiveSessionStatus
-  joinUrl          String
-  recordingUrl     String?
-  isRestricted     Boolean                   @default(false)
-  attendedBy       UserAttendedLiveSession[]
-  allowedAttendees LiveSessionAllowedUser[]
-  trainingProviderId String
-  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-}
-
-model UserAttendedLiveSession {
-  userId    String
-  sessionId String
-  attendedAt DateTime @default(now())
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@id([userId, sessionId])
-}
-
-model LiveSessionAllowedUser {
-    userId String
-    sessionId String
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-    session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-    @@id([userId, sessionId])
-}
-
-model QuizSubmission {
-  id         String   @id @default(cuid())
-  submittedAt DateTime @default(now())
-  gradedAt    DateTime?
-  score      Float?
-  status     String // PENDING_REVIEW, COMPLETED
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  quizId String
-  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
-
-  answers Answer[]
-}
-
-model Answer {
-  id               String   @id @default(cuid())
-  answerText       String?
-  submissionId     String
-  submission       QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  
-  questionId       String
-  question         Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  
-  selectedOptionId String?
-  selectedOption   Option?        @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
-}
-
-model CertificateTemplate {
-  id             String  @id @default(cuid())
-  title          String
-  organization   String
-  body           String
-  logoUrl        String?
-  signatoryName  String
-  signatoryTitle String
-  signatureUrl   String?
-  stampUrl       String?
-  primaryColor   String?
-  borderStyle    String?
-  templateStyle  String?
-
-  trainingProviderId String            @unique
-  trainingProvider   TrainingProvider  @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-}
-
-model RegistrationField {
-  id                 String   @id
-  label              String
-  type               FieldType
-  enabled            Boolean
-  required           Boolean
-  options            String[]
-  isLoginIdentifier  Boolean? @default(false)
-  createdAt          DateTime @default(now())
-
-  trainingProviderId String?
-  trainingProvider   TrainingProvider? @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-}
-
-model Notification {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  isRead      Boolean  @default(false)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
+  updatedAt   DateTime @updatedAt
 
-model ResetRequest {
-  id        String        @id @default(cuid())
-  status    RequestStatus @default(PENDING)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  
-  userId    String
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  courseId  String
-  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, courseId, status])
-}
-
-enum RequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  completedBy UserCompletedModule[]
 }
 
 enum ModuleType {
   VIDEO
   PDF
-  SLIDES
   AUDIO
+  SLIDES
+}
+
+model Quiz {
+  id                    String   @id @default(cuid())
+  courseId              String   @unique
+  course                Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  passingScore          Int
+  timeLimit             Int      @default(0) // in minutes, 0 for no limit
+  quizType              QuizType @default(CLOSED_LOOP)
+  maxAttempts           Int      @default(0) // 0 for unlimited
+  requiresManualGrading Boolean  @default(false)
+  questions             Question[]
+  submissions           QuizSubmission[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+enum QuizType {
+  OPEN_LOOP
+  CLOSED_LOOP
+}
+
+model Question {
+  id              String       @id @default(cuid())
+  text            String
+  type            QuestionType
+  quizId          String
+  quiz            Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options         Option[]
+  correctAnswerId String
+  weight          Float        @default(1)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  answers Answer[]
 }
 
 enum QuestionType {
@@ -412,9 +223,56 @@ enum QuestionType {
   SHORT_ANSWER
 }
 
-enum QuizType {
-  OPEN_LOOP
-  CLOSED_LOOP
+model Option {
+  id         String   @id @default(cuid())
+  text       String
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model LearningPath {
+  id                 String   @id @default(cuid())
+  title              String
+  description        String
+  hasCertificate     Boolean   @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  courses            LearningPathCourse[]
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+}
+
+model LearningPathCourse {
+  learningPathId String
+  learningPath   LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order          Int
+  createdAt      DateTime     @default(now())
+
+  @@id([learningPathId, courseId])
+}
+
+model LiveSession {
+  id                 String    @id @default(cuid())
+  title              String
+  description        String
+  speaker            String
+  keyTakeaways       String
+  dateTime           DateTime
+  platform           LiveSessionPlatform
+  joinUrl            String
+  recordingUrl       String?
+  isRestricted       Boolean   @default(false)
+  status             LiveSessionStatus @default(UPCOMING)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  attendedBy         UserAttendedLiveSession[]
+  allowedAttendees   LiveSessionAllowedUser[]
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
 }
 
 enum LiveSessionPlatform {
@@ -422,15 +280,81 @@ enum LiveSessionPlatform {
   Google_Meet
 }
 
-enum CourseStatus {
-  PENDING
-  PUBLISHED
-  REJECTED
+enum LiveSessionStatus {
+  UPCOMING
+  LIVE
+  ENDED
 }
 
-enum Currency {
-  USD
-  ETB
+model UserCompletedCourse {
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  completionDate DateTime @default(now())
+  score          Int
+
+  @@id([userId, courseId])
+}
+
+model UserCompletedModule {
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId String
+  module   Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  date     DateTime @default(now())
+
+  @@id([userId, moduleId])
+}
+
+model UserAttendedLiveSession {
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId  String
+  session    LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attendedAt DateTime    @default(now())
+
+  @@id([userId, sessionId])
+}
+
+model LiveSessionAllowedUser {
+  sessionId  String
+  session    LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@id([sessionId, userId])
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  title       String      @unique
+  description String
+  icon        String
+  users       UserBadge[]
+}
+
+model UserBadge {
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId String
+  badge   Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  date    DateTime @default(now())
+
+  @@id([userId, badgeId])
+}
+
+model RegistrationField {
+  id                 String     @id
+  label              String
+  type               FieldType
+  enabled            Boolean
+  required           Boolean
+  options            String[]
+  trainingProviderId String?
+  trainingProvider   TrainingProvider? @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 }
 
 enum FieldType {
@@ -440,8 +364,81 @@ enum FieldType {
   SELECT
 }
 
-enum LiveSessionStatus {
-  UPCOMING
-  LIVE
-  ENDED
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginTime DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model QuizSubmission {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId     String
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  submittedAt DateTime @default(now())
+  gradedAt    DateTime?
+  score      Int?
+  status     String // PENDING_REVIEW, COMPLETED
+
+  answers Answer[]
+}
+
+model Answer {
+  id               String   @id @default(cuid())
+  submissionId     String
+  submission       QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId String?
+  answerText       String?
+}
+
+model CertificateTemplate {
+    id                 String   @id @default(cuid())
+    title              String
+    organization       String
+    body               String
+    signatoryName      String
+    signatoryTitle     String
+    logoUrl            String?
+    signatureUrl       String?
+    stampUrl           String?
+    primaryColor       String?
+    borderStyle        String?
+    templateStyle      String?
+    trainingProviderId String   @unique
+    trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ResetRequest {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 }
