@@ -27,29 +27,6 @@ export async function POST(request: Request) {
 
     const { name, email, password, department, district, branch, phoneNumber, trainingProviderId } = validation.data;
 
-    const existingUser = await prisma.user.findFirst({
-        where: {
-            OR: [
-                { phoneNumber }
-            ]
-        }
-    });
-
-    if (existingUser) {
-        if (existingUser.phoneNumber === phoneNumber) {
-            return NextResponse.json({ isSuccess: false, errors: ['User with this phone number already exists.'] }, { status: 409 });
-        }
-    }
-    
-    if (email) {
-        const existingEmailUser = await prisma.user.findUnique({ where: { email } });
-        if (existingEmailUser) {
-            return NextResponse.json({ isSuccess: false, errors: ['User with this email already exists.'] }, { status: 409 });
-        }
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
     const staffRole = await prisma.role.findFirst({
         where: { 
             name: 'Staff',
@@ -61,18 +38,41 @@ export async function POST(request: Request) {
         return NextResponse.json({ isSuccess: false, errors: ['Default "Staff" role not found for the selected provider.'] }, { status: 500 });
     }
     
+    // Check if a user with this phone number and role already exists for the provider
+    const existingUser = await prisma.user.findFirst({
+        where: {
+            phoneNumber,
+            trainingProviderId,
+            roles: {
+                some: {
+                    roleId: staffRole.id
+                }
+            }
+        }
+    });
+
+    if (existingUser) {
+        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
     const user = await prisma.user.create({
       data: {
         name,
         email: email || null,
         password: hashedPassword,
-        roleId: staffRole.id,
         departmentId: department || null,
         districtId: district || null,
         branchId: branch || null,
         phoneNumber: phoneNumber,
         avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
         trainingProviderId: trainingProviderId,
+        roles: {
+            create: {
+                roleId: staffRole.id
+            }
+        }
       },
     });
 
@@ -85,12 +85,8 @@ export async function POST(request: Request) {
     console.error('Registration error:', error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
-             if ((error.meta?.target as string[])?.includes('email')) {
-                return NextResponse.json({ isSuccess: false, errors: ['User with this email already exists.'] }, { status: 409 });
-             }
-             if ((error.meta?.target as string[])?.includes('phoneNumber')) {
-                return NextResponse.json({ isSuccess: false, errors: ['User with this phone number already exists.'] }, { status: 409 });
-             }
+             // This might still catch other unique constraints if any are added in the future
+             return NextResponse.json({ isSuccess: false, errors: ['A user with this information might already exist.'] }, { status: 409 });
         }
     }
     return NextResponse.json({ isSuccess: false, errors: ['An unexpected server error occurred.'] }, { status: 500 });
