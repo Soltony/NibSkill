@@ -31,6 +31,7 @@ import { completeCourse } from '@/app/actions/user-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { createSubmission } from '@/app/actions/submission-actions';
+import { useRouter } from 'next/navigation';
 
 type QuizType = TQuiz & { 
   questions: (Question & { options: TOption[] })[],
@@ -52,6 +53,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   const [isPending, startTransition] = useTransition();
   const [isUnderReview, setIsUnderReview] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
@@ -177,8 +179,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   };
 
   const handleRetry = () => {
-    // Force a page reload to get the fresh server state (progress reset)
-    window.location.href = `/courses/${quiz.courseId}`;
+    router.push(`/courses/${quiz.courseId}`);
   }
 
   if (!currentQuestion) {
@@ -367,3 +368,4 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     </>
   );
 }
+
