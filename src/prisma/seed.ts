@@ -110,14 +110,16 @@ async function main() {
     const isSuperAdmin = role === 'super-admin';
 
     await prisma.user.upsert({
-      where: { phoneNumber: user.phoneNumber },
+      where: { email: user.email },
       update: {
         password: hashedPassword,
+        phoneNumber: user.phoneNumber,
       },
       create: {
         id: user.id,
         name: user.name,
         email: user.email,
+        phoneNumber: user.phoneNumber,
         avatarUrl: user.avatarUrl,
         password: hashedPassword,
         departmentId: departmentRecord?.id,
@@ -125,7 +127,6 @@ async function main() {
         branchId: branchRecord?.id,
         roleId: roleRecord!.id,
         trainingProviderId: isSuperAdmin ? null : provider.id,
-        phoneNumber: user.phoneNumber
       },
     });
   }
@@ -350,7 +351,5 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
-
-    
 
     

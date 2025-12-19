@@ -1,4 +1,5 @@
 
+
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -173,6 +174,8 @@ export async function POST(request: NextRequest) {
       redirectTo = '/admin/analytics'; // For admins logging in as admin
     } else if (user.role.name === 'Super Admin') {
       redirectTo = '/super-admin';
+    } else if (hasAdminPermissions && !loginAs) { // If a user has admin rights but didn't specify a role (e.g. mini-app flow)
+      redirectTo = '/admin/analytics';
     }
 
 

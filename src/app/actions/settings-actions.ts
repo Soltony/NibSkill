@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -34,7 +35,7 @@ export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema
 
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal('')),
   roleId: z.string({ required_error: "A role is required." }),
   phoneNumber: z.string().optional(),
 })
@@ -325,3 +326,4 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
+
