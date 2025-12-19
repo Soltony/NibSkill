@@ -64,7 +64,15 @@ const updateQuizFormSchema = z.object({
 
 export async function updateQuiz(quizId: string, values: z.infer<typeof updateQuizFormSchema>) {
     try {
-        const validatedFields = updateQuizFormSchema.safeParse(values);
+        const transformedValues = {
+            ...values,
+            questions: values.questions.map(q => ({
+                ...q,
+                type: q.type.toUpperCase() as QuestionType,
+            }))
+        };
+
+        const validatedFields = updateQuizFormSchema.safeParse(transformedValues);
         if (!validatedFields.success) {
             console.error("Quiz validation failed:", validatedFields.error.flatten());
             return { success: false, message: "Invalid data provided. Check question and option fields." }
