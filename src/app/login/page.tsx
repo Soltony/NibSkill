@@ -41,7 +41,7 @@ export default function LoginPage() {
     if (data.isSuccess) {
       toast({
         title: 'Login Successful',
-        description: `Welcome back, ${role === 'admin' ? 'Admin' : 'Member'}!`,
+        description: `Welcome back, ${role === 'admin' ? 'Admin' : 'Staff'}!`,
       });
       router.push(data.redirectTo || (role === 'admin' ? '/admin/analytics' : '/dashboard'));
     } else {
@@ -92,7 +92,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full">
-            Sign In as {role === 'admin' ? 'Admin' : 'Member'}
+            Sign In as {role === 'admin' ? 'Admin' : 'Staff'}
             </Button>
         </CardFooter>
         </form>
@@ -110,12 +110,12 @@ export default function LoginPage() {
           <CardDescription>Please select your role and sign in.</CardDescription>
         </CardHeader>
         
-        <Tabs defaultValue="member" className="w-full">
+        <Tabs defaultValue="staff" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="member">Member</TabsTrigger>
+            <TabsTrigger value="staff">Staff</TabsTrigger>
             <TabsTrigger value="admin">Admin</TabsTrigger>
           </TabsList>
-          <TabsContent value="member">
+          <TabsContent value="staff">
             <LoginForm role="staff" />
           </TabsContent>
           <TabsContent value="admin">
@@ -124,7 +124,7 @@ export default function LoginPage() {
         </Tabs>
         
         <CardContent className="mt-4 text-center text-sm">
-          Don't have a member account?{' '}
+          Don't have an account?{' '}
           <Link href="/login/register" className="underline">
             Sign Up
           </Link>
