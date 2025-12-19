@@ -16,7 +16,11 @@ export async function GET() {
     const fullUser = await prisma.user.findUnique({
         where: { id: userSession.id },
         include: { 
-            role: true,
+            roles: {
+              include: {
+                role: true,
+              }
+            },
             notifications: {
                 orderBy: {
                     createdAt: 'desc'
@@ -32,7 +36,15 @@ export async function GET() {
 
     const { password, ...userWithoutPassword } = fullUser;
 
-    return NextResponse.json(userWithoutPassword);
+    // This is a simplification. The session contains the active role.
+    // We send back the full user object with all roles, and the client uses the session role for context.
+    const userForClient = {
+        ...userWithoutPassword,
+        role: userSession.role, // Attach the active session role
+    }
+
+
+    return NextResponse.json(userForClient);
   } catch (error) {
     console.error("Error in session API route:", error);
     return NextResponse.json({ error: 'An unexpected server error occurred.' }, { status: 500 });

@@ -5,30 +5,9 @@ import { AnalyticsDashboard } from "./analytics-dashboard"
 import prisma from "@/lib/db"
 
 async function getAnalyticsData(trainingProviderId: string | null | undefined, userRole: string) {
-    const staffRoleWhere: any = {};
-    if (userRole !== 'Super Admin') {
-        staffRoleWhere.trainingProviderId = trainingProviderId;
-        staffRoleWhere.name = 'Staff';
-    } else {
-        staffRoleWhere.name = 'Staff';
-    }
-    
-    const staffRole = await prisma.role.findFirst({
-        where: staffRoleWhere,
-        select: { id: true }
-    });
-
-    if (!staffRole) {
-        return {
-            kpis: { totalUsers: 0, totalCourses: 0, avgCompletionRate: 0, avgScore: 0 },
-            leaderboard: [],
-            courseEngagement: { mostCompleted: [], leastCompleted: [] },
-            scoresDistribution: [],
-            completionByDept: [],
-        };
-    }
-
-    const usersWhere: any = { roleId: staffRole.id };
+    const usersWhere: any = {
+        roles: { some: { role: { name: 'Staff' } } }
+    };
     if (userRole !== 'Super Admin') {
         usersWhere.trainingProviderId = trainingProviderId;
     }
@@ -44,9 +23,9 @@ async function getAnalyticsData(trainingProviderId: string | null | undefined, u
 
     const courses = await prisma.course.findMany({
         where: coursesWhere,
-        include: { 
+        include: {
             completedBy: {
-                where: { user: { roleId: staffRole.id } }
+                where: { user: usersWhere }
             },
             modules: true,
         },
@@ -54,14 +33,13 @@ async function getAnalyticsData(trainingProviderId: string | null | undefined, u
 
     const totalCourses = courses.length;
     const totalCompletions = courses.reduce((acc, course) => acc + course.completedBy.length, 0);
-    const totalEnrollments = totalUsers * courses.length;
-    const avgCompletionRate = totalEnrollments > 0 ? Math.round((totalCompletions / totalEnrollments) * 100) : 0;
+    const totalPossibleEnrollments = totalUsers > 0 ? totalUsers * totalCourses : 0;
+    const avgCompletionRate = totalPossibleEnrollments > 0 ? Math.round((totalCompletions / totalPossibleEnrollments) * 100) : 0;
+
+    const allCompletions = await prisma.userCompletedCourse.findMany({ 
+        where: { user: usersWhere } 
+    });
     
-    const completionsWhere: any = { user: { roleId: staffRole.id } };
-    if (userRole !== 'Super Admin') {
-        completionsWhere.user = { trainingProviderId, roleId: staffRole.id };
-    }
-    const allCompletions = await prisma.userCompletedCourse.findMany({ where: completionsWhere });
     const avgScore = allCompletions.length > 0 ? Math.round(allCompletions.reduce((acc, c) => acc + c.score, 0) / allCompletions.length) : 0;
 
     const leaderboard = await prisma.user.findMany({
@@ -88,12 +66,8 @@ async function getAnalyticsData(trainingProviderId: string | null | undefined, u
         };
     }).sort((a, b) => b.completionRate - a.completionRate);
     
-    const scoresWhere: any = { user: { roleId: staffRole.id } };
-    if (userRole !== 'Super Admin') {
-        scoresWhere.user = { trainingProviderId, roleId: staffRole.id };
-    }
     const scores = await prisma.userCompletedCourse.findMany({
-        where: scoresWhere,
+        where: { user: usersWhere },
         select: { score: true }
     });
 
@@ -114,7 +88,7 @@ async function getAnalyticsData(trainingProviderId: string | null | undefined, u
         where: deptWhere,
         include: {
             users: {
-                where: { roleId: staffRole.id },
+                where: { roles: { some: { role: { name: 'Staff' } } } },
                 include: {
                     completedCourses: true
                 }
