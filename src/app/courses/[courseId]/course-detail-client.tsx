@@ -16,7 +16,7 @@ import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, L
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse, ResetRequest } from '@prisma/client';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse, ResetRequest, Role, UserRole } from '@prisma/client';
 import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
 import { toggleModuleCompletion } from '@/app/actions/user-actions';
 import { requestQuizReset } from '@/app/actions/quiz-actions';
@@ -41,10 +41,12 @@ type CourseWithRelations = Course & {
     quiz: QuizType | null;
 };
 
+type UserWithRoles = User & { roles: (UserRole & {role: Role})[] };
+
 type CourseData = {
     course: CourseWithRelations;
     completedModules: { moduleId: string }[];
-    user: User & { role?: any };
+    user: UserWithRoles;
     previousAttempts: UserCompletedCourse[];
     resetRequest: ResetRequest | null;
 }

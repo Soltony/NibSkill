@@ -50,7 +50,13 @@ async function getCourseData(courseId: string, userId: string) {
 
   const user = await prisma.user.findUnique({ 
     where: { id: userId },
-    include: { role: true }
+    include: { 
+      roles: {
+        include: {
+          role: true,
+        },
+      },
+     }
   });
 
   const resetRequest = await prisma.resetRequest.findFirst({
@@ -86,7 +92,7 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
             </Link>
         </Button>
         <CourseDetailClient 
-            courseData={{ course, completedModules, user, previousAttempts, resetRequest }} 
+            courseData={{ course, completedModules, user, previousAttempts, resetRequest } as any} 
         />
     </div>
   );
