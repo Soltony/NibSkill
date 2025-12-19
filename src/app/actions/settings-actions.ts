@@ -9,30 +9,6 @@ import bcrypt from 'bcryptjs'
 import { FieldType } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 
-const updateUserRoleSchema = z.object({
-  userId: z.string(),
-  roleId: z.string(),
-})
-
-export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema>) {
-    try {
-        const validatedFields = updateUserRoleSchema.safeParse(values);
-        if (!validatedFields.success) {
-            return { success: false, message: 'Invalid data provided.' };
-        }
-        await prisma.user.update({
-            where: { id: validatedFields.data.userId },
-            data: { roleId: validatedFields.data.roleId }
-        });
-
-        revalidatePath('/admin/settings');
-        return { success: true, message: 'User role updated.' };
-    } catch (error) {
-        console.error("Error updating user role:", error);
-        return { success: false, message: 'Failed to update user role.' };
-    }
-}
-
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
@@ -46,10 +22,36 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
         if (!validatedFields.success) {
             return { success: false, message: 'Invalid data provided.' };
         }
-        await prisma.user.update({
-            where: { id: userId },
-            data: validatedFields.data
+        
+        const { roleId, ...userData } = validatedFields.data;
+
+        await prisma.$transaction(async (tx) => {
+            await tx.user.update({
+                where: { id: userId },
+                data: userData
+            });
+
+            // This is a simplification. Assuming one role per user from the UI for now.
+            // For a true multi-role system, this would need to handle additions/removals.
+            const existingUserRole = await tx.userRole.findFirst({
+                where: { userId: userId }
+            });
+
+            if (existingUserRole) {
+                await tx.userRole.update({
+                    where: { id: existingUserRole.id },
+                    data: { roleId: roleId }
+                });
+            } else {
+                 await tx.userRole.create({
+                    data: {
+                        userId: userId,
+                        roleId: roleId,
+                    }
+                });
+            }
         });
+
 
         revalidatePath('/admin/settings');
         return { success: true, message: 'User updated successfully.' };
@@ -96,7 +98,11 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
         // Since phone number is the main identifier, check for its uniqueness if provided
         if (phoneNumber) {
              const existingUserByPhone = await prisma.user.findFirst({
-                 where: { phoneNumber: phoneNumber, roleId: roleId, trainingProviderId: session.trainingProviderId },
+                 where: { 
+                    phoneNumber: phoneNumber,
+                    roles: { some: { roleId: roleId } },
+                    trainingProviderId: session.trainingProviderId
+                },
              });
              if (existingUserByPhone) {
                  return { success: false, message: 'A user with this phone number and role already exists.' };
@@ -110,7 +116,11 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 name,
                 email: email || null,
                 password: hashedPassword,
-                roleId: roleId,
+                roles: {
+                    create: {
+                        roleId: roleId
+                    }
+                },
                 phoneNumber: phoneNumber,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
                 trainingProviderId: session.trainingProviderId,

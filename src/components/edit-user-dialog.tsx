@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -26,18 +27,18 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { updateUser } from "@/app/actions/settings-actions"
-import type { User, Role } from "@prisma/client"
+import type { User, Role, UserRole } from "@prisma/client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
 
 const formSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional().or(z.literal('')),
   roleId: z.string({ required_error: "A role is required." }),
   phoneNumber: z.string().optional(),
 })
 
 type EditUserDialogProps = {
-  user: User & { roles: { role: Role }[] }
+  user: User & { roles: (UserRole & { role: Role })[] }
   roles: Role[]
   children: React.ReactNode
 }
@@ -112,7 +113,7 @@ export function EditUserDialog({ user, roles, children }: EditUserDialogProps) {
                     <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                        <Input placeholder="user@company.com" {...field} />
+                        <Input placeholder="user@company.com" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -125,7 +126,7 @@ export function EditUserDialog({ user, roles, children }: EditUserDialogProps) {
                     <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                        <Input placeholder="e.g. 2519..." {...field} />
+                        <Input placeholder="e.g. 2519..." {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
