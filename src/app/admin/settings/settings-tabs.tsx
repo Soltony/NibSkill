@@ -5,7 +5,7 @@ import { useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType, LoginHistory, District, Branch, Department, ResetRequest, Course } from "@prisma/client"
+import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType, LoginHistory, District, Branch, Department, ResetRequest, Course, UserRole } from "@prisma/client"
 import {
   Table,
   TableBody,
@@ -64,7 +64,7 @@ import { EditUserDialog } from "@/components/edit-user-dialog"
 import { DeleteUserDialog } from "@/components/delete-user-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-type UserWithRole = User & { role: RoleType };
+type UserWithRoles = User & { roles: (UserRole & {role: RoleType})[] };
 type LoginHistoryWithUser = LoginHistory & { user: User };
 type BranchWithDistrict = Branch & { district: District };
 type FullResetRequest = ResetRequest & { user: User; course: Course };
@@ -112,7 +112,7 @@ const CrudPermissions = ({ permissions }: { permissions: any }) => {
 }
 
 type SettingsTabsProps = {
-    users: UserWithRole[];
+    users: UserWithRoles[];
     roles: RoleType[];
     registrationFields: RegistrationField[];
     loginHistory: LoginHistoryWithUser[];
@@ -292,7 +292,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
+                    <TableHead>Roles</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -301,7 +301,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role.name}</TableCell>
+                      <TableCell>{user.roles.map(r => r.role.name).join(', ')}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

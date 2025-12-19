@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -38,7 +37,7 @@ const formSchema = z.object({
 })
 
 type EditUserDialogProps = {
-  user: User
+  user: User & { roles: { role: Role }[] }
   roles: Role[]
   children: React.ReactNode
 }
@@ -55,14 +54,16 @@ export function EditUserDialog({ user, roles, children }: EditUserDialogProps) {
     if (open) {
       form.reset({
         name: user.name,
-        email: user.email,
-        roleId: user.roleId,
+        email: user.email ?? "",
+        roleId: user.roles[0]?.role.id,
         phoneNumber: user.phoneNumber ?? '',
       })
     }
   }, [open, user, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // This is a simplification. The logic should handle multiple roles.
+    // For now, we are just updating based on the first role.
     const result = await updateUser(user.id, values);
     if (result.success) {
       toast({
@@ -136,6 +137,7 @@ export function EditUserDialog({ user, roles, children }: EditUserDialogProps) {
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Role</FormLabel>
+                    <p className="text-xs text-muted-foreground">Multi-role assignment is not yet supported in this form.</p>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                                 <SelectTrigger>

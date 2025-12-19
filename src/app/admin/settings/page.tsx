@@ -1,7 +1,7 @@
 
 import prisma from "@/lib/db";
 import { SettingsTabs } from "./settings-tabs";
-import type { User, Role, RegistrationField, LoginHistory, District, Branch, Department, ResetRequest, Course } from "@prisma/client";
+import type { User, Role, RegistrationField, LoginHistory, District, Branch, Department, ResetRequest, Course, UserRole } from "@prisma/client";
 import { getSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 
@@ -13,7 +13,13 @@ async function getSettingsData(trainingProviderId: string | null | undefined, us
 
     const users = await prisma.user.findMany({
         where: whereClause,
-        include: { role: true },
+        include: { 
+            roles: {
+                include: {
+                    role: true
+                }
+            } 
+        },
         orderBy: { name: "asc" }
     });
     
@@ -100,7 +106,7 @@ export default async function SettingsPage() {
         </p>
       </div>
       <SettingsTabs 
-        users={users as (User & { role: Role })[]} 
+        users={users as any} 
         roles={roles}
         registrationFields={registrationFields}
         loginHistory={loginHistory as (LoginHistory & { user: User })[]}
