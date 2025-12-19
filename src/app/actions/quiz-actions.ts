@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
-import type { QuestionType, QuizType } from '@prisma/client'
+import type { QuestionType, QuizType, RequestStatus } from '@prisma/client'
 
 const quizFormSchema = z.object({
   courseId: z.string({ required_error: "Please select a course." }),
@@ -64,15 +64,7 @@ const updateQuizFormSchema = z.object({
 
 export async function updateQuiz(quizId: string, values: z.infer<typeof updateQuizFormSchema>) {
     try {
-        const transformedValues = {
-            ...values,
-            questions: values.questions.map(q => ({
-                ...q,
-                type: q.type.toUpperCase() as QuestionType,
-            }))
-        };
-
-        const validatedFields = updateQuizFormSchema.safeParse(transformedValues);
+        const validatedFields = updateQuizFormSchema.safeParse(values);
         if (!validatedFields.success) {
             console.error("Quiz validation failed:", validatedFields.error.flatten());
             return { success: false, message: "Invalid data provided. Check question and option fields." }
@@ -185,5 +177,85 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
     } catch (error: any) {
         console.error("Error updating quiz:", error);
         return { success: false, message: `Failed to update quiz: ${error.message}` };
+    }
+}
+
+export async function requestQuizReset(userId: string, courseId: string) {
+    try {
+        const existingRequest = await prisma.resetRequest.findFirst({
+            where: {
+                userId,
+                courseId,
+                status: 'PENDING'
+            }
+        });
+
+        if (existingRequest) {
+            return { success: false, message: "You already have a pending reset request for this course." };
+        }
+
+        await prisma.resetRequest.create({
+            data: {
+                userId,
+                courseId,
+                status: 'PENDING'
+            }
+        });
+        
+        revalidatePath(`/courses/${courseId}`);
+        return { success: true, message: 'Your request to reset quiz attempts has been submitted.' };
+
+    } catch (error) {
+        console.error("Error requesting quiz reset:", error);
+        return { success: false, message: 'Failed to submit reset request.' };
+    }
+}
+
+export async function approveResetRequest(requestId: string) {
+    try {
+        const request = await prisma.resetRequest.findUnique({
+            where: { id: requestId }
+        });
+
+        if (!request) {
+            return { success: false, message: "Request not found." };
+        }
+
+        await prisma.$transaction([
+            prisma.userCompletedCourse.deleteMany({
+                where: {
+                    userId: request.userId,
+                    courseId: request.courseId,
+                }
+            }),
+            prisma.resetRequest.update({
+                where: { id: requestId },
+                data: { status: 'APPROVED' }
+            })
+        ]);
+
+        revalidatePath('/admin/settings');
+        revalidatePath(`/courses/${request.courseId}`);
+        return { success: true, message: 'Request approved. User attempts have been reset.' };
+
+    } catch (error) {
+        console.error("Error approving reset request:", error);
+        return { success: false, message: 'Failed to approve request.' };
+    }
+}
+
+export async function rejectResetRequest(requestId: string) {
+    try {
+        await prisma.resetRequest.update({
+            where: { id: requestId },
+            data: { status: 'REJECTED' }
+        });
+
+        revalidatePath('/admin/settings');
+        return { success: true, message: 'Request has been rejected.' };
+
+    } catch (error) {
+        console.error("Error rejecting reset request:", error);
+        return { success: false, message: 'Failed to reject request.' };
     }
 }

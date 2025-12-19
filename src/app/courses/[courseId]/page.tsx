@@ -1,5 +1,4 @@
 
-
 import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
@@ -36,7 +35,7 @@ async function getCourseData(courseId: string, userId: string) {
   });
 
   if (!course) {
-    return { course: null, completedModules: [], user: null, previousAttempts: [] };
+    return { course: null, completedModules: [], user: null, previousAttempts: [], resetRequest: null };
   }
 
   const completedModules = await prisma.userCompletedModule.findMany({
@@ -54,7 +53,15 @@ async function getCourseData(courseId: string, userId: string) {
     include: { role: true }
   });
 
-  return { course, completedModules, user, previousAttempts: course.completedBy };
+  const resetRequest = await prisma.resetRequest.findFirst({
+    where: {
+      userId: userId,
+      courseId: courseId,
+      status: 'PENDING'
+    }
+  });
+
+  return { course, completedModules, user, previousAttempts: course.completedBy, resetRequest };
 }
 
 export default async function CourseDetailPage({ params }: { params: { courseId: string } }) {
@@ -64,7 +71,7 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
   }
 
   const { courseId } = params;
-  const { course, completedModules, user, previousAttempts } = await getCourseData(courseId, session.id);
+  const { course, completedModules, user, previousAttempts, resetRequest } = await getCourseData(courseId, session.id);
 
   if (!course || !user) {
     notFound();
@@ -79,7 +86,7 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
             </Link>
         </Button>
         <CourseDetailClient 
-            courseData={{ course, completedModules, user, previousAttempts }} 
+            courseData={{ course, completedModules, user, previousAttempts, resetRequest }} 
         />
     </div>
   );

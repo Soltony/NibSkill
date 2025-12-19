@@ -1,12 +1,11 @@
 
-
 "use client"
 
 import { useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType, LoginHistory, District, Branch, Department } from "@prisma/client"
+import type { User, Role as RoleType, Permission as PermissionType, RegistrationField, FieldType as TFieldType, LoginHistory, District, Branch, Department, ResetRequest, Course } from "@prisma/client"
 import {
   Table,
   TableBody,
@@ -53,6 +52,7 @@ import { AddFieldDialog } from "@/components/add-field-dialog"
 import { AddRoleDialog } from "@/components/add-role-dialog"
 import { EditRoleDialog } from "@/components/edit-role-dialog"
 import { registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField, updateUser, deleteUser } from "@/app/actions/settings-actions"
+import { approveResetRequest, rejectResetRequest } from "@/app/actions/quiz-actions"
 import { Badge } from "@/components/ui/badge"
 import { AddDistrictDialog } from "@/components/add-district-dialog"
 import { EditDistrictDialog, DeleteDistrictButton } from "@/components/edit-district-dialog"
@@ -67,6 +67,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type UserWithRole = User & { role: RoleType };
 type LoginHistoryWithUser = LoginHistory & { user: User };
 type BranchWithDistrict = Branch & { district: District };
+type FullResetRequest = ResetRequest & { user: User; course: Course };
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -118,6 +119,7 @@ type SettingsTabsProps = {
     districts: District[];
     branches: BranchWithDistrict[];
     departments: Department[];
+    resetRequests: FullResetRequest[];
 }
 
 const USERS_PER_PAGE = 10;
@@ -127,7 +129,7 @@ const permissionKeys = [
 ] as const;
 
 
-export function SettingsTabs({ users, roles, registrationFields, loginHistory, districts, branches, departments }: SettingsTabsProps) {
+export function SettingsTabs({ users, roles, registrationFields, loginHistory, districts, branches, departments, resetRequests }: SettingsTabsProps) {
   const [roleToDelete, setRoleToDelete] = useState<RoleType | null>(null);
   const { toast } = useToast()
   const [currentPage, setCurrentPage] = useState(1);
@@ -238,6 +240,24 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     }
   }
 
+  const handleApprove = async (requestId: string) => {
+    const result = await approveResetRequest(requestId);
+    if (result.success) {
+      toast({ title: "Request Approved", description: result.message });
+    } else {
+      toast({ title: "Error", description: result.message, variant: "destructive" });
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    const result = await rejectResetRequest(requestId);
+    if (result.success) {
+      toast({ title: "Request Rejected", description: result.message });
+    } else {
+      toast({ title: "Error", description: result.message, variant: "destructive" });
+    }
+  };
+
   const filteredRoles = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider' && role.name !== 'Staff');
   const filteredRolesForForms = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider');
   
@@ -251,11 +271,12 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
   return (
     <>
       <Tabs defaultValue="user-management">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="user-management">User Management</TabsTrigger>
           <TabsTrigger value="role-management">Role Management</TabsTrigger>
           <TabsTrigger value="user-registration">User Registration</TabsTrigger>
           <TabsTrigger value="organization">Organization</TabsTrigger>
+          <TabsTrigger value="reset-requests">Reset Requests</TabsTrigger>
           <TabsTrigger value="login-history">Login History</TabsTrigger>
         </TabsList>
 
@@ -644,6 +665,63 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
           </div>
         </TabsContent>
         
+        <TabsContent value="reset-requests">
+          <Card>
+            <CardHeader>
+              <CardTitle>Quiz Attempt Reset Requests</CardTitle>
+              <CardDescription>
+                Review and approve or reject requests from users to reset their quiz attempts.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Date Requested</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {resetRequests.map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell className="font-medium">{request.user.name}</TableCell>
+                      <TableCell>{request.course.title}</TableCell>
+                      <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={request.status === 'PENDING' ? 'default' : request.status === 'APPROVED' ? 'secondary' : 'destructive'}
+                          className={cn(request.status === 'PENDING' && 'bg-amber-500')}
+                        >
+                            {request.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {request.status === 'PENDING' ? (
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" onClick={() => handleApprove(request.id)}>Approve</Button>
+                            <Button size="sm" variant="destructive-outline" onClick={() => handleReject(request.id)}>Reject</Button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Handled</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                   {resetRequests.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                            No pending reset requests.
+                        </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="login-history">
           <Card>

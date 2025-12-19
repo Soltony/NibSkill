@@ -12,13 +12,14 @@ import {
 } from '@/components/ui/accordion';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2, Award, ShieldCheck } from 'lucide-react';
+import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2, Award, ShieldCheck, ShieldAlert, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse } from '@prisma/client';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse, ResetRequest } from '@prisma/client';
 import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
 import { toggleModuleCompletion } from '@/app/actions/user-actions';
+import { requestQuizReset } from '@/app/actions/quiz-actions';
 import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
@@ -45,6 +46,7 @@ type CourseData = {
     completedModules: { moduleId: string }[];
     user: User & { role?: any };
     previousAttempts: UserCompletedCourse[];
+    resetRequest: ResetRequest | null;
 }
 
 type CourseDetailClientProps = {
@@ -66,6 +68,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   
   const [courseData, setCourseData] = useState<CourseData>(initialCourseData);
   const [isPaying, setIsPaying] = useState(false);
+  const [isRequestingReset, setIsRequestingReset] = useState(false);
   const [localCompletedModules, setLocalCompletedModules] = useState<Set<string>>(
       new Set(initialCourseData.completedModules.map(cm => cm.moduleId))
   );
@@ -211,6 +214,25 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     return { hasPassed, attemptsUsed, maxAttempts, canAttempt };
   }, [quiz, courseData.previousAttempts]);
 
+  const handleRequestReset = async () => {
+    setIsRequestingReset(true);
+    const result = await requestQuizReset(courseData.user.id, course.id);
+    if (result.success) {
+        toast({
+            title: "Request Submitted",
+            description: result.message,
+        });
+        setCourseData(prev => ({ ...prev, resetRequest: { id: '', userId: courseData.user.id, courseId: course.id, status: 'PENDING', createdAt: new Date(), updatedAt: new Date() } }));
+    } else {
+        toast({
+            title: "Error",
+            description: result.message,
+            variant: "destructive",
+        });
+    }
+    setIsRequestingReset(false);
+  }
+
   const renderQuizButton = () => {
     if (course.isPaid) return null;
     if (!quiz) return <p className="text-muted-foreground">Quiz not available for this course.</p>;
@@ -226,11 +248,25 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     }
     
     if (quiz.quizType === 'CLOSED_LOOP' && !canAttempt) {
+        if (courseData.resetRequest?.status === 'PENDING') {
+            return (
+                <Button size="lg" disabled>
+                    <History className="mr-2 h-5 w-5" />
+                    Reset Request Pending
+                </Button>
+            );
+        }
         return (
-             <Button size="lg" disabled>
-                <ShieldCheck className="mr-2 h-5 w-5" />
-                No Attempts Left
-            </Button>
+            <div className="flex flex-col items-center gap-2">
+                <Button size="lg" disabled variant="destructive">
+                    <ShieldAlert className="mr-2 h-5 w-5" />
+                    No Attempts Left
+                </Button>
+                <Button size="sm" variant="secondary" onClick={handleRequestReset} disabled={isRequestingReset}>
+                    {isRequestingReset ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <History className="mr-2 h-4 w-4" />}
+                    {isRequestingReset ? 'Submitting...' : 'Request Reset'}
+                </Button>
+            </div>
         );
     }
 

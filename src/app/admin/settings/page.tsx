@@ -1,8 +1,7 @@
 
-
 import prisma from "@/lib/db";
 import { SettingsTabs } from "./settings-tabs";
-import type { User, Role, RegistrationField, LoginHistory, District, Branch, Department } from "@prisma/client";
+import type { User, Role, RegistrationField, LoginHistory, District, Branch, Department, ResetRequest, Course } from "@prisma/client";
 import { getSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 
@@ -18,7 +17,6 @@ async function getSettingsData(trainingProviderId: string | null | undefined, us
         orderBy: { name: "asc" }
     });
     
-    // Roles for Super Admin should be global only, for others it's their own + global non-super-admin roles
     const rolesWhere: any = {};
     if (userRole === 'Super Admin') {
         rolesWhere.trainingProviderId = null;
@@ -47,7 +45,7 @@ async function getSettingsData(trainingProviderId: string | null | undefined, us
         where: { user: whereClause },
         include: { user: true },
         orderBy: { loginTime: "desc" },
-        take: 100, // Limit to the last 100 logins for performance
+        take: 100,
     });
 
     const districts = await prisma.district.findMany({ 
@@ -65,8 +63,23 @@ async function getSettingsData(trainingProviderId: string | null | undefined, us
         where: whereClause,
         orderBy: { name: 'asc' }
     });
+    
+    const resetRequestsWhere: any = {};
+     if (userRole !== 'Super Admin') {
+        resetRequestsWhere.user = { trainingProviderId };
+    }
+    const resetRequests = await prisma.resetRequest.findMany({
+      where: resetRequestsWhere,
+      include: {
+        user: true,
+        course: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
 
-    return { users, roles, registrationFields, loginHistory, districts, branches, departments };
+    return { users, roles, registrationFields, loginHistory, districts, branches, departments, resetRequests };
 }
 
 
@@ -76,7 +89,7 @@ export default async function SettingsPage() {
     notFound();
   }
 
-  const { users, roles, registrationFields, loginHistory, districts, branches, departments } = await getSettingsData(session.trainingProviderId, session.role.name);
+  const { users, roles, registrationFields, loginHistory, districts, branches, departments, resetRequests } = await getSettingsData(session.trainingProviderId, session.role.name);
   
   return (
     <div className="space-y-8">
@@ -94,6 +107,7 @@ export default async function SettingsPage() {
         districts={districts}
         branches={branches as any}
         departments={departments}
+        resetRequests={resetRequests as any}
       />
     </div>
   )
