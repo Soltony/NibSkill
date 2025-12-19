@@ -26,7 +26,7 @@ async function getAttendanceReportData(trainingProviderId: string | null | undef
     where: sessionsWhere,
     include: {
       attendedBy: {
-        where: { user: { roleId: staffRole.id } },
+        where: { user: { roles: { some: { roleId: staffRole.id } } } },
         include: {
           user: {
             include: {
@@ -44,7 +44,7 @@ async function getAttendanceReportData(trainingProviderId: string | null | undef
     orderBy: { dateTime: "desc" },
   });
 
-  const usersWhere: any = { roleId: staffRole.id };
+  const usersWhere: any = { roles: { some: { roleId: staffRole.id } } };
   if (userRole !== 'Super Admin') {
     usersWhere.trainingProviderId = trainingProviderId;
   }

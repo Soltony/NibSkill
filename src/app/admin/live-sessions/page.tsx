@@ -49,7 +49,7 @@ async function getData(trainingProviderId: string | null | undefined, userRole: 
   if (userRole !== 'Super Admin') {
     usersWhere.trainingProviderId = trainingProviderId;
   }
-  usersWhere.role = { name: 'Staff' };
+  usersWhere.roles = { some: { role: { name: 'Staff' } } };
 
   const users = await prisma.user.findMany({ 
     where: usersWhere

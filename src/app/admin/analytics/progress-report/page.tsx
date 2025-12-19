@@ -21,7 +21,7 @@ async function getProgressReportData(trainingProviderId: string | null | undefin
       return { reportData: [], courses: [], departments: [], districts: [], branches: [] };
   }
 
-  const usersWhere: any = { roleId: staffRole.id };
+  const usersWhere: any = { roles: { some: { roleId: staffRole.id } } };
   if (userRole !== 'Super Admin') {
     usersWhere.trainingProviderId = trainingProviderId;
   }
@@ -47,9 +47,9 @@ async function getProgressReportData(trainingProviderId: string | null | undefin
     orderBy: { title: "asc" },
   })
 
-  const completionsWhere: any = { user: { roleId: staffRole.id } };
+  const completionsWhere: any = { user: { roles: { some: { roleId: staffRole.id } } } };
   if (userRole !== 'Super Admin') {
-    completionsWhere.user = { trainingProviderId, roleId: staffRole.id };
+    completionsWhere.user = { trainingProviderId, roles: { some: { roleId: staffRole.id } } };
   }
   const completions = await prisma.userCompletedCourse.findMany({
     where: completionsWhere

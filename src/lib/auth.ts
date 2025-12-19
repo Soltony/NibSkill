@@ -41,6 +41,11 @@ export async function getSession() {
             select: { 
                 activeSessionId: true, 
                 trainingProviderId: true,
+                roles: {
+                    include: {
+                        role: true
+                    }
+                }
             }
         });
 
@@ -57,7 +62,8 @@ export async function getSession() {
             name: payload.name,
             email: payload.email,
             avatarUrl: payload.avatarUrl,
-            trainingProviderId: payload.trainingProviderId
+            trainingProviderId: payload.trainingProviderId,
+            roles: user.roles, // also return all roles for more complex checks
         };
     } catch (error) {
         console.error("Session validation error:", error);
