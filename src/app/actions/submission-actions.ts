@@ -3,6 +3,7 @@
 
 import prisma from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { SubmissionStatus } from '@prisma/client';
 
 type SubmissionData = {
     userId: string;
@@ -33,7 +34,7 @@ export async function createSubmission(data: SubmissionData) {
             data: {
                 userId,
                 quizId,
-                status: 'PENDING_REVIEW',
+                status: SubmissionStatus.PENDING_REVIEW,
                 answers: {
                     create: Object.entries(answers).map(([questionId, answer]) => {
                         const questionType = questionTypeMap.get(questionId);
@@ -88,7 +89,7 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
                 where: { id: submissionId },
                 data: {
                     score: finalScore,
-                    status: 'COMPLETED',
+                    status: SubmissionStatus.COMPLETED,
                     gradedAt: new Date(),
                 }
             });
