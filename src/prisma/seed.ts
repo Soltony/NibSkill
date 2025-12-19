@@ -65,52 +65,37 @@ async function main() {
   
   // Seed Roles and Permissions
   for (const role of initialRoles) {
-    const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
-    
-    let whereClause;
-    if (isGlobal) {
-        whereClause = { id: role.id };
-    } else {
-        whereClause = { name_trainingProviderId: { name: role.name, trainingProviderId: provider.id } };
-    }
-
     await prisma.role.upsert({
-      where: whereClause,
-      update: {
-        permissions: role.permissions as any,
-      },
-      create: {
-        id: role.id,
-        name: role.name,
-        permissions: role.permissions as any,
-        trainingProviderId: isGlobal ? undefined : provider.id,
-      },
+        where: { id: role.id },
+        update: { permissions: role.permissions as any },
+        create: {
+            id: role.id,
+            name: role.name,
+            permissions: role.permissions as any,
+        }
     });
   }
   console.log('Seeded roles');
 
-  // Seed Users
+  // Seed Users and UserRoles
   for (const user of initialUsers) {
     const { id, department, district, branch, role, password, ...userData } = user as any;
 
-    // Find related records
     const departmentRecord = await prisma.department.findFirst({ where: { name: department, trainingProviderId: provider.id } });
     const districtRecord = await prisma.district.findFirst({ where: { name: district, trainingProviderId: provider.id } });
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id, trainingProviderId: provider.id } });
     
     let roleRecord;
-    if (role === 'admin') roleRecord = await prisma.role.findFirst({ where: { name: 'Admin', trainingProviderId: provider.id } });
+    if (role === 'admin') roleRecord = await prisma.role.findFirst({ where: { name: 'Admin' } });
     else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'super-admin' } });
     else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'provider-admin' } });
-    else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: provider.id } });
+    else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff' } });
     
-    // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const isSuperAdmin = role === 'super-admin';
 
-    await prisma.user.upsert({
-      where: { email: user.email },
+    const createdUser = await prisma.user.upsert({
+      where: { id: user.id },
       update: {
         password: hashedPassword,
         phoneNumber: user.phoneNumber,
@@ -125,12 +110,22 @@ async function main() {
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
-        roleId: roleRecord!.id,
         trainingProviderId: isSuperAdmin ? null : provider.id,
       },
     });
+
+    if (roleRecord) {
+        await prisma.userRole.upsert({
+            where: { userId_roleId: { userId: createdUser.id, roleId: roleRecord.id } },
+            update: {},
+            create: {
+                userId: createdUser.id,
+                roleId: roleRecord.id,
+            }
+        });
+    }
   }
-  console.log('Seeded users');
+  console.log('Seeded users and roles');
 
 
   // Seed Badges
@@ -144,7 +139,7 @@ async function main() {
   console.log('Seeded badges');
 
   // Assign badges to user-1
-  const user1 = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
+  const user1 = await prisma.user.findUnique({ where: { id: 'user-1' } });
   const firstStepsBadge = await prisma.badge.findUnique({ where: { title: 'First Steps' }});
   const perfectScoreBadge = await prisma.badge.findUnique({ where: { title: 'Perfect Score' }});
 
@@ -282,7 +277,7 @@ async function main() {
   console.log('Seeded live sessions');
   
   // Seed UserCompletedCourse
-  const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
+  const user1ForCompletion = await prisma.user.findUnique({ where: { id: 'user-1' } });
   if (user1ForCompletion) {
     const course4 = await prisma.course.findUnique({ where: { id: 'course-4' } });
     if (course4) {
