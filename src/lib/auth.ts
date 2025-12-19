@@ -15,11 +15,11 @@ const getJwtSecret = () => {
 
 interface CustomJwtPayload extends JWTPayload {
     userId: string;
-    role: Role; // Now includes permissions
+    role: Role; // This will be the selected role for the session
     name: string;
     email: string;
     avatarUrl: string;
-    sessionId: string; // The unique ID for this specific session
+    sessionId: string;
     trainingProviderId?: string;
 }
 
@@ -41,25 +41,23 @@ export async function getSession() {
             select: { 
                 activeSessionId: true, 
                 trainingProviderId: true,
-                role: true, // Fetch the full role object
             }
         });
 
-        // If the user doesn't exist or the session ID in the token doesn't match the one in DB, the session is invalid.
         if (!user || user.activeSessionId !== payload.sessionId) {
-            // Invalidate the cookie by clearing it
             cookies().set('session', '', { expires: new Date(0), path: '/' });
             return null;
         }
 
-        // Session is valid, return the payload including the role with permissions
+        // The role is now directly from the JWT payload, which was set at login
+        // This is a significant change: we trust the role set at login for the session's duration
         return {
             id: payload.userId,
-            role: user.role,
+            role: payload.role, // Use the role from the JWT payload
             name: payload.name,
             email: payload.email,
             avatarUrl: payload.avatarUrl,
-            trainingProviderId: user.trainingProviderId
+            trainingProviderId: payload.trainingProviderId
         };
     } catch (error) {
         console.error("Session validation error:", error);
