@@ -22,7 +22,15 @@ async function getSuperAdminData() {
     const staffRoleIds = staffRoles.map(r => r.id);
 
     const totalTrainees = await prisma.user.count({
-        where: { roleId: { in: staffRoleIds } }
+        where: {
+            roles: {
+                some: {
+                    roleId: {
+                        in: staffRoleIds
+                    }
+                }
+            }
+        }
     });
 
     const totalCourses = await prisma.course.count();
@@ -35,7 +43,13 @@ async function getSuperAdminData() {
     const newRegistrations = await prisma.user.groupBy({
         by: ['createdAt'],
         where: {
-            roleId: { in: staffRoleIds },
+            roles: {
+                some: {
+                    roleId: {
+                        in: staffRoleIds
+                    }
+                }
+            },
             createdAt: {
                 gte: thirtyDaysAgo
             }
