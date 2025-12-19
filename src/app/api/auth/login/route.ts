@@ -1,5 +1,4 @@
 
-
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -7,7 +6,7 @@ import { z } from 'zod';
 import { SignJWT } from 'jose';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
-import type { Prisma, User, TrainingProvider } from '@prisma/client';
+import type { Prisma, User, TrainingProvider, UserRole, Role } from '@prisma/client';
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
@@ -22,8 +21,8 @@ const getJwtSecret = () => {
   return new TextEncoder().encode(secret);
 };
 
-type UserWithRelations = User & { 
-  role: any,
+type UserWithFullRoles = User & { 
+  roles: (UserRole & { role: Role })[];
   trainingProvider: TrainingProvider | null 
 };
 
@@ -32,8 +31,8 @@ export async function POST(request: NextRequest) {
     const cookieStore = cookies();
     const miniAppToken = cookieStore.get('miniapp-auth-token')?.value;
 
-    let user: UserWithRelations | null | undefined;
-    let loginAs: 'admin' | 'staff' | undefined;
+    let user: UserWithFullRoles | null | undefined;
+    let selectedRole: Role | undefined;
 
     if (miniAppToken) {
       // Mini-app auto-login flow
@@ -53,16 +52,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ isSuccess: false, errors: ['Phone number not found in mini-app token.'] }, { status: 400 });
       }
 
-      user = await prisma.user.findFirst({
+      const users = await prisma.user.findMany({
         where: { phoneNumber },
-        include: { role: true, trainingProvider: true },
+        include: { roles: { include: { role: true } }, trainingProvider: true },
       });
 
-      if (!user) {
-        // This is not an error, it just means the user is not registered yet.
-        // Redirect them to the registration page.
+      if (!users || users.length === 0) {
         return NextResponse.json({ isSuccess: false, redirectTo: '/login/register' });
       }
+      
+      // Default to the first user/role found for mini-app flow for simplicity
+      user = users[0];
+      selectedRole = user.roles[0]?.role;
 
     } else {
       // Standard web login flow
@@ -72,8 +73,7 @@ export async function POST(request: NextRequest) {
       if (!validation.success) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid login data.'] }, { status: 400 });
       }
-      const { phoneNumber, password } = validation.data;
-      loginAs = validation.data.loginAs;
+      const { phoneNumber, password, loginAs } = validation.data;
       
       if (!phoneNumber || !password) {
         return NextResponse.json({ isSuccess: false, errors: ['Phone number and password are required.'] }, { status: 400 });
@@ -81,27 +81,38 @@ export async function POST(request: NextRequest) {
 
       const usersWithPhoneNumber = await prisma.user.findMany({
         where: { phoneNumber },
-        include: { role: true, trainingProvider: true },
+        include: { roles: { include: { role: true } }, trainingProvider: true },
       });
 
       if (usersWithPhoneNumber.length === 0) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
       }
       
-      let candidateUser: UserWithRelations | undefined;
+      let candidateUser: UserWithFullRoles | undefined;
 
       if (usersWithPhoneNumber.length > 1 && loginAs) {
-          candidateUser = usersWithPhoneNumber.find(u => {
-              const roleName = u.role.name.toLowerCase();
-              if (loginAs === 'admin') return ['admin', 'super admin', 'training provider'].includes(roleName);
-              if (loginAs === 'staff') return roleName === 'staff';
-              return false;
-          }) as UserWithRelations | undefined;
+          candidateUser = usersWithPhoneNumber.find(u => 
+            u.roles.some(userRole => {
+                const roleName = userRole.role.name.toLowerCase();
+                if (loginAs === 'admin') return ['admin', 'super admin', 'training provider'].includes(roleName);
+                if (loginAs === 'staff') return roleName === 'staff';
+                return false;
+            })
+          );
+          if (candidateUser) {
+            selectedRole = candidateUser.roles.find(userRole => {
+                const roleName = userRole.role.name.toLowerCase();
+                if (loginAs === 'admin') return ['admin', 'super admin', 'training provider'].includes(roleName);
+                if (loginAs === 'staff') return roleName === 'staff';
+                return false;
+            })?.role;
+          }
       } else {
-          candidateUser = usersWithPhoneNumber[0] as UserWithRelations;
+          candidateUser = usersWithPhoneNumber[0];
+          selectedRole = candidateUser.roles[0]?.role;
       }
       
-      if (!candidateUser || !candidateUser.password) {
+      if (!candidateUser || !candidateUser.password || !selectedRole) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials for the selected role.'] }, { status: 401 });
       }
       
@@ -113,7 +124,7 @@ export async function POST(request: NextRequest) {
       user = candidateUser;
 
       // Role-based access check
-      const permissions = user.role.permissions as Prisma.JsonObject;
+      const permissions = selectedRole.permissions as Prisma.JsonObject;
       const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
 
       if (loginAs === 'admin' && !hasAdminPermissions) {
@@ -121,6 +132,10 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    if (!user || !selectedRole) {
+         return NextResponse.json({ isSuccess: false, errors: ['Could not determine user or role.'] }, { status: 401 });
+    }
+
     // --- Check if Training Provider is active ---
     if (user.trainingProvider && !user.trainingProvider.isActive) {
       return NextResponse.json({ isSuccess: false, errors: ["Your organization's account has been deactivated. Please contact support."] }, { status: 403 });
@@ -144,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     const jwt = await new SignJWT({
       userId: user.id,
-      role: user.role,
+      role: selectedRole,
       name: user.name,
       email: user.email,
       sessionId,
@@ -166,15 +181,13 @@ export async function POST(request: NextRequest) {
     const { password: _, ...userWithoutPassword } = user;
 
     // --- Redirect by role ---
-    const permissions = user.role.permissions as Prisma.JsonObject;
+    const permissions = selectedRole.permissions as Prisma.JsonObject;
     const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
-
-    let redirectTo = '/dashboard'; // Default for staff/members
-    if (loginAs === 'admin' && hasAdminPermissions) {
-      redirectTo = '/admin/analytics'; // For admins logging in as admin
-    } else if (user.role.name === 'Super Admin') {
-      redirectTo = '/super-admin';
-    } else if (hasAdminPermissions && !loginAs) { // If a user has admin rights but didn't specify a role (e.g. mini-app flow)
+    
+    let redirectTo = '/dashboard'; // Default for staff
+    if (selectedRole.name === 'Super Admin') {
+      redirectTo = '/super-admin/dashboard';
+    } else if (hasAdminPermissions) {
       redirectTo = '/admin/analytics';
     }
 
