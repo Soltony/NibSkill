@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency, LiveSessionStatus } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency, LiveSessionStatus, RequestStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -13,7 +13,8 @@ import {
     learningPaths as initialLearningPaths,
     liveSessions as initialLiveSessions,
     roles as initialRoles,
-    initialRegistrationFields
+    initialRegistrationFields,
+    initialQuizzes
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -65,19 +66,24 @@ async function main() {
   
   // Seed Roles and Permissions
   for (const role of initialRoles) {
+    const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
+    
     await prisma.role.upsert({
-        where: { id: role.id },
-        update: { permissions: role.permissions as any },
-        create: {
-            id: role.id,
-            name: role.name,
-            permissions: role.permissions as any,
-        }
+      where: { id: role.id },
+      update: {
+        permissions: role.permissions as any,
+      },
+      create: {
+        id: role.id,
+        name: role.name,
+        permissions: role.permissions as any,
+        trainingProviderId: isGlobal ? undefined : provider.id,
+      },
     });
   }
   console.log('Seeded roles');
 
-  // Seed Users and UserRoles
+  // Seed Users
   for (const user of initialUsers) {
     const { id, department, district, branch, role, password, ...userData } = user as any;
 
@@ -86,15 +92,15 @@ async function main() {
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id, trainingProviderId: provider.id } });
     
     let roleRecord;
-    if (role === 'admin') roleRecord = await prisma.role.findFirst({ where: { name: 'Admin' } });
+    if (role === 'admin') roleRecord = await prisma.role.findFirst({ where: { name: 'Admin', trainingProviderId: provider.id } });
     else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'super-admin' } });
     else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'provider-admin' } });
-    else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff' } });
+    else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: provider.id } });
     
     const hashedPassword = await bcrypt.hash(password, 10);
     const isSuperAdmin = role === 'super-admin';
 
-    const createdUser = await prisma.user.upsert({
+    await prisma.user.upsert({
       where: { id: user.id },
       update: {
         password: hashedPassword,
@@ -110,22 +116,12 @@ async function main() {
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
+        roleId: roleRecord!.id,
         trainingProviderId: isSuperAdmin ? null : provider.id,
       },
     });
-
-    if (roleRecord) {
-        await prisma.userRole.upsert({
-            where: { userId_roleId: { userId: createdUser.id, roleId: roleRecord.id } },
-            update: {},
-            create: {
-                userId: createdUser.id,
-                roleId: roleRecord.id,
-            }
-        });
-    }
   }
-  console.log('Seeded users and roles');
+  console.log('Seeded users');
 
 
   // Seed Badges
@@ -216,6 +212,44 @@ async function main() {
     }
   }
   console.log('Seeded courses and modules');
+
+  // Seed Quizzes
+  for (const quiz of initialQuizzes) {
+    const { questions, ...quizData } = quiz;
+    const createdQuiz = await prisma.quiz.upsert({
+        where: { courseId: quiz.courseId },
+        update: {
+            ...quizData
+        },
+        create: {
+            ...quizData
+        }
+    });
+
+    for (const q of questions) {
+        const { options, ...questionData } = q;
+        const createdQuestion = await prisma.question.upsert({
+            where: { id: q.id },
+            update: {
+                ...questionData,
+                quizId: createdQuiz.id
+            },
+            create: {
+                ...questionData,
+                quizId: createdQuiz.id
+            }
+        });
+
+        for (const opt of options) {
+             await prisma.option.upsert({
+                where: { id: opt.id },
+                update: { ...opt, questionId: createdQuestion.id },
+                create: { ...opt, questionId: createdQuestion.id },
+            });
+        }
+    }
+  }
+  console.log('Seeded quizzes and questions');
 
   // Seed Learning Paths
   for (const path of initialLearningPaths) {
@@ -334,7 +368,7 @@ async function main() {
   }
 
 
-  console.log(`Seeding finished.`)
+  console.log(`Seeding finished.`);
 }
 
 main()
