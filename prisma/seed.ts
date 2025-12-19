@@ -1,6 +1,6 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency, LiveSessionStatus } from '@prisma/client'
+import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency, LiveSessionStatus, RequestStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
     districts as initialDistricts,
@@ -13,7 +13,8 @@ import {
     learningPaths as initialLearningPaths,
     liveSessions as initialLiveSessions,
     roles as initialRoles,
-    initialRegistrationFields
+    initialRegistrationFields,
+    initialQuizzes
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -66,14 +67,10 @@ async function main() {
   // Seed Roles and Permissions
   for (const role of initialRoles) {
     const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
-    
-    let whereClause;
-    if (isGlobal) {
-        whereClause = { id: role.id };
-    } else {
-        whereClause = { name_trainingProviderId: { name: role.name, trainingProviderId: provider.id } };
-    }
-
+    const whereClause = isGlobal
+      ? { id: role.id }
+      : { name_trainingProviderId: { name: role.name, trainingProviderId: provider.id } };
+      
     await prisma.role.upsert({
       where: whereClause,
       update: {
@@ -89,11 +86,10 @@ async function main() {
   }
   console.log('Seeded roles');
 
-  // Seed Users
+  // Seed Users and UserRoles
   for (const user of initialUsers) {
     const { id, department, district, branch, role, password, ...userData } = user as any;
 
-    // Find related records
     const departmentRecord = await prisma.department.findFirst({ where: { name: department, trainingProviderId: provider.id } });
     const districtRecord = await prisma.district.findFirst({ where: { name: district, trainingProviderId: provider.id } });
     const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id, trainingProviderId: provider.id } });
@@ -104,13 +100,11 @@ async function main() {
     else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'provider-admin' } });
     else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: provider.id } });
     
-    // Hash password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const isSuperAdmin = role === 'super-admin';
 
-    await prisma.user.upsert({
-      where: { email: user.email },
+    const createdUser = await prisma.user.upsert({
+      where: { id: user.id },
       update: {
         password: hashedPassword,
         phoneNumber: user.phoneNumber,
@@ -125,10 +119,20 @@ async function main() {
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
-        roleId: roleRecord!.id,
         trainingProviderId: isSuperAdmin ? null : provider.id,
       },
     });
+
+    if (roleRecord) {
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: createdUser.id, roleId: roleRecord.id } },
+        update: {},
+        create: {
+          userId: createdUser.id,
+          roleId: roleRecord.id,
+        },
+      });
+    }
   }
   console.log('Seeded users');
 
@@ -144,7 +148,7 @@ async function main() {
   console.log('Seeded badges');
 
   // Assign badges to user-1
-  const user1 = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
+  const user1 = await prisma.user.findUnique({ where: { id: 'user-1' } });
   const firstStepsBadge = await prisma.badge.findUnique({ where: { title: 'First Steps' }});
   const perfectScoreBadge = await prisma.badge.findUnique({ where: { title: 'Perfect Score' }});
 
@@ -222,6 +226,67 @@ async function main() {
   }
   console.log('Seeded courses and modules');
 
+  // Seed Quizzes
+  for (const quiz of initialQuizzes) {
+    const { questions, ...quizData } = quiz;
+    const createdQuiz = await prisma.quiz.upsert({
+        where: { courseId: quiz.courseId },
+        update: {
+            ...quizData
+        },
+        create: {
+            ...quizData
+        }
+    });
+
+    for (const q of questions) {
+        const { options, correctAnswerId, ...questionData } = q;
+        
+        let correctOptionDatabaseId = correctAnswerId;
+
+        // For multiple choice, we need to create options first to get their IDs
+        if (q.type === 'MULTIPLE_CHOICE' || q.type === 'TRUE_FALSE') {
+          const tempQuestion = await prisma.question.upsert({
+              where: { id: q.id },
+              update: { ...questionData, quizId: createdQuiz.id, correctAnswerId: 'placeholder' },
+              create: { ...questionData, quizId: createdQuiz.id, correctAnswerId: 'placeholder' }
+          });
+
+          const createdOptions = [];
+          for (const opt of options) {
+            const createdOpt = await prisma.option.upsert({
+              where: { id: opt.id },
+              update: { text: opt.text, questionId: tempQuestion.id },
+              create: { id: opt.id, text: opt.text, questionId: tempQuestion.id }
+            });
+            createdOptions.push(createdOpt);
+          }
+
+          const correctOption = createdOptions.find(opt => opt.text === correctAnswerId);
+          if (correctOption) {
+            correctOptionDatabaseId = correctOption.id;
+          } else {
+             console.error(`Could not find correct option for question: ${q.text}`);
+             continue; // Skip updating this question's correct answer if not found
+          }
+
+          await prisma.question.update({
+            where: { id: tempQuestion.id },
+            data: { correctAnswerId: correctOptionDatabaseId }
+          });
+
+        } else {
+          // For other question types, the answer is stored directly
+           await prisma.question.upsert({
+              where: { id: q.id },
+              update: { ...questionData, quizId: createdQuiz.id, correctAnswerId: correctAnswerId },
+              create: { ...questionData, quizId: createdQuiz.id, correctAnswerId: correctAnswerId }
+          });
+        }
+    }
+  }
+  console.log('Seeded quizzes and questions');
+
   // Seed Learning Paths
   for (const path of initialLearningPaths) {
     await prisma.learningPath.upsert({
@@ -282,7 +347,7 @@ async function main() {
   console.log('Seeded live sessions');
   
   // Seed UserCompletedCourse
-  const user1ForCompletion = await prisma.user.findUnique({ where: { email: 'staff@nibtraining.com' } });
+  const user1ForCompletion = await prisma.user.findUnique({ where: { id: 'user-1' } });
   if (user1ForCompletion) {
     const course4 = await prisma.course.findUnique({ where: { id: 'course-4' } });
     if (course4) {
@@ -339,7 +404,7 @@ async function main() {
   }
 
 
-  console.log(`Seeding finished.`)
+  console.log(`Seeding finished.`);
 }
 
 main()
