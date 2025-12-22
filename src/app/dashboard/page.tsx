@@ -1,5 +1,4 @@
 
-
 import {
   Card,
   CardContent,
@@ -14,7 +13,20 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { DashboardClient } from './dashboard-client';
-import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse } from '@prisma/client';
+import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse, Role, UserRole } from '@prisma/client';
+import { cookies } from 'next/headers';
+import { jwtVerify, type JWTPayload } from 'jose';
+
+interface GuestJwtPayload extends JWTPayload {
+  phoneNumber: string;
+  authToken: string;
+}
+
+const getJwtSecret = () => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
+    return new TextEncoder().encode(secret);
+};
 
 type CourseWithProgress = Course & {
   progress: number;
@@ -25,35 +37,17 @@ type CourseWithProgress = Course & {
   learningPathId?: string;
 };
 
-async function getDashboardData(userId: string, userProviderId: string | undefined | null, userRole: string): Promise<{
+type UserWithRoles = User & { roles: (UserRole & {role: Role})[] };
+
+
+async function getDashboardData(user?: UserWithRoles | null): Promise<{
   courses: CourseWithProgress[];
   products: Product[];
   liveSessions: any[];
   trainingProviders: TrainingProvider[];
 }> {
-    let courseWhereClause: any = {
-      status: 'PUBLISHED',
-      OR: [
-        { isPublic: true },
-        { trainingProviderId: userProviderId }
-      ]
-    };
-    
-    // If the user is a super admin, they should see all published courses regardless of provider
-    if (userRole === 'Super Admin') {
-        courseWhereClause = {
-            status: 'PUBLISHED',
-        };
-    } else if (!userProviderId) {
-        // If a non-super-admin has no provider, only show public courses
-        courseWhereClause = {
-            status: 'PUBLISHED',
-            isPublic: true,
-        };
-    }
-
     const courses = await prisma.course.findMany({
-        where: courseWhereClause,
+        where: { status: 'PUBLISHED', isPublic: true },
         include: { 
             modules: true, 
             product: true,
@@ -74,20 +68,28 @@ async function getDashboardData(userId: string, userProviderId: string | undefin
             dateTime: {
                 gte: new Date(),
             },
+            isRestricted: false, // Guests can only see public sessions
         },
         orderBy: {
             dateTime: 'asc'
         }
     });
     
+    // If no user, return public data only (progress is 0 for all)
+    if (!user) {
+        const coursesWithProgress = courses.map(course => ({ ...course, progress: 0, isLocked: false }));
+        return { courses: coursesWithProgress, products, liveSessions, trainingProviders };
+    }
+
+    // If there is a user, calculate their specific progress
     const userCompletions = await prisma.userCompletedCourse.findMany({
-        where: { userId: userId },
+        where: { userId: user.id },
         select: { courseId: true, score: true }
     });
     const completedCourseIds = new Set(userCompletions.map(c => c.courseId));
 
     const userModuleCompletions = await prisma.userCompletedModule.findMany({
-      where: { userId: userId },
+      where: { userId: user.id },
       select: { moduleId: true }
     });
 
@@ -96,7 +98,6 @@ async function getDashboardData(userId: string, userProviderId: string | undefin
       orderBy: { order: 'asc' },
     });
     
-    // Group courses by learning path
     const paths: Record<string, LearningPathCourse[]> = {};
     allLearningPathCourses.forEach(lpc => {
       if (!paths[lpc.learningPathId]) {
@@ -105,7 +106,7 @@ async function getDashboardData(userId: string, userProviderId: string | undefin
       paths[lpc.learningPathId].push(lpc);
     });
 
-    const lockedCourseMap = new Map<string, string>(); // Map<courseId, learningPathId>
+    const lockedCourseMap = new Map<string, string>();
 
     for (const pathId in paths) {
       const pathCourses = paths[pathId];
@@ -113,14 +114,12 @@ async function getDashboardData(userId: string, userProviderId: string | undefin
       for (const lpc of pathCourses) {
         if (!completedCourseIds.has(lpc.courseId)) {
           if (firstUncompletedFound) {
-            // This course is locked because a prior one is not done
             lockedCourseMap.set(lpc.courseId, pathId);
           }
           firstUncompletedFound = true;
         }
       }
     }
-
 
     const completedModulesByCourse = userModuleCompletions.reduce((acc, completion) => {
       const module = courses.flatMap(c => c.modules).find(m => m.id === completion.moduleId);
@@ -153,27 +152,43 @@ async function getDashboardData(userId: string, userProviderId: string | undefin
     return {
         courses: coursesWithProgress,
         products,
-        liveSessions,
+        liveSessions, // This will be public sessions if user is a guest
         trainingProviders,
     }
 }
 
 
 export default async function DashboardPage() {
-  const currentUser = await getSession();
-  
-  if (!currentUser) {
-    redirect('/login');
+  const session = await getSession();
+  const guestSessionToken = cookies().get('miniapp_guest_session')?.value;
+  let isGuest = false;
+  let userName = "Guest";
+
+  // If no full session, check for a guest session.
+  if (!session) {
+    if (guestSessionToken) {
+      try {
+        await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+        isGuest = true;
+      } catch (e) {
+        redirect('/login'); // Invalid guest token
+      }
+    } else {
+      redirect('/login'); // No session at all
+    }
+  } else {
+    userName = session.name.split(' ')[0];
   }
 
-  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(currentUser.id, currentUser.trainingProviderId, currentUser.role.name);
+
+  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(session || undefined);
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold font-headline">Welcome back, {currentUser.name.split(' ')[0]}!</h1>
+        <h1 className="text-3xl font-bold font-headline">Welcome{isGuest ? '' : `, ${userName}`}!</h1>
         <p className="text-muted-foreground">
-          Continue your learning journey and stay updated with live events.
+          {isGuest ? 'Explore our available courses.' : 'Continue your learning journey and stay updated with live events.'}
         </p>
       </div>
 

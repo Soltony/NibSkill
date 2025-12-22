@@ -1,102 +1,76 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { SignJWT } from 'jose';
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
+  return new TextEncoder().encode(secret);
+};
+
 
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
 
-    if (!authHeader) {
-      return NextResponse.json(
-        {
-          status: 'error',
-          message: 'Authorization header is missing from the request.',
-        },
-        { status: 401 }
-      );
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ status: 'error', message: 'Authorization header is missing or invalid.' }, { status: 401 });
     }
 
-    const bearerPrefix = 'Bearer ';
-    if (!authHeader.startsWith(bearerPrefix)) {
-      return NextResponse.json(
-        {
-          status: 'error',
-          message:
-            'Authorization header is malformed. It must start with "Bearer ".',
-        },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(bearerPrefix.length);
+    const token = authHeader.substring('Bearer '.length);
     if (!token) {
-        return NextResponse.json(
-        {
-          status: 'error',
-          message: 'Bearer token is missing.',
-        },
-        { status: 401 }
-      );
+        return NextResponse.json({ status: 'error', message: 'Bearer token is missing.' }, { status: 401 });
     }
     
     const validationUrl = process.env.VALIDATE_TOKEN_URL;
     if (!validationUrl) {
       console.error('VALIDATE_TOKEN_URL environment variable is not set.');
-      return NextResponse.json(
-        {
-          status: 'error',
-          message: 'Server configuration error.',
-        },
-        { status: 500 }
-      );
+      return NextResponse.json({ status: 'error', message: 'Server configuration error.' }, { status: 500 });
     }
     
     // Validate token with external API
     const externalResponse = await fetch(validationUrl, {
       method: 'GET',
-      headers: {
-        Authorization: authHeader, // Forward the original header
-        Accept: 'application/json',
-      },
+      headers: { Authorization: authHeader, Accept: 'application/json' },
       cache: 'no-store',
     });
 
     if (!externalResponse.ok) {
         const errorText = await externalResponse.text();
-        console.error(`Token validation failed: ${externalResponse.statusText}`, errorText);
-        return NextResponse.json(
-            {
-                status: 'error',
-                message: `Token validation failed: ${externalResponse.statusText}`,
-                details: errorText,
-            },
-            { status: externalResponse.status }
-        );
+        return NextResponse.json({ status: 'error', message: `Token validation failed: ${externalResponse.statusText}`, details: errorText }, { status: externalResponse.status });
     }
     
-    // On successful validation, set the token in a secure cookie
+    const validationResult = await externalResponse.json();
+    const phoneNumber = validationResult.phone;
+
+    if (!phoneNumber) {
+      return NextResponse.json({ status: 'error', message: 'Phone number not found in validation response.' }, { status: 400 });
+    }
+
+    // Create a "guest" session JWT containing the phone number and original token
+    const guestJwt = await new SignJWT({ phoneNumber, authToken: token })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h') // Guest session lasts 24 hours
+      .sign(getJwtSecret());
+
     const cookieStore = await cookies();
-    cookieStore.set('miniapp-auth-token', token, {
+    cookieStore.set('miniapp_guest_session', guestJwt, {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: 60 * 60 * 24, // 24 hours
     });
 
-    // Redirect to the root of the mini-app, which will trigger the middleware
+    // Redirect to the dashboard for guest browsing
     const url = new URL(request.url);
-    const redirectUrl = `${url.protocol}//${url.host}/`;
+    const redirectUrl = `${url.protocol}//${url.host}/dashboard`;
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {
     console.error('Error processing /api/connect request:', error);
-    return NextResponse.json(
-      {
-        status: 'error',
-        message: 'An unexpected server error occurred.',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ status: 'error', message: 'An unexpected server error occurred.' }, { status: 500 });
   }
 }
