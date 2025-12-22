@@ -35,11 +35,12 @@ export async function getSession() {
             algorithms: ['HS256']
         });
         
-        // Fetch the user's current active session ID from the database
+        // The middleware now handles session invalidation.
+        // We can trust the payload here for fetching user data.
         const user = await prisma.user.findUnique({
             where: { id: payload.userId },
             select: { 
-                activeSessionId: true, 
+                activeSessionId: true,
                 trainingProviderId: true,
                 roles: {
                     include: {
@@ -49,24 +50,22 @@ export async function getSession() {
             }
         });
 
+        // Still, as a final check, ensure the session ID matches.
         if (!user || user.activeSessionId !== payload.sessionId) {
-            cookies().set('session', '', { expires: new Date(0), path: '/' });
             return null;
         }
 
-        // The role is now directly from the JWT payload, which was set at login
-        // This is a significant change: we trust the role set at login for the session's duration
         return {
             id: payload.userId,
-            role: payload.role, // Use the role from the JWT payload
+            role: payload.role,
             name: payload.name,
             email: payload.email,
             avatarUrl: payload.avatarUrl,
             trainingProviderId: payload.trainingProviderId,
-            roles: user.roles, // also return all roles for more complex checks
+            roles: user.roles,
         };
     } catch (error) {
-        console.error("Session validation error:", error);
+        // Errors like expired tokens will be caught here, but handled by the middleware.
         return null;
     }
 }

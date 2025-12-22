@@ -25,29 +25,22 @@ const publicPaths = [
   '/api/auth/register',
   '/api/connect',
   '/api/registration-data',
+  '/auto-login'
 ];
 
 // --- Middleware ---
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('session')?.value;
-  const guestSessionCookie = request.cookies.get('miniapp_guest_session')?.value;
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
 
-  // If there's a guest session, allow access to dashboard/course pages
-  if (guestSessionCookie && !sessionCookie) {
-    if (pathname.startsWith('/dashboard') || pathname.startsWith('/courses') || pathname.startsWith('/learning-paths')) {
-      return NextResponse.next();
-    }
-  }
-  
   // Handle existing full sessions
   if (sessionCookie) {
     try {
       await jwtVerify(sessionCookie, getJwtSecret());
       
       // Redirect logged-in users away from public pages
-      if (isPublicPath) {
+      if (isPublicPath && pathname !== '/auto-login') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
       
@@ -56,7 +49,6 @@ export async function middleware(request: NextRequest) {
       // Invalid session, delete cookies and redirect to login
       const response = NextResponse.redirect(new URL('/login', request.url));
       response.cookies.delete('session');
-      response.cookies.delete('miniapp_guest_session');
       return response;
     }
   }
