@@ -1,4 +1,5 @@
 
+
 import {
   Table,
   TableBody,
@@ -30,7 +31,15 @@ async function getProviders() {
         orderBy: { createdAt: 'desc' },
         include: {
             users: {
-                where: { role: { name: 'Training Provider' } },
+                where: {
+                    roles: {
+                        some: {
+                           role: {
+                                name: 'Training Provider'
+                           }
+                        }
+                    }
+                },
                 take: 1,
             }
         }
