@@ -24,6 +24,7 @@ import { UserContext } from '@/app/layout';
 import { AddModuleDialog } from '@/components/add-module-dialog';
 import { EditModuleDialog } from '@/components/edit-module-dialog';
 import { Badge } from '@/components/ui/badge';
+import { useRouter } from 'next/navigation';
 
 
 const iconMap = {
@@ -46,7 +47,7 @@ type UserWithRoles = User & { roles: (UserRole & {role: Role})[] };
 type CourseData = {
     course: CourseWithRelations;
     completedModules: { moduleId: string }[];
-    user: UserWithRoles;
+    user: UserWithRoles | null; // User can be null for guests
     previousAttempts: UserCompletedCourse[];
     resetRequest: ResetRequest | null;
 }
@@ -67,6 +68,7 @@ declare global {
 export function CourseDetailClient({ courseData: initialCourseData }: CourseDetailClientProps) {
   const { toast } = useToast();
   const userRole = useContext(UserContext);
+  const router = useRouter();
   
   const [courseData, setCourseData] = useState<CourseData>(initialCourseData);
   const [isPaying, setIsPaying] = useState(false);
@@ -76,11 +78,13 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   );
 
   const course = courseData.course;
+  const user = courseData.user;
+  const isGuest = !user;
   
   const progress = useMemo(() => {
-    if (!courseData || courseData.course.modules.length === 0) return 0;
+    if (isGuest || !courseData || courseData.course.modules.length === 0) return 0;
     return Math.round((localCompletedModules.size / courseData.course.modules.length) * 100);
-  }, [courseData, localCompletedModules]);
+  }, [courseData, localCompletedModules, isGuest]);
   
   const allModulesCompleted = progress === 100;
   
@@ -112,7 +116,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   }
   
   const handleModuleCompletion = useCallback(async (moduleId: string) => {
-    if (localCompletedModules.has(moduleId)) return;
+    if (isGuest || localCompletedModules.has(moduleId)) return;
 
     // Optimistic UI update
     const newCompletions = new Set(localCompletedModules);
@@ -136,34 +140,38 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
             description: "Your progress has been saved.",
         })
     }
-  }, [course.id, initialCourseData.completedModules, localCompletedModules, toast]);
+  }, [course.id, initialCourseData.completedModules, localCompletedModules, toast, isGuest]);
 
 
   const handleBuyCourse = async () => {
-    console.log('[Client] "Buy Course" button clicked.');
     setIsPaying(true);
     try {
-        console.log('[Client] Initiating payment API call.');
-        // The JWT from the session is automatically sent in the cookies by the browser
         const paymentResponse = await fetch('/api/payment/initiate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ amount: course.price })
         });
         
-        console.log('[Client] /api/payment/initiate response status:', paymentResponse.status);
         const paymentData = await paymentResponse.json();
-        console.log('[Client] /api/payment/initiate response data:', paymentData);
 
-        if (!paymentResponse.ok || !paymentData.success) {
+        if (!paymentResponse.ok) {
+            // Check for specific redirect instruction for unregistered users
+            if (paymentResponse.status === 403 && paymentData.redirectTo) {
+                toast({
+                    title: "Registration Required",
+                    description: "Please create an account to purchase this course.",
+                    variant: "default",
+                    duration: 5000,
+                });
+                router.push(paymentData.redirectTo);
+                return;
+            }
             throw new Error(paymentData.message || "Failed to initiate payment.");
         }
 
         const paymentToken = paymentData.paymentToken;
-        console.log('[Client] Received payment token:', paymentToken);
 
         if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
-            console.log('[Client] Found window.myJsChannel. Posting message...');
             window.myJsChannel.postMessage({ token: paymentToken });
             toast({
                 title: "Payment Initiated",
@@ -180,7 +188,6 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
     } catch (error) {
         const message = error instanceof Error ? error.message : "An unknown error occurred.";
-        console.error('[Client] Payment Failed:', message);
         toast({
             title: "Payment Failed",
             description: message,
@@ -205,7 +212,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   }
 
   const { hasPassed, attemptsUsed, maxAttempts, canAttempt } = useMemo(() => {
-    if (!quiz) return { hasPassed: false, attemptsUsed: 0, maxAttempts: 0, canAttempt: true };
+    if (!quiz || isGuest) return { hasPassed: false, attemptsUsed: 0, maxAttempts: 0, canAttempt: true };
     
     const attempts = courseData.previousAttempts || [];
     const hasPassed = attempts.some(attempt => attempt.score >= quiz.passingScore);
@@ -214,9 +221,10 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     const canAttempt = maxAttempts === 0 || attemptsUsed < maxAttempts;
     
     return { hasPassed, attemptsUsed, maxAttempts, canAttempt };
-  }, [quiz, courseData.previousAttempts]);
+  }, [quiz, courseData.previousAttempts, isGuest]);
 
   const handleRequestReset = async () => {
+    if (isGuest) return;
     setIsRequestingReset(true);
     const result = await requestQuizReset(courseData.user.id, course.id);
     if (result.success) {
@@ -224,7 +232,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
             title: "Request Submitted",
             description: result.message,
         });
-        setCourseData(prev => ({ ...prev, resetRequest: { id: '', userId: courseData.user.id, courseId: course.id, status: 'PENDING', createdAt: new Date(), updatedAt: new Date() } }));
+        setCourseData(prev => ({ ...prev, resetRequest: { id: '', userId: courseData.user!.id, courseId: course.id, status: 'PENDING', createdAt: new Date(), updatedAt: new Date() } }));
     } else {
         toast({
             title: "Error",
@@ -238,6 +246,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   const renderQuizButton = () => {
     if (course.isPaid) return null;
     if (!quiz) return <p className="text-muted-foreground">Quiz not available for this course.</p>;
+    if (isGuest) return <p className="text-sm mt-2 text-muted-foreground">Register or log in to take the quiz.</p>;
     if (!allModulesCompleted) return <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>;
 
     if (quiz.quizType === 'CLOSED_LOOP' && hasPassed) {
@@ -307,7 +316,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         </div>
       </div>
       
-      { !course.isPaid && (
+      { !course.isPaid && !isGuest && (
         <div className="mb-6 space-y-2">
             <div className="flex justify-between text-sm font-medium text-muted-foreground">
                 <span>Overall Progress</span>

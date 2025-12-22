@@ -31,42 +31,17 @@ const publicPaths = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('session')?.value;
+  const guestSessionCookie = request.cookies.get('miniapp_guest_session')?.value;
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
-  
-  // Auto-login flow for mini-app users
-  if (request.cookies.has('miniapp-auth-token') && !sessionCookie && !isPublicPath) {
-    const loginUrl = new URL('/api/auth/login', request.url);
-    
-    // Pass the cookie to the login API route
-    const loginResponse = await fetch(loginUrl.toString(), {
-      method: 'POST',
-      headers: {
-        'Cookie': request.headers.get('Cookie') || '',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({}) // Body is empty for token-based login
-    });
 
-    if (loginResponse.ok) {
-      const data = await loginResponse.json();
-      if (data.isSuccess && data.redirectTo) {
-        // Successful auto-login, redirect to the appropriate dashboard
-        const redirectResponse = NextResponse.redirect(new URL(data.redirectTo, request.url));
-        
-        // Forward the 'set-cookie' header from the login API response to the browser
-        const newSessionCookie = loginResponse.headers.get('set-cookie');
-        if (newSessionCookie) {
-          redirectResponse.headers.set('set-cookie', newSessionCookie);
-        }
-        return redirectResponse;
-      } else if (data.redirectTo === '/login/register') {
-        // User from mini-app token is not registered in this system
-        return NextResponse.redirect(new URL('/login/register', request.url));
-      }
+  // If there's a guest session, allow access to dashboard/course pages
+  if (guestSessionCookie && !sessionCookie) {
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/courses') || pathname.startsWith('/learning-paths')) {
+      return NextResponse.next();
     }
   }
-
-  // Handle existing sessions
+  
+  // Handle existing full sessions
   if (sessionCookie) {
     try {
       await jwtVerify(sessionCookie, getJwtSecret());
@@ -81,7 +56,7 @@ export async function middleware(request: NextRequest) {
       // Invalid session, delete cookies and redirect to login
       const response = NextResponse.redirect(new URL('/login', request.url));
       response.cookies.delete('session');
-      response.cookies.delete('miniapp-auth-token');
+      response.cookies.delete('miniapp_guest_session');
       return response;
     }
   }

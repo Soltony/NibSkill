@@ -27,8 +27,9 @@ import './globals.css';
 import { logout } from './actions/user-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Notification, User as UserType, Role as RoleType } from '@prisma/client';
+import { Button } from '@/components/ui/button';
 
-type CurrentUser = UserType & { role: RoleType; notifications: Notification[] };
+type CurrentUser = UserType & { role: RoleType; notifications: Notification[]; isGuest?: boolean };
 export const UserContext = React.createContext<string | null>(null);
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -53,7 +54,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             if (user) {
                 setCurrentUser(user);
             } else {
-                 // This should be handled by middleware, but as a fallback
                  if (!isPublicPage) router.replace('/login');
             }
         }
@@ -71,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const userRole = currentUser?.role;
   const permissions = userRole?.permissions as any;
+  const isGuest = currentUser?.isGuest;
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -149,9 +150,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     window.location.href = '/login';
   };
 
-  const hasAnyAdminReadAccess = adminNavItems.some(item => item.permission === true);
+  const hasAnyAdminReadAccess = !isGuest && adminNavItems.some(item => item.permission === true);
   const isStaffView = !isAdminPath && !isSuperAdminPath;
-  const isSuperAdminRole = userRole?.name === 'Super Admin';
+  const isSuperAdminRole = !isGuest && userRole?.name === 'Super Admin';
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -166,25 +167,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <UserContext.Provider value={userRole?.name.toLowerCase() || null}>
+        <UserContext.Provider value={isGuest ? 'guest' : userRole?.name.toLowerCase() || null}>
           <SidebarProvider>
             <Sidebar>
               <SidebarHeader><Logo className="text-primary-foreground" /></SidebarHeader>
               <SidebarContent>
-                {isLoading || !currentUser ? (
-                  <div className="space-y-2 p-2">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                  </div>
-                ) : (
-                  <SidebarMenu>
-                    <SidebarGroup>
-                       {!isAdminPath && (
-                        <SidebarGroupLabel>
-                          {isSuperAdminPath ? 'Super Admin' : 'Menu'}
-                        </SidebarGroupLabel>
-                      )}
+                <SidebarMenu>
+                  <SidebarGroup>
+                      {isStaffView && <SidebarGroupLabel>Menu</SidebarGroupLabel>}
                       {isStaffView && navItems.map(item => (
                         <SidebarMenuItem key={item.href}>
                           <Link href={item.href}>
@@ -194,100 +184,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                           </Link>
                         </SidebarMenuItem>
                       ))}
-                      {isSuperAdminPath && superAdminNavItems.map(item => (
-                         <SidebarMenuItem key={item.href}>
-                          <Link href={item.href}>
-                            <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
-                              <item.icon /><span>{item.label}</span>
-                            </SidebarMenuButton>
-                          </Link>
-                        </SidebarMenuItem>
-                      ))}
-                       {isAdminPath && adminNavItems.map(item => (
-                         item.permission && (
-                            <SidebarMenuItem key={item.href}>
-                            <Link href={item.href}>
-                                <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
-                                <item.icon /><span>{item.label}</span>
-                                </SidebarMenuButton>
-                            </Link>
-                            </SidebarMenuItem>
-                         )
-                      ))}
-                    </SidebarGroup>
-                    
-                    <SidebarGroup>
-                      {(hasAnyAdminReadAccess || isSuperAdminRole) && <Separator className="my-2 bg-sidebar-border" />}
-                      
-                      {/* For Staff View */}
-                      {isStaffView && (
-                        <>
-                          {hasAnyAdminReadAccess && (
-                            <SidebarMenuItem>
-                              <Link href="/admin/analytics">
-                                <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
-                              </Link>
-                            </SidebarMenuItem>
-                          )}
-                          {isSuperAdminRole && (
-                            <SidebarMenuItem>
-                              <Link href="/super-admin">
-                                <SidebarMenuButton tooltip="Super Admin View"><ShieldCheck color="gold" /><span>Super Admin View</span></SidebarMenuButton>
-                              </Link>
-                            </SidebarMenuItem>
-                          )}
-                        </>
-                      )}
-
-                      {/* For Admin View */}
-                      {isAdminPath && (
-                        <>
-                          <SidebarMenuItem>
-                            <Link href="/dashboard">
-                              <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
-                            </Link>
-                          </SidebarMenuItem>
-                          {isSuperAdminRole && (
-                            <SidebarMenuItem>
-                              <Link href="/super-admin">
-                                <SidebarMenuButton tooltip="Super Admin View"><ShieldCheck color="gold" /><span>Super Admin View</span></SidebarMenuButton>
-                              </Link>
-                            </SidebarMenuItem>
-                          )}
-                        </>
-                      )}
-
-                       {/* For Super Admin View */}
-                       {isSuperAdminPath && (
-                        <>
-                          <SidebarMenuItem>
-                            <Link href="/dashboard">
-                              <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
-                            </Link>
-                          </SidebarMenuItem>
-                          {hasAnyAdminReadAccess && (
-                             <SidebarMenuItem>
-                                <Link href="/admin/analytics">
-                                <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
-                                </Link>
-                            </SidebarMenuItem>
-                          )}
-                        </>
-                      )}
-                    </SidebarGroup>
-                  </SidebarMenu>
-                )}
+                  </SidebarGroup>
+                </SidebarMenu>
               </SidebarContent>
               <SidebarFooter>
                 <Separator className="my-2 bg-sidebar-border" />
-                {isLoading || !currentUser ? (
-                  <div className="flex items-center gap-3 p-2">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div className="flex-1 space-y-1">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-3 w-32" />
-                    </div>
-                  </div>
+                {isGuest ? (
+                   <div className="p-2">
+                     <Button asChild className="w-full">
+                       <Link href="/login/register">Sign Up / Login</Link>
+                     </Button>
+                   </div>
                 ) : (
                   <div className="flex items-center gap-3 p-2">
                     <Link href="/profile" className="flex-1 flex items-center gap-3 overflow-hidden group">
@@ -313,9 +220,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <header className="flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30">
                 <SidebarTrigger className="md:hidden" />
                 <div className="flex-1">
-                  <h1 className="text-lg font-semibold md:text-xl font-headline">{isAdminPath ? "Admin" : currentNavItem?.label}</h1>
+                  <h1 className="text-lg font-semibold md:text-xl font-headline">{currentNavItem?.label || 'Dashboard'}</h1>
                 </div>
-                {currentUser && <NotificationCenter initialNotifications={currentUser.notifications} />}
+                {!isGuest && <NotificationCenter initialNotifications={currentUser.notifications || []} />}
               </header>
               <main className="flex-1 p-4 lg:p-6">{children}</main>
             </SidebarInset>
