@@ -33,8 +33,7 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get('session')?.value;
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
   
-  // 1. Auto-login flow for mini-app users without a main session
-  // This happens *after* /api/connect has been successfully called.
+  // Auto-login flow for mini-app users
   if (request.cookies.has('miniapp-auth-token') && !sessionCookie && !isPublicPath) {
     const loginUrl = new URL('/api/auth/login', request.url);
     
@@ -65,10 +64,9 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login/register', request.url));
       }
     }
-    // If login fails, proceed to normal unauthenticated flow
   }
 
-  // 2. Handle existing sessions
+  // Handle existing sessions
   if (sessionCookie) {
     try {
       await jwtVerify(sessionCookie, getJwtSecret());
@@ -88,12 +86,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 3. Handle unauthenticated users trying to access protected pages
+  // Handle unauthenticated users trying to access protected pages
   if (!isPublicPath) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 4. Allow access to public paths for unauthenticated users
+  // Allow access to public paths for unauthenticated users
   return NextResponse.next();
 }
 
