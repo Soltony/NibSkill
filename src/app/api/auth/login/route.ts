@@ -36,17 +36,27 @@ export async function POST(request: NextRequest) {
 
     if (miniAppToken) {
       // Mini-app auto-login flow
-      const connectUrl = new URL('/api/connect', request.url);
-      const res = await fetch(connectUrl.toString(), {
-        headers: { Authorization: `Bearer ${miniAppToken}` },
+      const validationUrl = process.env.VALIDATE_TOKEN_URL;
+      if (!validationUrl) {
+          console.error('VALIDATE_TOKEN_URL environment variable is not set.');
+          return NextResponse.json({ isSuccess: false, errors: ['Server configuration error.'] }, { status: 500 });
+      }
+
+      const externalResponse = await fetch(validationUrl, {
+          method: 'GET',
+          headers: {
+              'Authorization': `Bearer ${miniAppToken}`,
+              'Accept': 'application/json',
+          },
+          cache: 'no-store',
       });
 
-      if (!res.ok) {
+      if (!externalResponse.ok) {
         return NextResponse.json({ isSuccess: false, errors: ['Invalid mini-app token.'] }, { status: 401 });
       }
       
-      const data = await res.json();
-      const phoneNumber = data.phoneNumber;
+      const data = await externalResponse.json();
+      const phoneNumber = data.phone;
 
       if (!phoneNumber) {
         return NextResponse.json({ isSuccess: false, errors: ['Phone number not found in mini-app token.'] }, { status: 400 });
@@ -58,7 +68,9 @@ export async function POST(request: NextRequest) {
       });
 
       if (!users || users.length === 0) {
-        return NextResponse.json({ isSuccess: false, redirectTo: '/login/register' });
+        // User not registered, redirect them to the registration page.
+        // The middleware will catch this and handle the actual redirect.
+        return NextResponse.json({ isSuccess: false, redirectTo: '/login/register' }, { status: 404 });
       }
       
       // Default to the first user/role found for mini-app flow for simplicity
