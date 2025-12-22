@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
     });
 
     const url = new URL(request.url);
-    const redirectUrl = `${url.protocol}//${url.host}/`;
+    const redirectUrl = `${url.protocol}//${url.host}/dashboard`;
 
     console.log('[CONNECT] Redirecting to:', redirectUrl);
     return NextResponse.redirect(redirectUrl);
