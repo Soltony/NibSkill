@@ -1,58 +1,102 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-
-const VALIDATE_TOKEN_URL = process.env.VALIDATE_TOKEN_URL!;
 
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
+
     if (!authHeader) {
-      return NextResponse.json({ error: 'Authorization header missing' }, { status: 400 });
+      return NextResponse.json(
+        {
+          status: 'error',
+          message: 'Authorization header is missing from the request.',
+        },
+        { status: 401 }
+      );
     }
 
-    if (!authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Malformed Authorization header' }, { status: 400 });
+    const bearerPrefix = 'Bearer ';
+    if (!authHeader.startsWith(bearerPrefix)) {
+      return NextResponse.json(
+        {
+          status: 'error',
+          message:
+            'Authorization header is malformed. It must start with "Bearer ".',
+        },
+        { status: 401 }
+      );
     }
 
-    const token = authHeader.substring(7);
-
+    const token = authHeader.substring(bearerPrefix.length);
+    if (!token) {
+        return NextResponse.json(
+        {
+          status: 'error',
+          message: 'Bearer token is missing.',
+        },
+        { status: 401 }
+      );
+    }
+    
+    const validationUrl = process.env.VALIDATE_TOKEN_URL;
+    if (!validationUrl) {
+      console.error('VALIDATE_TOKEN_URL environment variable is not set.');
+      return NextResponse.json(
+        {
+          status: 'error',
+          message: 'Server configuration error.',
+        },
+        { status: 500 }
+      );
+    }
+    
     // Validate token with external API
-    const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
+    const externalResponse = await fetch(validationUrl, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: authHeader, // Forward the original header
         Accept: 'application/json',
       },
       cache: 'no-store',
     });
 
     if (!externalResponse.ok) {
-      const text = await externalResponse.text();
-      return NextResponse.json({ error: `Token validation failed: ${text}` }, { status: 401 });
+        const errorText = await externalResponse.text();
+        console.error(`Token validation failed: ${externalResponse.statusText}`, errorText);
+        return NextResponse.json(
+            {
+                status: 'error',
+                message: `Token validation failed: ${externalResponse.statusText}`,
+                details: errorText,
+            },
+            { status: externalResponse.status }
+        );
     }
-
-    const data = await externalResponse.json();
-    const phoneNumber = data.phone;
-
-    if (!phoneNumber) {
-      return NextResponse.json({ error: 'No phone number returned from validation' }, { status: 400 });
-    }
-
-    // ✅ Store token securely in cookie
+    
+    // On successful validation, set the token in a secure cookie
     const cookieStore = await cookies();
-    cookieStore.set({
-      name: 'miniapp-auth-token',
-      value: token,
+    cookieStore.set('miniapp-auth-token', token, {
+      path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      path: '/',
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: 60 * 60 * 24 * 30, // 30 days
     });
 
-    return NextResponse.json({ success: true, phoneNumber });
-  } catch (err) {
-    console.error('Connect route error:', err);
-    return NextResponse.json({ error: 'Server error during token validation' }, { status: 500 });
+    // Redirect to the root of the mini-app, which will trigger the middleware
+    const url = new URL(request.url);
+    const redirectUrl = `${url.protocol}//${url.host}/`;
+    return NextResponse.redirect(redirectUrl);
+
+  } catch (error) {
+    console.error('Error processing /api/connect request:', error);
+    return NextResponse.json(
+      {
+        status: 'error',
+        message: 'An unexpected server error occurred.',
+      },
+      { status: 500 }
+    );
   }
 }
