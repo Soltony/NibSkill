@@ -51,8 +51,12 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
                         email: adminEmail,
                         password: hashedPassword,
                         phoneNumber: adminPhoneNumber,
-                        roleId: providerAdminRole.id,
                         avatarUrl: `https://picsum.photos/seed/${adminEmail}/100/100`,
+                        roles: {
+                            create: {
+                                roleId: providerAdminRole.id
+                            }
+                        }
                     }
                 },
                 roles: {
@@ -169,3 +173,4 @@ export async function deleteTrainingProvider(providerId: string) {
         return { success: false, message: 'Failed to delete provider.' };
     }
 }
+
