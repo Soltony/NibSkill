@@ -1,12 +1,15 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
+  console.log('[CONNECT] Incoming request:', request.url);
+
   try {
     const authHeader = request.headers.get('Authorization');
+    console.log('[CONNECT] Authorization header:', authHeader);
 
     if (!authHeader) {
+      console.error('[CONNECT] Authorization header missing');
       return NextResponse.json(
         {
           status: 'error',
@@ -18,6 +21,7 @@ export async function GET(request: NextRequest) {
 
     const bearerPrefix = 'Bearer ';
     if (!authHeader.startsWith(bearerPrefix)) {
+      console.error('[CONNECT] Authorization header malformed:', authHeader);
       return NextResponse.json(
         {
           status: 'error',
@@ -29,8 +33,11 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(bearerPrefix.length);
+    console.log('[CONNECT] Extracted bearer token');
+
     if (!token) {
-        return NextResponse.json(
+      console.error('[CONNECT] Bearer token missing after extraction');
+      return NextResponse.json(
         {
           status: 'error',
           message: 'Bearer token is missing.',
@@ -38,10 +45,12 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     const validationUrl = process.env.VALIDATE_TOKEN_URL;
+    console.log('[CONNECT] Validation URL:', validationUrl);
+
     if (!validationUrl) {
-      console.error('VALIDATE_TOKEN_URL environment variable is not set.');
+      console.error('[CONNECT] VALIDATE_TOKEN_URL env variable not set');
       return NextResponse.json(
         {
           status: 'error',
@@ -50,47 +59,62 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-    
-    // Validate token with external API
+
+    console.log('[CONNECT] Validating token with external service...');
     const externalResponse = await fetch(validationUrl, {
       method: 'GET',
       headers: {
-        Authorization: authHeader, // Forward the original header
+        Authorization: authHeader,
         Accept: 'application/json',
       },
       cache: 'no-store',
     });
 
+    console.log(
+      '[CONNECT] External validation response:',
+      externalResponse.status,
+      externalResponse.statusText
+    );
+
     if (!externalResponse.ok) {
-        const errorText = await externalResponse.text();
-        console.error(`Token validation failed: ${externalResponse.statusText}`, errorText);
-        return NextResponse.json(
-            {
-                status: 'error',
-                message: `Token validation failed: ${externalResponse.statusText}`,
-                details: errorText,
-            },
-            { status: externalResponse.status }
-        );
+      const errorText = await externalResponse.text();
+      console.error(
+        '[CONNECT] Token validation failed:',
+        externalResponse.statusText,
+        errorText
+      );
+
+      return NextResponse.json(
+        {
+          status: 'error',
+          message: `Token validation failed: ${externalResponse.statusText}`,
+          details: errorText,
+        },
+        { status: externalResponse.status }
+      );
     }
-    
-    // On successful validation, set the token in a secure cookie
+
+    console.log('[CONNECT] Token validated successfully');
+
     const cookieStore = await cookies();
+    console.log('[CONNECT] Setting auth cookie');
+
     cookieStore.set('miniapp-auth-token', token, {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: 60 * 60 * 24 * 30,
     });
 
-    // Redirect to the root of the mini-app, which will trigger the middleware
     const url = new URL(request.url);
     const redirectUrl = `${url.protocol}//${url.host}/`;
+
+    console.log('[CONNECT] Redirecting to:', redirectUrl);
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {
-    console.error('Error processing /api/connect request:', error);
+    console.error('[CONNECT] Unexpected error:', error);
     return NextResponse.json(
       {
         status: 'error',
