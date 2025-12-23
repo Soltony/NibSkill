@@ -146,9 +146,23 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   const handleBuyCourse = async () => {
     setIsPaying(true);
     try {
+        // 1. Fetch the auth token from our new API endpoint
+        const tokenRes = await fetch('/api/auth/token');
+        if (!tokenRes.ok) {
+            throw new Error('Could not retrieve authentication token. Please re-enter from the Super App.');
+        }
+        const { token: authToken } = await tokenRes.json();
+        if (!authToken) {
+            throw new Error('Authentication token is missing.');
+        }
+        
+        // 2. Initiate payment with the auth token in the header
         const paymentResponse = await fetch('/api/payment/initiate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
             body: JSON.stringify({ amount: course.price })
         });
         
