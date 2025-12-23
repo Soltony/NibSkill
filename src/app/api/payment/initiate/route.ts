@@ -105,19 +105,26 @@ export async function POST(request: NextRequest) {
       signature: signature
     };
     
-    console.log('[/api/payment/initiate] Sending payload to payment gateway:', paymentPayload);
+    // Decode token payload for dry-run debugging (do not rely on this for security checks)
+    let tokenInfo: any = null;
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payloadPart = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = payloadPart + '='.repeat((4 - (payloadPart.length % 4)) % 4);
+        tokenInfo = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+        console.log('[/api/payment/initiate] Decoded token payload:', tokenInfo);
+      }
+    } catch (e) {
+      console.error('[/api/payment/initiate] Could not decode token payload:', e);
+    }
 
-    // Follow sample: use Authorization Bearer header (token) and Content-Type only
-    const paymentResponse = await fetch(NIB_PAYMENT_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(paymentPayload)
-    });
-    
-    console.log('[/api/payment/initiate] Gateway response status:', paymentResponse.status);
+    console.log('[/api/payment/initiate] Computed signature:', signature);
+
+    if (dryRun) {
+      return NextResponse.json({ success: true, dryRun: true, signatureString, signature, paymentPayload, tokenInfo, validateResult }, { status: 200 });
+    }
+
 
     const responseText = await paymentResponse.text().catch(() => '');
     let responseData: any;
