@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 
 
@@ -17,17 +18,16 @@ export async function POST(request: NextRequest) {
   console.log('[/api/payment/initiate] Received payment initiation request.');
 
   try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      console.error('[/api/payment/initiate] Authorization header missing or invalid.');
-      return NextResponse.json({ success: false, message: 'Authorization header missing.' }, { status: 401 });
+    // Use token stored by the initial mini-app launch (cookie `superapp_token`) — do NOT rely on Authorization header on subsequent requests
+    const cookieStore = await cookies();
+    const token = cookieStore.get('superapp_token')?.value;
+
+    if (!token) {
+      console.error('[/api/payment/initiate] SuperApp session expired. Cookie `superapp_token` missing.');
+      return NextResponse.json({ success: false, message: 'SuperApp session expired.' }, { status: 401 });
     }
 
-    const token = authHeader.substring(7);
-    console.log('[/api/payment/initiate] Using token from Authorization header (masked):', `${token.slice(0,6)}...${token.slice(-6)}`);
-
-
-
+    console.log('[/api/payment/initiate] Using token from cookie `superapp_token` (masked):', `${token.slice(0,6)}...${token.slice(-6)}`);
 
     const body = await request.json();
     const amount = body.amount;
@@ -79,18 +79,42 @@ export async function POST(request: NextRequest) {
       signature: signature
     };
     
-    console.log('[/api/payment/initiate] Sending payload to payment gateway:', paymentPayload);
+    // Decode token payload for dry-run debugging (do not rely on this for security checks)
+    let tokenInfo: any = null;
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payloadPart = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = payloadPart + '='.repeat((4 - (payloadPart.length % 4)) % 4);
+        tokenInfo = JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+        console.log('[/api/payment/initiate] Decoded token payload:', tokenInfo);
+      }
+    } catch (e) {
+      console.error('[/api/payment/initiate] Could not decode token payload:', e);
+    }
 
-    // Follow sample: use Authorization Bearer header (token) and Content-Type only
-    const paymentResponse = await fetch(NIB_PAYMENT_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(paymentPayload)
-    });
-    
+    console.log('[/api/payment/initiate] Computed signature:', signature);
+
+    if (dryRun) {
+      return NextResponse.json({ success: true, dryRun: true, signatureString, signature, paymentPayload, tokenInfo }, { status: 200 });
+    }
+
+    console.log('[/api/payment/initiate] Calling NIB payment API...');
+    let paymentResponse: Response;
+    try {
+      paymentResponse = await fetch(NIB_PAYMENT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(paymentPayload)
+      });
+    } catch (err: any) {
+      console.error('[/api/payment/initiate] Payment request to NIB failed:', err);
+      return NextResponse.json({ success: false, message: 'Could not connect to NIB payment service.', details: err?.message ?? String(err) }, { status: 502 });
+    }
+
     console.log('[/api/payment/initiate] Gateway response status:', paymentResponse.status);
 
     const responseText = await paymentResponse.text().catch(() => '');
