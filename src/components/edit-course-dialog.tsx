@@ -70,17 +70,6 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: course.title,
-      productId: course.productId ?? "",
-      description: course.description,
-      isPaid: course.isPaid,
-      price: course.price ?? undefined,
-      currency: course.currency ?? undefined,
-      hasCertificate: course.hasCertificate,
-      status: course.status as CourseStatus | undefined,
-      isPublic: course.isPublic,
-    },
   })
   
   const isPaid = form.watch("isPaid");
@@ -95,7 +84,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
         price: course.price ?? undefined,
         currency: course.currency ?? undefined,
         hasCertificate: course.hasCertificate,
-        status: course.status as CourseStatus | undefined,
+        status: course.status,
         isPublic: course.isPublic,
       })
     }
