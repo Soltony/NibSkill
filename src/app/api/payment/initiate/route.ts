@@ -41,6 +41,10 @@ export async function POST(request: NextRequest) {
         console.log('[/api/payment/initiate] Guest session found.');
         const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
         authToken = guestPayload.authToken;
+        if (!authToken) {
+            console.error('[/api/payment/initiate] Guest session payload missing authToken:', guestPayload);
+            return NextResponse.json({ success: false, message: 'Could not find Super App token in guest session. Please re-enter from the NIBtera app.' }, { status: 401 });
+        }
         
         userForRegistrationCheck = await prisma.user.findFirst({ where: { phoneNumber: guestPayload.phoneNumber }});
         if (!userForRegistrationCheck) {
@@ -72,22 +76,20 @@ export async function POST(request: NextRequest) {
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
 
-    const signatureParams = [
+    // The token used in the signature must be the same token sent in the Authorization header
+    const token = authToken;
+
+    const signatureString = [
       `accountNo=${ACCOUNT_NO}`,
       `amount=${amount}`,
       `callBackURL=${CALLBACK_URL}`,
       `companyName=${COMPANY_NAME}`,
       `Key=${NIB_PAYMENT_KEY}`,
-      `token=${authToken}`,
+      `token=${token}`,
       `transactionId=${transactionId}`,
       `transactionTime=${transactionTime}`
-    ];
-    
-    // Sort parameters alphabetically before creating the signature string
-    signatureParams.sort();
+    ].join('&');
 
-    const signatureString = signatureParams.join('&');
-    
     console.log('[/api/payment/initiate] Signature string (raw):', signatureString);
 
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
       amount: String(amount),
       callBackURL: CALLBACK_URL,
       companyName: COMPANY_NAME,
-      token: authToken,
+      token: token,
       transactionId: transactionId,
       transactionTime: transactionTime,
       signature: signature
@@ -105,30 +107,42 @@ export async function POST(request: NextRequest) {
     
     console.log('[/api/payment/initiate] Sending payload to payment gateway:', paymentPayload);
 
+    // Follow sample: use Authorization Bearer header (token) and Content-Type only
     const paymentResponse = await fetch(NIB_PAYMENT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(paymentPayload)
     });
     
     console.log('[/api/payment/initiate] Gateway response status:', paymentResponse.status);
 
-    const responseData = await paymentResponse.json().catch(() => ({}));
+    const responseText = await paymentResponse.text().catch(() => '');
+    let responseData: any;
+    try {
+      responseData = responseText ? JSON.parse(responseText) : {};
+    } catch (e) {
+      responseData = responseText;
+    }
     console.log('[/api/payment/initiate] Gateway response body:', responseData);
 
+    const paymentToken = responseData && typeof responseData === 'object' ? responseData.token : undefined;
+
     if (!paymentResponse.ok) {
-        console.error('[/api/payment/initiate] Payment gateway rejected the request:', paymentResponse.status, responseData);
-        return NextResponse.json({ success: false, message: 'Payment gateway unauthorized. Verify the token sent in the Authorization header and that the signature is correct.' }, { status: paymentResponse.status });
+      console.error('[/api/payment/initiate] Payment gateway rejected the request:', paymentResponse.status, responseData);
+
+      if (paymentResponse.status === 401) {
+        return NextResponse.json({ success: false, message: 'Payment gateway unauthorized. Verify the token sent in the Authorization header and that the signature is correct.', details: responseData }, { status: 401 });
+      }
+
+      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request. Please try again.', details: responseData }, { status: paymentResponse.status });
     }
-    
-    const paymentToken = responseData.token;
 
     if (!paymentToken) {
-        console.error('[/api/payment/initiate] Payment token not received from gateway.');
-        return NextResponse.json({ success: false, message: 'Payment token not received from gateway.' }, { status: 500 });
+      console.error('[/api/payment/initiate] Payment gateway returned no token:', responseData);
+      return NextResponse.json({ success: false, message: 'Payment gateway did not return a payment token. Please try again later.' }, { status: 502 });
     }
     
     return NextResponse.json({ success: true, paymentToken, transactionId });
