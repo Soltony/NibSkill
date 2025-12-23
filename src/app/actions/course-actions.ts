@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
-import { Currency, CourseStatus } from '@prisma/client'
+import { CourseStatus } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 
 const formSchema = z.object({
@@ -13,7 +13,7 @@ const formSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters long."),
   isPaid: z.boolean().default(false),
   price: z.coerce.number().optional(),
-  currency: z.nativeEnum(Currency).optional(),
+  currency: z.enum(["USD", "ETB"]).optional(),
   hasCertificate: z.boolean().default(false),
   status: z.nativeEnum(CourseStatus).optional(),
   isPublic: z.boolean().default(true),
