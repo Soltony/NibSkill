@@ -26,7 +26,33 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
     console.log('[/api/payment/initiate] Using token from Authorization header (masked):', `${token.slice(0,6)}...${token.slice(-6)}`);
 
-
+    // Validate token with NIB validate endpoint before proceeding (per integration guide Step 2)
+    const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL ?? 'http://172.24.47.138:90/api/Authenticate/Validate';
+    let validateResult: any = null;
+    try {
+      const validateResp = await fetch(VALIDATE_TOKEN_URL, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json'
+        },
+        cache: 'no-store'
+      });
+      const validateText = await validateResp.text().catch(() => '');
+      try {
+        validateResult = validateText ? JSON.parse(validateText) : {};
+      } catch (e) {
+        validateResult = validateText;
+      }
+      console.log('[/api/payment/initiate] Token validation response:', validateResp.status, validateResult);
+      if (!validateResp.ok) {
+        console.error('[/api/payment/initiate] Token validation failed:', validateResp.status, validateResult);
+        return NextResponse.json({ success: false, message: 'Token validation failed with NIB.', details: validateResult }, { status: 401 });
+      }
+    } catch (err: any) {
+      console.error('[/api/payment/initiate] Token validation request failed:', err);
+      return NextResponse.json({ success: false, message: 'Could not validate token with NIB.', details: err?.message ?? String(err) }, { status: 502 });
+    }
 
 
     const body = await request.json();
