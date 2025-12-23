@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 import prisma from '@/lib/db';
+import { getSession } from '@/lib/auth';
 
 interface GuestJwtPayload extends JWTPayload {
   phoneNumber: string;
@@ -23,25 +24,45 @@ export async function POST(request: NextRequest) {
 
   try {
     const c = await cookies();
+    const session = await getSession();
     const guestSessionToken = c.get('miniapp_guest_session')?.value;
+    
+    let phoneNumber: string | undefined;
+    let authToken: string | undefined;
+    let user;
 
-    if (!guestSessionToken) {
-      return NextResponse.json({ success: false, message: 'Guest session not found. Please re-enter from the Super App.' }, { status: 401 });
+    if (session) {
+      // User is fully logged in
+      console.log('[/api/payment/initiate] Full session found.');
+      user = await prisma.user.findUnique({ where: { id: session.id }});
+      if (user?.phoneNumber) {
+        phoneNumber = user.phoneNumber;
+        // Find the latest auth token from login history
+        const latestLogin = await prisma.loginHistory.findFirst({
+            where: { userId: user.id, superAppToken: { not: null } },
+            orderBy: { loginTime: 'desc' }
+        });
+        authToken = latestLogin?.superAppToken ?? undefined;
+        if (!authToken) {
+           console.error('[/api/payment/initiate] Registered user has no Super App token in history.');
+           return NextResponse.json({ success: false, message: 'Could not find a valid Super App session. Please re-enter from the NIBtera app.' }, { status: 401 });
+        }
+      }
+    } else if (guestSessionToken) {
+      // User has a guest session
+      console.log('[/api/payment/initiate] Guest session found.');
+      const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+      phoneNumber = guestPayload.phoneNumber;
+      authToken = guestPayload.authToken;
+      user = await prisma.user.findFirst({ where: { phoneNumber } });
+    } else {
+       return NextResponse.json({ success: false, message: 'No session found. Please log in or enter from the Super App.' }, { status: 401 });
     }
-
-    // Verify the guest session token
-    const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
-    const { phoneNumber, authToken } = guestPayload;
 
     if (!phoneNumber || !authToken) {
-      return NextResponse.json({ success: false, message: 'Invalid guest session.' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Invalid session.' }, { status: 401 });
     }
 
-    // Check if user is registered in our database
-    const user = await prisma.user.findFirst({
-        where: { phoneNumber }
-    });
-    
     if (!user) {
         // User is not registered, instruct client to redirect to registration page
         return NextResponse.json({ success: false, message: 'User not registered.', redirectTo: '/login/register' }, { status: 403 });
@@ -71,7 +92,7 @@ export async function POST(request: NextRequest) {
       `callBackURL=${CALLBACK_URL}`,
       `companyName=${COMPANY_NAME}`,
       `Key=${NIB_PAYMENT_KEY}`,
-      `token=${authToken}`, // Use the original Super App token
+      `token=${authToken}`,
       `transactionId=${transactionId}`,
       `transactionTime=${transactionTime}`
     ].join('&');
@@ -88,6 +109,8 @@ export async function POST(request: NextRequest) {
       transactionTime,
       signature
     };
+    
+    console.log('[/api/payment/initiate] Sending payload to payment gateway:', paymentPayload);
 
     const paymentResponse = await fetch(NIB_PAYMENT_URL, {
       method: 'POST',
@@ -97,9 +120,13 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify(paymentPayload)
     });
+    
+    console.log('[/api/payment/initiate] Gateway response status:', paymentResponse.status);
 
     const responseData = await paymentResponse.json().catch(() => ({}));
     const paymentToken = responseData.token;
+    
+    console.log('[/api/payment/initiate] Gateway response data:', responseData);
 
     if (!paymentToken) {
       return NextResponse.json({ success: false, message: 'Payment token not received from gateway.' }, { status: 500 });
