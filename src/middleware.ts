@@ -32,15 +32,16 @@ const publicPaths = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('session')?.value;
+  const guestSessionCookie = request.cookies.get('miniapp_guest_session')?.value;
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
 
-  // Handle existing full sessions
+  // If user has a full session, they are logged in.
   if (sessionCookie) {
     try {
       await jwtVerify(sessionCookie, getJwtSecret());
       
       // Redirect logged-in users away from public pages
-      if (isPublicPath && pathname !== '/auto-login') {
+      if (isPublicPath) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
       
@@ -49,6 +50,26 @@ export async function middleware(request: NextRequest) {
       // Invalid session, delete cookies and redirect to login
       const response = NextResponse.redirect(new URL('/login', request.url));
       response.cookies.delete('session');
+      response.cookies.delete('miniapp_guest_session');
+      return response;
+    }
+  }
+
+  // If user has a guest session (from the mini-app)
+  if (guestSessionCookie) {
+    try {
+      await jwtVerify(guestSessionCookie, getJwtSecret());
+      // Guest is valid. Allow access to non-API routes.
+      // Redirect logged-in guests away from public pages
+      if (isPublicPath) {
+         return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+      return NextResponse.next();
+    } catch (err) {
+       // Invalid guest session, delete cookies and redirect to login
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('session');
+      response.cookies.delete('miniapp_guest_session');
       return response;
     }
   }
