@@ -125,6 +125,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, dryRun: true, signatureString, signature, paymentPayload, tokenInfo, validateResult }, { status: 200 });
     }
 
+    console.log('[/api/payment/initiate] Calling NIB payment API...');
+    let paymentResponse: Response;
+    try {
+      paymentResponse = await fetch(NIB_PAYMENT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(paymentPayload)
+      });
+    } catch (err: any) {
+      console.error('[/api/payment/initiate] Payment request to NIB failed:', err);
+      return NextResponse.json({ success: false, message: 'Could not connect to NIB payment service.', details: err?.message ?? String(err) }, { status: 502 });
+    }
+
+    console.log('[/api/payment/initiate] Gateway response status:', paymentResponse.status);
 
     const responseText = await paymentResponse.text().catch(() => '');
     let responseData: any;
