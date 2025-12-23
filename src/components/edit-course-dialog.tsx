@@ -36,9 +36,8 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { updateCourse } from "@/app/actions/course-actions"
-import type { Course, Product } from "@prisma/client"
+import type { Course, Product, Currency, CourseStatus } from "@prisma/client"
 import { Switch } from "./ui/switch"
-import { Currency, CourseStatus } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -48,7 +47,7 @@ const formSchema = z.object({
   price: z.coerce.number().optional(),
   currency: z.nativeEnum(Currency).optional(),
   hasCertificate: z.boolean().default(false),
-  status: z.nativeEnum(CourseStatus).optional(),
+  status: z.enum(["PENDING", "PUBLISHED", "REJECTED"]).optional(),
   isPublic: z.boolean().default(true),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
@@ -91,7 +90,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
   }, [open, course, form])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = await updateCourse(course.id, values);
+    const result = await updateCourse(course.id, values as any);
     if (result.success) {
         toast({
             title: "Success",
@@ -284,9 +283,9 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            <SelectItem value={CourseStatus.PENDING}>Pending</SelectItem>
-                            <SelectItem value={CourseStatus.PUBLISHED}>Published</SelectItem>
-                            <SelectItem value={CourseStatus.REJECTED}>Rejected</SelectItem>
+                            <SelectItem value="PENDING">Pending</SelectItem>
+                            <SelectItem value="PUBLISHED">Published</SelectItem>
+                            <SelectItem value="REJECTED">Rejected</SelectItem>
                         </SelectContent>
                     </Select>
                     {(course.status === 'PENDING' || course.status === 'REJECTED') && (
