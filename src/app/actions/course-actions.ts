@@ -4,7 +4,6 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
-import { CourseStatus } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 
 const formSchema = z.object({
@@ -15,7 +14,7 @@ const formSchema = z.object({
   price: z.coerce.number().optional(),
   currency: z.enum(["USD", "ETB"]).optional(),
   hasCertificate: z.boolean().default(false),
-  status: z.nativeEnum(CourseStatus).optional(),
+  status: z.enum(["PENDING", "PUBLISHED", "REJECTED"]).optional(),
   isPublic: z.boolean().default(true),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
