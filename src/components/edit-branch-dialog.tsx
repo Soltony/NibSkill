@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -62,7 +63,7 @@ export function EditBranchDialog({ branch, districts }: EditBranchDialogProps) {
   })
   
   useEffect(() => {
-    if (open) {
+    if (open && branch) {
       form.reset({
         name: branch.name,
         districtId: branch.districtId,

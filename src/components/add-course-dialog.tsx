@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState } from "react"
@@ -39,7 +38,6 @@ import { useToast } from "@/hooks/use-toast"
 import { addCourse } from "@/app/actions/course-actions"
 import type { Product } from "@prisma/client"
 import { Switch } from "./ui/switch"
-import { Currency } from "@prisma/client"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -47,7 +45,7 @@ const formSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters long."),
   isPaid: z.boolean().default(false),
   price: z.coerce.number().optional(),
-  currency: z.nativeEnum(Currency).optional(),
+  currency: z.enum(["USD", "ETB"]).optional(),
   hasCertificate: z.boolean().default(false),
   isPublic: z.boolean().default(true),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
@@ -82,7 +80,7 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
   const isPaid = form.watch("isPaid");
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const result = await addCourse(values);
+    const result = await addCourse(values as any);
     if (result.success) {
         toast({
             title: "Course Submitted",
