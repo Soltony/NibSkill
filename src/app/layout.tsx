@@ -174,7 +174,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SidebarContent>
                 <SidebarMenu>
                   <SidebarGroup>
-                      {isStaffView && <SidebarGroupLabel>Menu</SidebarGroupLabel>}
+                      <SidebarGroupLabel>
+                        {isSuperAdminPath ? 'Super Admin' : isAdminPath ? 'Admin Menu' : 'Menu'}
+                      </SidebarGroupLabel>
                       {isStaffView && navItems.map(item => (
                         <SidebarMenuItem key={item.href}>
                           <Link href={item.href}>
@@ -184,8 +186,50 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                           </Link>
                         </SidebarMenuItem>
                       ))}
-                  </SidebarGroup>
-                </SidebarMenu>
+                      {isSuperAdminPath && superAdminNavItems.map(item => (
+                         <SidebarMenuItem key={item.href}>
+                          <Link href={item.href}>
+                            <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
+                              <item.icon /><span>{item.label}</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                      ))}
+                       {isAdminPath && adminNavItems.map(item => (
+                         item.permission && (
+                            <SidebarMenuItem key={item.href}>
+                            <Link href={item.href}>
+                                <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
+                                <item.icon /><span>{item.label}</span>
+                                </SidebarMenuButton>
+                            </Link>
+                            </SidebarMenuItem>
+                         )
+                      ))}
+                    </SidebarGroup>
+
+                    {isStaffView && hasAnyAdminReadAccess && (
+                      <SidebarMenuItem>
+                        <Link href="/admin/analytics">
+                          <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    )}
+                     {isSuperAdminRole && !isSuperAdminPath && (
+                       <SidebarMenuItem>
+                          <Link href="/super-admin">
+                            <SidebarMenuButton tooltip="Super Admin"><ShieldCheck /><span>Super Admin</span></SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                    )}
+                    {!isStaffView && (
+                      <SidebarMenuItem>
+                        <Link href="/dashboard">
+                          <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    )}
+                  </SidebarMenu>
               </SidebarContent>
               <SidebarFooter>
                 <Separator className="my-2 bg-sidebar-border" />
