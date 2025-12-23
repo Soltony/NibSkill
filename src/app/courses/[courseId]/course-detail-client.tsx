@@ -244,7 +244,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   }
 
   const renderQuizButton = () => {
-    if (course.isPaid) return null;
+    if (course.isPaid && isGuest) return null;
     if (!quiz) return <p className="text-muted-foreground">Quiz not available for this course.</p>;
     if (isGuest) return <p className="text-sm mt-2 text-muted-foreground">Register or log in to take the quiz.</p>;
     if (!allModulesCompleted) return <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>;
@@ -392,7 +392,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
                 {course.isPaid ? (
                     <Button size="lg" onClick={handleBuyCourse} disabled={isPaying}>
                         {isPaying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
-                        {isPaying ? 'Processing...' : 'Buy the course'}
+                        {isPaying ? 'Processing...' : 'Buy Course'}
                     </Button>
                 ) : (
                     renderQuizButton()
