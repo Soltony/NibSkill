@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
-import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 
 
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      console.error('[/api/payment/initiate] Authorization header missing or malformed.');
+      console.error('[/api/payment/initiate] Authorization header missing or invalid.');
       return NextResponse.json({ success: false, message: 'Authorization header missing.' }, { status: 401 });
     }
 
