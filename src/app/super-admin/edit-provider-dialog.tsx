@@ -58,16 +58,16 @@ export function EditProviderDialog({ provider, admin }: EditProviderDialogProps)
   })
 
   useEffect(() => {
-    if (open) {
+    if (open && provider && admin) {
       form.reset({
         providerId: provider.id,
         name: provider.name,
         address: provider.address,
         accountNumber: provider.accountNumber,
-        adminId: admin?.id || '',
-        adminName: admin?.name || '',
-        adminEmail: admin?.email || '',
-        adminPhoneNumber: admin?.phoneNumber || '',
+        adminId: admin.id || '',
+        adminName: admin.name || '',
+        adminEmail: admin.email || '',
+        adminPhoneNumber: admin.phoneNumber || '',
         adminPassword: '',
       })
     }

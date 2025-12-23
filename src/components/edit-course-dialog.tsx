@@ -75,7 +75,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
   const isPaid = form.watch("isPaid");
 
   useEffect(() => {
-    if (open) {
+    if (open && course) {
       form.reset({
         title: course.title,
         productId: course.productId ?? "",
@@ -107,7 +107,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
     }
   }
 
-  const isRejected = course.status === 'REJECTED';
+  const isRejected = course?.status === 'REJECTED';
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
