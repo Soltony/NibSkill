@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     const guestSessionToken = c.get('miniapp_guest_session')?.value;
     
     let authToken: string | undefined;
+    let userForRegistrationCheck;
     
     if (session) {
         console.log('[/api/payment/initiate] Full session found.');
@@ -41,8 +42,8 @@ export async function POST(request: NextRequest) {
         const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
         authToken = guestPayload.authToken;
         
-        const user = await prisma.user.findFirst({ where: { phoneNumber: guestPayload.phoneNumber }});
-        if (!user) {
+        userForRegistrationCheck = await prisma.user.findFirst({ where: { phoneNumber: guestPayload.phoneNumber }});
+        if (!userForRegistrationCheck) {
             return NextResponse.json({ success: false, message: 'User not registered.', redirectTo: '/login/register' }, { status: 403 });
         }
     }
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
 
-    const signatureString = [
+    const signatureParams = [
       `accountNo=${ACCOUNT_NO}`,
       `amount=${amount}`,
       `callBackURL=${CALLBACK_URL}`,
@@ -80,7 +81,14 @@ export async function POST(request: NextRequest) {
       `token=${authToken}`,
       `transactionId=${transactionId}`,
       `transactionTime=${transactionTime}`
-    ].join('&');
+    ];
+    
+    // Sort parameters alphabetically before creating the signature string
+    signatureParams.sort();
+
+    const signatureString = signatureParams.join('&');
+    
+    console.log('[/api/payment/initiate] Signature string (raw):', signatureString);
 
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
@@ -109,12 +117,18 @@ export async function POST(request: NextRequest) {
     console.log('[/api/payment/initiate] Gateway response status:', paymentResponse.status);
 
     const responseData = await paymentResponse.json().catch(() => ({}));
-    const paymentToken = responseData.token;
-    
-    console.log('[/api/payment/initiate] Gateway response data:', responseData);
+    console.log('[/api/payment/initiate] Gateway response body:', responseData);
 
-    if (!paymentResponse.ok || !paymentToken) {
-      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request. Please try again.' }, { status: paymentResponse.status });
+    if (!paymentResponse.ok) {
+        console.error('[/api/payment/initiate] Payment gateway rejected the request:', paymentResponse.status, responseData);
+        return NextResponse.json({ success: false, message: 'Payment gateway unauthorized. Verify the token sent in the Authorization header and that the signature is correct.' }, { status: paymentResponse.status });
+    }
+    
+    const paymentToken = responseData.token;
+
+    if (!paymentToken) {
+        console.error('[/api/payment/initiate] Payment token not received from gateway.');
+        return NextResponse.json({ success: false, message: 'Payment token not received from gateway.' }, { status: 500 });
     }
     
     return NextResponse.json({ success: true, paymentToken, transactionId });
