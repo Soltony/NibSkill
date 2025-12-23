@@ -3,67 +3,40 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
 import { cookies } from 'next/headers';
-import { jwtVerify, type JWTPayload } from 'jose';
 import prisma from '@/lib/db';
-import { getSession } from '@/lib/auth';
 
-interface GuestJwtPayload extends JWTPayload {
-  phoneNumber: string;
-  authToken: string;
-}
 
-const getJwtSecret = () => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
-    return new TextEncoder().encode(secret);
-};
+
+// const getJwtSecret = () => {
+//     const secret = process.env.JWT_SECRET;
+//     if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
+//     return new TextEncoder().encode(secret);
+// };
 
 
 export async function POST(request: NextRequest) {
   console.log('[/api/payment/initiate] Received payment initiation request.');
 
   try {
-    const c = await cookies();
-    const session = await getSession();
-    const guestSessionToken = c.get('miniapp_guest_session')?.value;
-    const superAppTokenCookie = c.get('superapp_token')?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('superapp_token')?.value;
 
-    let authToken: string | undefined;
-    let userForRegistrationCheck;
-
-    // Prefer an explicit `superapp_token` cookie (this matches the provider reference)
-    if (superAppTokenCookie) {
-        authToken = superAppTokenCookie;
-        console.log('[/api/payment/initiate] Using super app token from cookie `superapp_token` (masked):', `${authToken.slice(0,6)}...${authToken.slice(-6)}`);
-    } else if (session) {
-        console.log('[/api/payment/initiate] Full session found.');
-        const latestLogin = await prisma.loginHistory.findFirst({
-            where: { userId: session.id, superAppToken: { not: null } },
-            orderBy: { loginTime: 'desc' }
-        });
-        authToken = latestLogin?.superAppToken ?? undefined;
-    } else if (guestSessionToken) {
-        console.log('[/api/payment/initiate] Guest session found.');
-        const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
-        authToken = guestPayload.authToken;
-        if (!authToken) {
-            console.error('[/api/payment/initiate] Guest session payload missing authToken:', guestPayload);
-            return NextResponse.json({ success: false, message: 'Could not find Super App token in guest session. Please re-enter from the NIBtera app.' }, { status: 401 });
-        }
-        
-        userForRegistrationCheck = await prisma.user.findFirst({ where: { phoneNumber: guestPayload.phoneNumber }});
-        if (!userForRegistrationCheck) {
-            return NextResponse.json({ success: false, message: 'User not registered.', redirectTo: '/login/register' }, { status: 403 });
-        }
+    if (!token) {
+      console.error('[/api/payment/initiate] SuperApp token not found in cookie `superapp_token`.');
+      return NextResponse.json({ success: false, message: 'SuperApp session not found.' }, { status: 401 });
     }
 
-    if (!authToken) {
-       console.error('[/api/payment/initiate] No valid auth token found for payment.');
-       return NextResponse.json({ success: false, message: 'Could not find a valid Super App session. Please re-enter from the NIBtera app.' }, { status: 401 });
-    }
+    console.log('[/api/payment/initiate] Using token from cookie `superapp_token` (masked):', `${token.slice(0,6)}...${token.slice(-6)}`);
 
-    const { amount } = await request.json();
-    if (!amount) {
+
+
+
+    const body = await request.json();
+    const amount = body.amount;
+    const safeAmount = String(amount);
+    const dryRun = body.dryRun ?? false;
+
+    if (amount === undefined || amount === null) {
       return NextResponse.json({ success: false, message: 'Amount is required.' }, { status: 400 });
     }
 
@@ -82,11 +55,9 @@ export async function POST(request: NextRequest) {
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
 
     // The token used in the signature must be the same token sent in the Authorization header
-    const token = authToken;
-
     const signatureString = [
       `accountNo=${ACCOUNT_NO}`,
-      `amount=${amount}`,
+      `amount=${safeAmount}`,
       `callBackURL=${CALLBACK_URL}`,
       `companyName=${COMPANY_NAME}`,
       `Key=${NIB_PAYMENT_KEY}`,
@@ -101,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     const paymentPayload = {
       accountNo: ACCOUNT_NO,
-      amount: String(amount),
+      amount: safeAmount,
       callBackURL: CALLBACK_URL,
       companyName: COMPANY_NAME,
       token: token,
