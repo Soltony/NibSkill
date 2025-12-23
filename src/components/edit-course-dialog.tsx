@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -36,7 +35,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { updateCourse } from "@/app/actions/course-actions"
-import type { Course, Product, Currency, CourseStatus } from "@prisma/client"
+import type { Course, Product } from "@prisma/client"
 import { Switch } from "./ui/switch"
 
 const formSchema = z.object({
@@ -45,7 +44,7 @@ const formSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters long."),
   isPaid: z.boolean().default(false),
   price: z.coerce.number().optional(),
-  currency: z.nativeEnum(Currency).optional(),
+  currency: z.enum(["USD", "ETB"]).optional(),
   hasCertificate: z.boolean().default(false),
   status: z.enum(["PENDING", "PUBLISHED", "REJECTED"]).optional(),
   isPublic: z.boolean().default(true),
@@ -74,7 +73,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
   const isPaid = form.watch("isPaid");
 
   useEffect(() => {
-    if (open && course) {
+    if (open) {
       form.reset({
         title: course.title,
         productId: course.productId ?? "",
@@ -140,7 +139,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Associated Product</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a product" />
