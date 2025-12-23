@@ -26,11 +26,16 @@ export async function POST(request: NextRequest) {
     const c = await cookies();
     const session = await getSession();
     const guestSessionToken = c.get('miniapp_guest_session')?.value;
-    
+    const superAppTokenCookie = c.get('superapp_token')?.value;
+
     let authToken: string | undefined;
     let userForRegistrationCheck;
-    
-    if (session) {
+
+    // Prefer an explicit `superapp_token` cookie (this matches the provider reference)
+    if (superAppTokenCookie) {
+        authToken = superAppTokenCookie;
+        console.log('[/api/payment/initiate] Using super app token from cookie `superapp_token` (masked):', `${authToken.slice(0,6)}...${authToken.slice(-6)}`);
+    } else if (session) {
         console.log('[/api/payment/initiate] Full session found.');
         const latestLogin = await prisma.loginHistory.findFirst({
             where: { userId: session.id, superAppToken: { not: null } },
