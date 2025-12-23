@@ -79,7 +79,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
   const course = courseData.course;
   const user = courseData.user;
-  const isGuest = !user;
+  const isGuest = !user || (user as any).isGuest;
   
   const progress = useMemo(() => {
     if (isGuest || !courseData || courseData.course.modules.length === 0) return 0;
@@ -224,7 +224,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   }, [quiz, courseData.previousAttempts, isGuest]);
 
   const handleRequestReset = async () => {
-    if (isGuest) return;
+    if (isGuest || !courseData.user) return;
     setIsRequestingReset(true);
     const result = await requestQuizReset(courseData.user.id, course.id);
     if (result.success) {
@@ -330,8 +330,8 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         <h2 className="text-2xl font-semibold font-headline">Course Modules</h2>
         {userRole === 'admin' && <AddModuleDialog onModuleAdded={handleModuleAdded} courseId={course.id} />}
       </div>
-        {course.isPaid ? (
-            <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">
+        {course.isPaid && isGuest ? (
+             <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">
                 <p>This is a paid course. Purchase to access modules and quizzes.</p>
             </div>
         ) : (
