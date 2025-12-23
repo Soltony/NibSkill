@@ -90,31 +90,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Check for guest session to retrieve Super App token
-    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
-    let superAppToken: string | null = null;
-    if (guestSessionToken) {
-        try {
-            const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
-            superAppToken = guestPayload.authToken;
-        } catch (e) {
-            console.log("Guest session token invalid or expired during registration, ignoring.")
-        }
-    }
-
-    if (superAppToken) {
-      await prisma.loginHistory.create({
-          data: {
-              userId: newUser.id,
-              ipAddress: request.ip,
-              userAgent: request.headers.get('user-agent'),
-              superAppToken: superAppToken,
-          }
-      });
-      // Clear the guest session cookie after successful registration
-      cookieStore.delete('miniapp_guest_session');
-    }
-
+    // We don't save the Super App token here anymore, to avoid the schema error.
+    // The payment initiation will rely on the guest cookie if it's present.
 
     return NextResponse.json({
       isSuccess: true,

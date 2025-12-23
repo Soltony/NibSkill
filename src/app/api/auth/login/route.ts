@@ -108,24 +108,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ isSuccess: false, errors: ["Your organization's account has been deactivated. Please contact support."] }, { status: 403 });
     }
 
-    // Check for guest session to retrieve Super App token
-    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
-    let superAppToken: string | null = null;
-    if (guestSessionToken) {
-        try {
-            const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
-            superAppToken = guestPayload.authToken;
-        } catch (e) {
-            console.log("Guest session token invalid or expired during login, ignoring.")
-        }
-    }
-
     await prisma.loginHistory.create({
         data: {
             userId: user.id,
             ipAddress: request.ip,
             userAgent: request.headers.get('user-agent'),
-            superAppToken: superAppToken,
         }
     });
 
@@ -157,6 +144,7 @@ export async function POST(request: NextRequest) {
     });
     
     // Clear the guest session cookie after successful login
+    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
     if (guestSessionToken) {
       cookieStore.delete('miniapp_guest_session');
     }
