@@ -18,15 +18,14 @@ export async function POST(request: NextRequest) {
   console.log('[/api/payment/initiate] Received payment initiation request.');
 
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('superapp_token')?.value;
-
-    if (!token) {
-      console.error('[/api/payment/initiate] SuperApp token not found in cookie `superapp_token`.');
-      return NextResponse.json({ success: false, message: 'SuperApp session not found.' }, { status: 401 });
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.error('[/api/payment/initiate] Authorization header missing or malformed.');
+      return NextResponse.json({ success: false, message: 'Authorization header missing.' }, { status: 401 });
     }
 
-    console.log('[/api/payment/initiate] Using token from cookie `superapp_token` (masked):', `${token.slice(0,6)}...${token.slice(-6)}`);
+    const token = authHeader.substring(7);
+    console.log('[/api/payment/initiate] Using token from Authorization header (masked):', `${token.slice(0,6)}...${token.slice(-6)}`);
 
 
 
