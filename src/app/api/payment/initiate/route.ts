@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Use token stored by the initial mini-app launch (cookie `superapp_token`) — do NOT rely on Authorization header on subsequent requests
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     const token = cookieStore.get('superapp_token')?.value;
 
     if (!token) {
