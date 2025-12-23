@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
     
     let authToken: string | undefined;
     
-    // Determine which token to use (full session vs guest session)
     if (session) {
         console.log('[/api/payment/initiate] Full session found.');
         const latestLogin = await prisma.loginHistory.findFirst({
@@ -42,7 +41,6 @@ export async function POST(request: NextRequest) {
         const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
         authToken = guestPayload.authToken;
         
-        // For guest, check if they are registered. If not, tell client to redirect.
         const user = await prisma.user.findFirst({ where: { phoneNumber: guestPayload.phoneNumber }});
         if (!user) {
             return NextResponse.json({ success: false, message: 'User not registered.', redirectTo: '/login/register' }, { status: 403 });
@@ -116,10 +114,8 @@ export async function POST(request: NextRequest) {
     console.log('[/api/payment/initiate] Gateway response data:', responseData);
 
     if (!paymentResponse.ok || !paymentToken) {
-      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request. Please try again.' }, { status: 500 });
+      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request. Please try again.' }, { status: paymentResponse.status });
     }
-
-    // TODO: Store transactionId locally before sending response
     
     return NextResponse.json({ success: true, paymentToken, transactionId });
     
