@@ -1,9 +1,23 @@
 
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
+import { cookies } from 'next/headers';
+import { jwtVerify, type JWTPayload } from 'jose';
+
+interface GuestJwtPayload extends JWTPayload {
+  phoneNumber: string;
+  authToken: string;
+}
+
+const getJwtSecret = () => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
+    return new TextEncoder().encode(secret);
+};
+
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -16,10 +30,11 @@ const registerSchema = z.object({
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const validation = registerSchema.safeParse(body);
+    const cookieStore = cookies();
 
     if (!validation.success) {
       return NextResponse.json({ isSuccess: false, errors: validation.error.issues.map(i => i.message) }, { status: 400 });
@@ -38,7 +53,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ isSuccess: false, errors: ['Default "Staff" role not found for the selected provider.'] }, { status: 500 });
     }
     
-    // Check if a user with this phone number and role already exists for the provider
     const existingUser = await prisma.user.findFirst({
         where: {
             phoneNumber,
@@ -57,7 +71,7 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    const user = await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         name,
         email: email || null,
@@ -76,6 +90,32 @@ export async function POST(request: Request) {
       },
     });
 
+    // Check for guest session to retrieve Super App token
+    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+    let superAppToken: string | null = null;
+    if (guestSessionToken) {
+        try {
+            const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+            superAppToken = guestPayload.authToken;
+        } catch (e) {
+            console.log("Guest session token invalid or expired during registration, ignoring.")
+        }
+    }
+
+    if (superAppToken) {
+      await prisma.loginHistory.create({
+          data: {
+              userId: newUser.id,
+              ipAddress: request.ip,
+              userAgent: request.headers.get('user-agent'),
+              superAppToken: superAppToken,
+          }
+      });
+      // Clear the guest session cookie after successful registration
+      cookieStore.delete('miniapp_guest_session');
+    }
+
+
     return NextResponse.json({
       isSuccess: true,
       errors: null,
@@ -85,7 +125,6 @@ export async function POST(request: Request) {
     console.error('Registration error:', error);
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
-             // This might still catch other unique constraints if any are added in the future
              return NextResponse.json({ isSuccess: false, errors: ['A user with this information might already exist.'] }, { status: 409 });
         }
     }

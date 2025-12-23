@@ -3,10 +3,10 @@ import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { SignJWT } from 'jose';
+import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
-import type { Prisma, User, TrainingProvider, UserRole, Role } from '@prisma/client';
+import type { Prisma, User, TrainingProvider, UserRole, Role, JWTPayload } from '@prisma/client';
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
@@ -14,6 +14,11 @@ const loginSchema = z.object({
   password: z.string().optional(),
   loginAs: z.enum(['admin', 'staff']).optional(),
 });
+
+interface GuestJwtPayload extends JWTPayload {
+  phoneNumber: string;
+  authToken: string;
+}
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
@@ -32,7 +37,6 @@ export async function POST(request: NextRequest) {
     let user: UserWithFullRoles | null | undefined;
     let selectedRole: Role | undefined;
 
-    // This endpoint now only handles standard web login flow
     const body = await request.json();
     const validation = loginSchema.safeParse(body);
 
@@ -89,7 +93,6 @@ export async function POST(request: NextRequest) {
     
     user = candidateUser;
 
-    // Role-based access check
     const permissions = selectedRole.permissions as Prisma.JsonObject;
     const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
 
@@ -101,21 +104,31 @@ export async function POST(request: NextRequest) {
          return NextResponse.json({ isSuccess: false, errors: ['Could not determine user or role.'] }, { status: 401 });
     }
 
-    // --- Check if Training Provider is active ---
     if (user.trainingProvider && !user.trainingProvider.isActive) {
       return NextResponse.json({ isSuccess: false, errors: ["Your organization's account has been deactivated. Please contact support."] }, { status: 403 });
     }
 
-    // --- Create login history record ---
+    // Check for guest session to retrieve Super App token
+    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+    let superAppToken: string | null = null;
+    if (guestSessionToken) {
+        try {
+            const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+            superAppToken = guestPayload.authToken;
+        } catch (e) {
+            console.log("Guest session token invalid or expired during login, ignoring.")
+        }
+    }
+
     await prisma.loginHistory.create({
         data: {
             userId: user.id,
             ipAddress: request.ip,
             userAgent: request.headers.get('user-agent'),
+            superAppToken: superAppToken,
         }
     });
 
-    // --- Create session + JWT ---
     const sessionId = randomUUID();
     await prisma.user.update({
       where: { id: user.id },
@@ -142,14 +155,18 @@ export async function POST(request: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24,
     });
+    
+    // Clear the guest session cookie after successful login
+    if (guestSessionToken) {
+      cookieStore.delete('miniapp_guest_session');
+    }
 
     const { password: _, ...userWithoutPassword } = user;
 
-    // --- Redirect by role ---
     const redirectPermissions = selectedRole.permissions as Prisma.JsonObject;
     const redirectHasAdminPermissions = redirectPermissions && Object.values(redirectPermissions).some((p: any) => p.c || p.r || p.u || p.d);
     
-    let redirectTo = '/dashboard'; // Default for staff
+    let redirectTo = '/dashboard';
     if (selectedRole.name === 'Super Admin') {
       redirectTo = '/super-admin/dashboard';
     } else if (redirectHasAdminPermissions) {
