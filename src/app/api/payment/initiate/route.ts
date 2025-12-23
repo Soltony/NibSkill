@@ -6,14 +6,6 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 
 
-
-// const getJwtSecret = () => {
-//     const secret = process.env.JWT_SECRET;
-//     if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
-//     return new TextEncoder().encode(secret);
-// };
-
-
 export async function POST(request: NextRequest) {
   console.log('[/api/payment/initiate] Received payment initiation request.');
 
@@ -21,6 +13,8 @@ export async function POST(request: NextRequest) {
     // Use token stored by the initial mini-app launch (cookie `superapp_token`) — do NOT rely on Authorization header on subsequent requests
     const cookieStore = cookies();
     const token = cookieStore.get('superapp_token')?.value;
+
+console.log({token});
 
     if (!token) {
       console.error('[/api/payment/initiate] SuperApp session expired. Cookie `superapp_token` missing.');
@@ -44,7 +38,7 @@ export async function POST(request: NextRequest) {
     const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
 
-    if (!ACCOUNT_NO || !CALLBACK_URL || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
+    if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
       console.error('[/api/payment/initiate] Server configuration error: Missing payment gateway environment variables.');
       return NextResponse.json({ success: false, message: 'Server configuration error.' }, { status: 500 });
     }
@@ -78,6 +72,7 @@ export async function POST(request: NextRequest) {
       transactionTime: transactionTime,
       signature: signature
     };
+console.log({paymentPayload});
     
     // Decode token payload for dry-run debugging (do not rely on this for security checks)
     let tokenInfo: any = null;

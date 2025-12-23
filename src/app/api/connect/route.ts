@@ -77,12 +77,24 @@ export async function GET(request: NextRequest) {
       .setExpirationTime('24h')
       .sign(getJwtSecret());
 
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
+
+    // Store guest session JWT (used for identifying mini-app guest sessions)
     cookieStore.set('miniapp_guest_session', guestJwt, {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
+      maxAge: 60 * 60 * 24,
+    });
+
+    // Also store the raw SuperApp token (used for authenticating with NIB payment API)
+    // This mirrors the behavior of the working project so future API calls can read from cookie
+    cookieStore.set('superapp_token', token, {
+      path: '/',
+      httpOnly: true,
+      secure: true, // required for SuperApp WebView
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24,
     });
 
