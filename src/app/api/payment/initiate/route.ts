@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { format } from 'date-fns';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 
 
@@ -17,43 +18,16 @@ export async function POST(request: NextRequest) {
   console.log('[/api/payment/initiate] Received payment initiation request.');
 
   try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      console.error('[/api/payment/initiate] Authorization header missing or invalid.');
-      return NextResponse.json({ success: false, message: 'Authorization header missing.' }, { status: 401 });
+    // Use token stored by the initial mini-app launch (cookie `superapp_token`) — do NOT rely on Authorization header on subsequent requests
+    const cookieStore = await cookies();
+    const token = cookieStore.get('superapp_token')?.value;
+
+    if (!token) {
+      console.error('[/api/payment/initiate] SuperApp session expired. Cookie `superapp_token` missing.');
+      return NextResponse.json({ success: false, message: 'SuperApp session expired.' }, { status: 401 });
     }
 
-    const token = authHeader.substring(7);
-    console.log('[/api/payment/initiate] Using token from Authorization header (masked):', `${token.slice(0,6)}...${token.slice(-6)}`);
-
-    // Validate token with NIB validate endpoint before proceeding (per integration guide Step 2)
-    const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL ?? 'http://172.24.47.138:90/api/Authenticate/Validate';
-    let validateResult: any = null;
-    try {
-      const validateResp = await fetch(VALIDATE_TOKEN_URL, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json'
-        },
-        cache: 'no-store'
-      });
-      const validateText = await validateResp.text().catch(() => '');
-      try {
-        validateResult = validateText ? JSON.parse(validateText) : {};
-      } catch (e) {
-        validateResult = validateText;
-      }
-      console.log('[/api/payment/initiate] Token validation response:', validateResp.status, validateResult);
-      if (!validateResp.ok) {
-        console.error('[/api/payment/initiate] Token validation failed:', validateResp.status, validateResult);
-        return NextResponse.json({ success: false, message: 'Token validation failed with NIB.', details: validateResult }, { status: 401 });
-      }
-    } catch (err: any) {
-      console.error('[/api/payment/initiate] Token validation request failed:', err);
-      return NextResponse.json({ success: false, message: 'Could not validate token with NIB.', details: err?.message ?? String(err) }, { status: 502 });
-    }
-
+    console.log('[/api/payment/initiate] Using token from cookie `superapp_token` (masked):', `${token.slice(0,6)}...${token.slice(-6)}`);
 
     const body = await request.json();
     const amount = body.amount;
@@ -122,7 +96,7 @@ export async function POST(request: NextRequest) {
     console.log('[/api/payment/initiate] Computed signature:', signature);
 
     if (dryRun) {
-      return NextResponse.json({ success: true, dryRun: true, signatureString, signature, paymentPayload, tokenInfo, validateResult }, { status: 200 });
+      return NextResponse.json({ success: true, dryRun: true, signatureString, signature, paymentPayload, tokenInfo }, { status: 200 });
     }
 
     console.log('[/api/payment/initiate] Calling NIB payment API...');
