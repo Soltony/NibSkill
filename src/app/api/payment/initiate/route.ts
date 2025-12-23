@@ -27,45 +27,31 @@ export async function POST(request: NextRequest) {
     const session = await getSession();
     const guestSessionToken = c.get('miniapp_guest_session')?.value;
     
-    let phoneNumber: string | undefined;
     let authToken: string | undefined;
-    let user;
-
+    
+    // Determine which token to use (full session vs guest session)
     if (session) {
-      // User is fully logged in
-      console.log('[/api/payment/initiate] Full session found.');
-      user = await prisma.user.findUnique({ where: { id: session.id }});
-      if (user?.phoneNumber) {
-        phoneNumber = user.phoneNumber;
-        // Find the latest auth token from login history
+        console.log('[/api/payment/initiate] Full session found.');
         const latestLogin = await prisma.loginHistory.findFirst({
-            where: { userId: user.id, superAppToken: { not: null } },
+            where: { userId: session.id, superAppToken: { not: null } },
             orderBy: { loginTime: 'desc' }
         });
         authToken = latestLogin?.superAppToken ?? undefined;
-        if (!authToken) {
-           console.error('[/api/payment/initiate] Registered user has no Super App token in history.');
-           return NextResponse.json({ success: false, message: 'Could not find a valid Super App session. Please re-enter from the NIBtera app.' }, { status: 401 });
-        }
-      }
     } else if (guestSessionToken) {
-      // User has a guest session
-      console.log('[/api/payment/initiate] Guest session found.');
-      const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
-      phoneNumber = guestPayload.phoneNumber;
-      authToken = guestPayload.authToken;
-      user = await prisma.user.findFirst({ where: { phoneNumber } });
-    } else {
-       return NextResponse.json({ success: false, message: 'No session found. Please log in or enter from the Super App.' }, { status: 401 });
+        console.log('[/api/payment/initiate] Guest session found.');
+        const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+        authToken = guestPayload.authToken;
+        
+        // For guest, check if they are registered. If not, tell client to redirect.
+        const user = await prisma.user.findFirst({ where: { phoneNumber: guestPayload.phoneNumber }});
+        if (!user) {
+            return NextResponse.json({ success: false, message: 'User not registered.', redirectTo: '/login/register' }, { status: 403 });
+        }
     }
 
-    if (!phoneNumber || !authToken) {
-      return NextResponse.json({ success: false, message: 'Invalid session.' }, { status: 401 });
-    }
-
-    if (!user) {
-        // User is not registered, instruct client to redirect to registration page
-        return NextResponse.json({ success: false, message: 'User not registered.', redirectTo: '/login/register' }, { status: 403 });
+    if (!authToken) {
+       console.error('[/api/payment/initiate] No valid auth token found for payment.');
+       return NextResponse.json({ success: false, message: 'Could not find a valid Super App session. Please re-enter from the NIBtera app.' }, { status: 401 });
     }
 
     const { amount } = await request.json();
@@ -80,6 +66,7 @@ export async function POST(request: NextRequest) {
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
 
     if (!ACCOUNT_NO || !CALLBACK_URL || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
+      console.error('[/api/payment/initiate] Server configuration error: Missing payment gateway environment variables.');
       return NextResponse.json({ success: false, message: 'Server configuration error.' }, { status: 500 });
     }
 
@@ -105,9 +92,9 @@ export async function POST(request: NextRequest) {
       callBackURL: CALLBACK_URL,
       companyName: COMPANY_NAME,
       token: authToken,
-      transactionId,
-      transactionTime,
-      signature
+      transactionId: transactionId,
+      transactionTime: transactionTime,
+      signature: signature
     };
     
     console.log('[/api/payment/initiate] Sending payload to payment gateway:', paymentPayload);
@@ -128,14 +115,17 @@ export async function POST(request: NextRequest) {
     
     console.log('[/api/payment/initiate] Gateway response data:', responseData);
 
-    if (!paymentToken) {
-      return NextResponse.json({ success: false, message: 'Payment token not received from gateway.' }, { status: 500 });
+    if (!paymentResponse.ok || !paymentToken) {
+      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request. Please try again.' }, { status: 500 });
     }
 
+    // TODO: Store transactionId locally before sending response
+    
     return NextResponse.json({ success: true, paymentToken, transactionId });
+    
   } catch (error) {
     console.error('[/api/payment/initiate] Error initiating payment:', error);
-    if (error instanceof Error && error.name === 'JWTExpired') {
+    if (error instanceof Error && (error.name === 'JWTExpired' || error.name === 'JOSEError')) {
         return NextResponse.json({ success: false, message: 'Your session has expired. Please re-enter from the Super App.' }, { status: 401 });
     }
     return NextResponse.json({ success: false, message: 'Internal server error.' }, { status: 500 });
