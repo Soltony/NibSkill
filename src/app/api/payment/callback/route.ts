@@ -1,6 +1,8 @@
 
+
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import prisma from '@/lib/db';
 
 // This function retrieves the NIB Payment Key from environment variables.
 const getNibPaymentKey = () => {
@@ -75,16 +77,17 @@ export async function POST(request: NextRequest) {
     // Step 3: Verify the signature for data integrity
     try {
         const key = getNibPaymentKey();
-        const signatureString = [
-            `accountNo=${accountNo}`,
-            `paidAmount=${paidAmount}`,
-            `paidByNumber=${paidByNumber}`,
-            `Key=${key}`,
-            `token=${bodyToken}`,
-            `transactionId=${transactionId}`,
-            `transactionTime=${transactionTime}`,
-            `txnRef=${txnRef}`
-        ].join('&');
+        const params = {
+            accountNo,
+            paidAmount,
+            paidByNumber,
+            Key: key,
+            token: bodyToken,
+            transactionId,
+            transactionTime,
+            txnRef
+        };
+        const signatureString = Object.keys(params).sort().map(key => `${key}=${params[key as keyof typeof params]}`).join('&');
         
         const calculatedSignature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
@@ -99,14 +102,37 @@ export async function POST(request: NextRequest) {
 
 
     // Step 4: Process the successful transaction
-    // At this point, the request is authenticated and the data integrity is verified.
-    // TODO: Add your business logic here.
-    // - Find the transaction in your database using `transactionId`.
-    // - Mark it as successful.
-    // - Grant the user access to the course or feature they purchased.
-    console.log(`Successfully processed callback for transactionId: ${transactionId}`);
+    try {
+        const pendingTransaction = await prisma.pendingTransaction.findUnique({
+            where: { transactionId }
+        });
+
+        if (!pendingTransaction) {
+            console.error(`Callback received for unknown transactionId: ${transactionId}`);
+            return NextResponse.json({ message: "Transaction not found." }, { status: 404 });
+        }
+
+        await prisma.userPurchasedCourse.create({
+            data: {
+                userId: pendingTransaction.userId,
+                courseId: pendingTransaction.courseId,
+                transactionId: transactionId,
+                amount: parseFloat(paidAmount),
+            }
+        });
+
+        // Optionally, delete the pending transaction after processing
+        await prisma.pendingTransaction.delete({
+            where: { transactionId }
+        });
+
+    } catch (error) {
+        console.error(`Error processing transaction ${transactionId}:`, error);
+        return NextResponse.json({ message: "Failed to update user purchase record." }, { status: 500 });
+    }
 
 
     // Step 5: Respond with success
     return NextResponse.json({ message: "Payment confirmed and updated." }, { status: 200 });
 }
+

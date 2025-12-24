@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useContext } from 'react';
@@ -12,11 +13,11 @@ import {
 } from '@/components/ui/accordion';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2, Award, ShieldCheck, ShieldAlert, History } from 'lucide-react';
+import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2, Award, ShieldCheck, ShieldAlert, History, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse, ResetRequest, Role, UserRole } from '@prisma/client';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse, ResetRequest, Role, UserRole, UserPurchasedCourse } from '@prisma/client';
 import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
 import { toggleModuleCompletion } from '@/app/actions/user-actions';
 import { requestQuizReset } from '@/app/actions/quiz-actions';
@@ -50,6 +51,7 @@ type CourseData = {
     user: UserWithRoles | null; // User can be null for guests
     previousAttempts: UserCompletedCourse[];
     resetRequest: ResetRequest | null;
+    isPurchased: boolean;
 }
 
 type CourseDetailClientProps = {
@@ -72,14 +74,22 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   
   const [courseData, setCourseData] = useState<CourseData>(initialCourseData);
   const [isPaying, setIsPaying] = useState(false);
-  const [isRequestingReset, setIsRequestingReset] = useState(false);
+  const [isMiniApp, setIsMiniApp] = useState(false);
   const [localCompletedModules, setLocalCompletedModules] = useState<Set<string>>(
       new Set(initialCourseData.completedModules.map(cm => cm.moduleId))
   );
 
+  useEffect(() => {
+    // This check determines if the app is running inside the mini-app environment.
+    if (typeof window !== 'undefined' && window.myJsChannel) {
+        setIsMiniApp(true);
+    }
+  }, []);
+
   const course = courseData.course;
   const user = courseData.user;
   const isGuest = !user || (user as any).isGuest;
+  const isPurchased = courseData.isPurchased;
   
   const progress = useMemo(() => {
     if (isGuest || !courseData || courseData.course.modules.length === 0) return 0;
@@ -146,30 +156,15 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   const handleBuyCourse = async () => {
     setIsPaying(true);
     try {
-        // 1. Fetch the auth token from our new API endpoint
-        const tokenRes = await fetch('/api/auth/token');
-        if (!tokenRes.ok) {
-            throw new Error('Could not retrieve authentication token. Please re-enter from the Super App.');
-        }
-        const { token: authToken } = await tokenRes.json();
-        if (!authToken) {
-            throw new Error('Authentication token is missing.');
-        }
-        
-        // 2. Initiate payment with the auth token in the header
         const paymentResponse = await fetch('/api/payment/initiate', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({ amount: course.price })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: course.price, courseId: course.id })
         });
         
         const paymentData = await paymentResponse.json();
 
         if (!paymentResponse.ok) {
-            // Check for specific redirect instruction for unregistered users
             if (paymentResponse.status === 403 && paymentData.redirectTo) {
                 toast({
                     title: "Registration Required",
@@ -185,14 +180,13 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
         const paymentToken = paymentData.paymentToken;
 
-        if (typeof window !== 'undefined' && window.myJsChannel?.postMessage) {
+        if (window.myJsChannel?.postMessage) {
             window.myJsChannel.postMessage({ token: paymentToken });
             toast({
                 title: "Payment Initiated",
                 description: "Please complete the payment in the NIBtera Super App.",
             });
         } else {
-            console.error("[Client] NIB Super App channel (window.myJsChannel) not found.");
             toast({
                 title: "Error",
                 description: "Could not communicate with the payment app. This feature is only available within the NIBtera app.",
@@ -258,7 +252,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   }
 
   const renderQuizButton = () => {
-    if (course.isPaid && isGuest) return null;
+    if (course.isPaid && !isPurchased) return null;
     if (!quiz) return <p className="text-muted-foreground">Quiz not available for this course.</p>;
     if (isGuest) return <p className="text-sm mt-2 text-muted-foreground">Register or log in to take the quiz.</p>;
     if (!allModulesCompleted) return <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>;
@@ -330,7 +324,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         </div>
       </div>
       
-      { !course.isPaid && !isGuest && (
+      { (course.isPaid ? isPurchased : !isGuest) && (
         <div className="mb-6 space-y-2">
             <div className="flex justify-between text-sm font-medium text-muted-foreground">
                 <span>Overall Progress</span>
@@ -344,9 +338,11 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         <h2 className="text-2xl font-semibold font-headline">Course Modules</h2>
         {userRole === 'admin' && <AddModuleDialog onModuleAdded={handleModuleAdded} courseId={course.id} />}
       </div>
-        {course.isPaid && isGuest ? (
-             <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md">
-                <p>This is a paid course. Purchase to access modules and quizzes.</p>
+        {course.isPaid && !isPurchased ? (
+             <div className="text-center py-8 text-muted-foreground bg-muted/50 rounded-md flex flex-col items-center gap-2">
+                <Info className="h-8 w-8 text-primary" />
+                <p className="font-semibold text-lg">This is a paid course.</p>
+                <p>Please purchase it through the NIBtera Mini-App to gain access.</p>
             </div>
         ) : (
         <>
@@ -403,15 +399,15 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         )}
 
             <div className="mt-8 text-center">
-                {course.isPaid ? (
+                {course.isPaid && !isPurchased && isMiniApp && (
                     <Button size="lg" onClick={handleBuyCourse} disabled={isPaying}>
                         {isPaying ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
                         {isPaying ? 'Processing...' : 'Buy Course'}
                     </Button>
-                ) : (
-                    renderQuizButton()
                 )}
+                {(!course.isPaid || isPurchased) && renderQuizButton()}
             </div>
     </div>
   );
 }
+

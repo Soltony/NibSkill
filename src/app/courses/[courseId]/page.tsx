@@ -1,4 +1,5 @@
 
+
 import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
@@ -7,19 +8,6 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { MoveLeft } from 'lucide-react';
 import { cookies } from 'next/headers';
-import { jwtVerify, type JWTPayload } from 'jose';
-
-interface GuestJwtPayload extends JWTPayload {
-  phoneNumber: string;
-  authToken: string;
-}
-
-const getJwtSecret = () => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
-    return new TextEncoder().encode(secret);
-};
-
 
 async function getCourseData(courseId: string, userId?: string) {
   const course = await prisma.course.findUnique({
@@ -49,45 +37,43 @@ async function getCourseData(courseId: string, userId?: string) {
   });
 
   if (!course) {
-    return { course: null, completedModules: [], user: null, previousAttempts: [], resetRequest: null };
+    return { course: null, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false };
   }
 
+  // If there's no user, it's a guest session, return public data only
+  if (!userId) {
+    return { course, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false };
+  }
+  
   // If there's a logged-in user, fetch their specific data
-  if (userId) {
-    const completedModules = await prisma.userCompletedModule.findMany({
+  const [completedModules, user, resetRequest, purchaseRecord] = await Promise.all([
+    prisma.userCompletedModule.findMany({
       where: {
         userId: userId,
-        moduleId: {
-          in: course.modules.map((m) => m.id),
-        },
+        moduleId: { in: course.modules.map((m) => m.id) },
       },
       select: { moduleId: true },
-    });
-
-    const user = await prisma.user.findUnique({ 
+    }),
+    prisma.user.findUnique({ 
       where: { id: userId },
-      include: { 
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-       }
-    });
+      include: { roles: { include: { role: true } } }
+    }),
+    prisma.resetRequest.findFirst({
+      where: { userId: userId, courseId: courseId, status: 'PENDING' }
+    }),
+    course.isPaid ? prisma.userPurchasedCourse.findUnique({
+      where: { userId_courseId: { userId, courseId } }
+    }) : Promise.resolve(null)
+  ]);
 
-    const resetRequest = await prisma.resetRequest.findFirst({
-      where: {
-        userId: userId,
-        courseId: courseId,
-        status: 'PENDING'
-      }
-    });
-
-    return { course, completedModules, user, previousAttempts: course.completedBy, resetRequest };
-  }
-
-  // If no user, it's a guest session, return course data with empty user-specific fields
-  return { course, completedModules: [], user: null, previousAttempts: [], resetRequest: null };
+  return { 
+    course, 
+    completedModules, 
+    user, 
+    previousAttempts: course.completedBy, 
+    resetRequest,
+    isPurchased: !!purchaseRecord
+  };
 }
 
 export default async function CourseDetailPage({ params }: { params: { courseId: string } }) {
@@ -99,7 +85,7 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
   }
 
   const { courseId } = params;
-  const { course, completedModules, user, previousAttempts, resetRequest } = await getCourseData(courseId, session?.id);
+  const { course, completedModules, user, previousAttempts, resetRequest, isPurchased } = await getCourseData(courseId, session?.id);
 
   if (!course) {
     notFound();
@@ -114,8 +100,9 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
             </Link>
         </Button>
         <CourseDetailClient 
-            courseData={{ course, completedModules, user, previousAttempts, resetRequest } as any} 
+            courseData={{ course, completedModules, user, previousAttempts, resetRequest, isPurchased } as any} 
         />
     </div>
   );
 }
+

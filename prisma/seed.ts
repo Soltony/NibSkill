@@ -364,6 +364,23 @@ async function main() {
     }
   }
   console.log('Seeded user completed courses');
+
+  // Seed UserPurchasedCourse
+  if (user1ForCompletion) {
+      const course2 = await prisma.course.findUnique({ where: { id: 'course-2' } });
+      if (course2) {
+          await prisma.userPurchasedCourse.upsert({
+              where: { userId_courseId: { userId: user1ForCompletion.id, courseId: course2.id } },
+              update: {},
+              create: {
+                  userId: user1ForCompletion.id,
+                  courseId: course2.id,
+                  amount: course2.price || 49.99,
+              }
+          });
+          console.log('Seeded user purchased courses');
+      }
+  }
   
   // Seed Certificate Template
   await prisma.certificateTemplate.upsert({
