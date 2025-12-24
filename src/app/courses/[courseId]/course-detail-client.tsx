@@ -75,6 +75,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
   const [courseData, setCourseData] = useState<CourseData>(initialCourseData);
   const [isPaying, setIsPaying] = useState(false);
   const [isMiniApp, setIsMiniApp] = useState(false);
+  const [isRequestingReset, setIsRequestingReset] = useState(false);
   const [localCompletedModules, setLocalCompletedModules] = useState<Set<string>>(
       new Set(initialCourseData.completedModules.map(cm => cm.moduleId))
   );
@@ -410,4 +411,3 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     </div>
   );
 }
-
