@@ -63,7 +63,7 @@ export function CourseDetailAdminClient({ initialCourse, initialProgress, review
   const handleModuleUpdated = (updatedModule: TModule) => {
     setCourse(prevCourse => {
       if (!prevCourse) return initialCourse;
-      const newModules = prevCourse.modules.map(m => m.id === updatedModule.id ? updatedModule.id : m);
+      const newModules = prevCourse.modules.map(m => m.id === updatedModule.id ? updatedModule : m);
       return { ...prevCourse, modules: newModules };
     });
   };
