@@ -129,7 +129,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (isLoading || !currentUser) {
+  if (isLoading) {
     return (
       <html lang="en" suppressHydrationWarning>
         <head><title>NIB Training</title></head>
@@ -243,12 +243,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div className="flex items-center gap-3 p-2">
                     <Link href="/profile" className="flex-1 flex items-center gap-3 overflow-hidden group">
                       <Avatar>
-                        <AvatarImage src={currentUser.avatarUrl ?? ''} alt={currentUser.name} />
-                        <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={currentUser?.avatarUrl ?? ''} alt={currentUser?.name} />
+                        <AvatarFallback>{currentUser?.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 overflow-hidden">
-                        <p className="truncate font-semibold text-sm text-sidebar-foreground group-hover:text-sidebar-primary">{currentUser.name}</p>
-                        <p className="truncate text-xs text-sidebar-foreground/70">{currentUser.email}</p>
+                        <p className="truncate font-semibold text-sm text-sidebar-foreground group-hover:text-sidebar-primary">{currentUser?.name}</p>
+                        <p className="truncate text-xs text-sidebar-foreground/70">{currentUser?.email}</p>
                       </div>
                     </Link>
                     <form action={handleLogout}>
@@ -266,7 +266,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <div className="flex-1">
                   <h1 className="text-lg font-semibold md:text-xl font-headline">{currentNavItem?.label || 'Dashboard'}</h1>
                 </div>
-                {!isGuest && <NotificationCenter initialNotifications={currentUser.notifications || []} />}
+                {!isGuest && <NotificationCenter initialNotifications={currentUser?.notifications || []} />}
               </header>
               <main className="flex-1 p-4 lg:p-6">{children}</main>
             </SidebarInset>
