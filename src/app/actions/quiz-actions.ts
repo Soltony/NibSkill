@@ -190,25 +190,6 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
 
 export async function requestQuizReset(userId: string, courseId: string) {
     try {
-        const existingRequest = await prisma.resetRequest.findUnique({
-            where: {
-                userId_courseId: {
-                    userId,
-                    courseId,
-                }
-            }
-        });
-
-        if (existingRequest && existingRequest.status === 'PENDING') {
-            return { success: false, message: "You already have a pending reset request for this course." };
-        }
-        
-        const requestData = {
-            userId,
-            courseId,
-            status: 'PENDING' as RequestStatus
-        };
-
         const newRequest = await prisma.resetRequest.upsert({
             where: {
                 userId_courseId: {
@@ -219,7 +200,11 @@ export async function requestQuizReset(userId: string, courseId: string) {
             update: {
                 status: 'PENDING',
             },
-            create: requestData,
+            create: {
+                userId,
+                courseId,
+                status: 'PENDING' as RequestStatus
+            },
             include: {
                 user: true,
                 course: {
