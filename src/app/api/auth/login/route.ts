@@ -31,6 +31,21 @@ type UserWithFullRoles = User & {
   trainingProvider: TrainingProvider | null 
 };
 
+// Helper function to check if a user's roles match the intended login role
+const userHasRole = (user: UserWithFullRoles, loginAs: 'admin' | 'staff') => {
+    return user.roles.some(userRole => {
+        const roleName = userRole.role.name.toLowerCase();
+        if (loginAs === 'admin') {
+            return ['admin', 'super admin', 'training provider'].includes(roleName);
+        }
+        if (loginAs === 'staff') {
+            return roleName === 'staff';
+        }
+        return false;
+    });
+};
+
+
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies();
@@ -45,8 +60,8 @@ export async function POST(request: NextRequest) {
     }
     const { phoneNumber, password, loginAs } = validation.data;
     
-    if (!phoneNumber || !password) {
-      return NextResponse.json({ isSuccess: false, errors: ['Phone number and password are required.'] }, { status: 400 });
+    if (!phoneNumber || !password || !loginAs) {
+      return NextResponse.json({ isSuccess: false, errors: ['Phone number, password, and role are required.'] }, { status: 400 });
     }
 
     const usersWithPhoneNumber = await prisma.user.findMany({
@@ -60,49 +75,32 @@ export async function POST(request: NextRequest) {
     
     let candidateUser: UserWithFullRoles | undefined;
 
-    if (usersWithPhoneNumber.length > 1 && loginAs) {
-        candidateUser = usersWithPhoneNumber.find(u => 
-          u.roles.some(userRole => {
-              const roleName = userRole.role.name.toLowerCase();
-              if (loginAs === 'admin') return ['admin', 'super admin', 'training provider'].includes(roleName);
-              if (loginAs === 'staff') return roleName === 'staff';
-              return false;
-          })
-        );
-        if (candidateUser) {
-          selectedRole = candidateUser.roles.find(userRole => {
-              const roleName = userRole.role.name.toLowerCase();
-              if (loginAs === 'admin') return ['admin', 'super admin', 'training provider'].includes(roleName);
-              if (loginAs === 'staff') return roleName === 'staff';
-              return false;
-          })?.role;
+    // Find a user that matches the phone number AND the intended role
+    for (const u of usersWithPhoneNumber) {
+        const passwordMatch = await bcrypt.compare(password, u.password || '');
+        if (passwordMatch && userHasRole(u, loginAs)) {
+            candidateUser = u;
+            break;
         }
-    } else {
-        candidateUser = usersWithPhoneNumber[0];
-        selectedRole = candidateUser.roles[0]?.role;
     }
-    
-    if (!candidateUser || !candidateUser.password || !selectedRole) {
-      return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials for the selected role.'] }, { status: 401 });
+
+    if (!candidateUser) {
+        return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
     }
-    
-    const isValid = await bcrypt.compare(password, candidateUser.password);
-    if (!isValid) {
-      return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+
+    // Now that we have a valid user for the role, find the specific role to use for the session
+    selectedRole = candidateUser.roles.find(userRole => {
+        const roleName = userRole.role.name.toLowerCase();
+        if (loginAs === 'admin') return ['admin', 'super admin', 'training provider'].includes(roleName);
+        if (loginAs === 'staff') return roleName === 'staff';
+        return false;
+    })?.role;
+
+    if (!selectedRole) {
+         return NextResponse.json({ isSuccess: false, errors: ['Could not determine user role for session.'] }, { status: 500 });
     }
     
     user = candidateUser;
-
-    const permissions = selectedRole.permissions as Prisma.JsonObject;
-    const hasAdminPermissions = permissions && Object.values(permissions).some((p: any) => p.c || p.r || p.u || p.d);
-
-    if (loginAs === 'admin' && !hasAdminPermissions) {
-      return NextResponse.json({ isSuccess: false, errors: ["You do not have permission to access the admin area."] }, { status: 403 });
-    }
-    
-    if (!user || !selectedRole) {
-         return NextResponse.json({ isSuccess: false, errors: ['Could not determine user or role.'] }, { status: 401 });
-    }
 
     if (user.trainingProvider && !user.trainingProvider.isActive) {
       return NextResponse.json({ isSuccess: false, errors: ["Your organization's account has been deactivated. Please contact support."] }, { status: 403 });
@@ -143,7 +141,6 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24,
     });
     
-    // Clear the guest session cookie after successful login
     const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
     if (guestSessionToken) {
       cookieStore.delete('miniapp_guest_session');
@@ -151,13 +148,10 @@ export async function POST(request: NextRequest) {
 
     const { password: _, ...userWithoutPassword } = user;
 
-    const redirectPermissions = selectedRole.permissions as Prisma.JsonObject;
-    const redirectHasAdminPermissions = redirectPermissions && Object.values(redirectPermissions).some((p: any) => p.c || p.r || p.u || p.d);
-    
     let redirectTo = '/dashboard';
     if (selectedRole.name === 'Super Admin') {
       redirectTo = '/super-admin/dashboard';
-    } else if (redirectHasAdminPermissions) {
+    } else if (loginAs === 'admin') {
       redirectTo = '/admin/analytics';
     }
 
