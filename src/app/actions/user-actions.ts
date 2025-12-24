@@ -24,58 +24,29 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
         const course = await prisma.course.findUnique({
             where: { id: courseId },
-            include: { quiz: true, modules: { select: { id: true }} },
+            include: { quiz: true },
         });
 
         if (!course) {
             return { success: false, message: "Course not found." };
         }
         
-        const existingCompletion = await prisma.userCompletedCourse.findUnique({
+        const existingCompletion = await prisma.userCompletedCourse.findFirst({
             where: {
-                userId_courseId: { userId, courseId }
+                userId, 
+                courseId,
+            },
+            orderBy: {
+                completionDate: 'desc'
             }
         });
 
-        if (existingCompletion) {
-             await prisma.userCompletedCourse.update({
-                where: { userId_courseId: { userId, courseId } },
-                data: {
-                    score: score,
-                    completionDate: new Date()
-                }
-            });
-        } else {
-             await prisma.userCompletedCourse.create({
-                data: { userId, courseId, score }
-            });
-        }
-        
-        // This logic was incorrect. It should be based on the number of attempts.
-        // For simplicity and to fix the bug, we will handle attempt tracking separately.
-        // A better solution would involve a separate "attempts" table.
-        // For now, let's re-fetch to ensure we have the latest count.
-        const allAttempts = await prisma.userCompletedCourse.findMany({
-            where: { userId, courseId }
+        // Always create a new record for each attempt to track history.
+        await prisma.userCompletedCourse.create({
+            data: { userId, courseId, score }
         });
-
+        
         const passed = course.quiz ? score >= course.quiz.passingScore : true;
-        const maxAttempts = course.quiz?.maxAttempts ?? 0;
-        
-        if (!passed && maxAttempts > 0) {
-             if (allAttempts.length < maxAttempts) {
-                // User failed and has attempts left. Reset module progress.
-                const moduleIds = course.modules.map(m => m.id);
-                if (moduleIds.length > 0) {
-                  await prisma.userCompletedModule.deleteMany({
-                      where: {
-                          userId: userId,
-                          moduleId: { in: moduleIds }
-                      }
-                  });
-                }
-            }
-        }
         
         if (passed && course.hasCertificate) {
             revalidatePath(`/courses/${courseId}/certificate`);
