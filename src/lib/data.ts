@@ -83,6 +83,7 @@ export type Quiz = {
     passingScore: number;
     timeLimit: number; // in minutes
     quizType: 'OPEN_LOOP' | 'CLOSED_LOOP';
+    maxAttempts: number;
     questions: Question[];
     requiresManualGrading?: boolean;
 };
@@ -315,6 +316,7 @@ export const initialQuizzes: Quiz[] = [
       passingScore: 80,
       timeLimit: 15,
       quizType: 'CLOSED_LOOP',
+      maxAttempts: 3,
       questions: [
         {
           id: 'q1-1',
@@ -347,6 +349,7 @@ export const initialQuizzes: Quiz[] = [
         passingScore: 70,
         timeLimit: 0,
         quizType: 'CLOSED_LOOP',
+        maxAttempts: 1,
         questions: [
           {
             id: 'q4-1',
