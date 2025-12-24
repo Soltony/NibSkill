@@ -203,7 +203,7 @@ export async function requestQuizReset(userId: string, courseId: string) {
             create: {
                 userId,
                 courseId,
-                status: 'PENDING' as RequestStatus
+                status: 'PENDING'
             },
             include: {
                 user: true,
