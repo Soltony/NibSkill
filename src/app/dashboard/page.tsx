@@ -1,4 +1,5 @@
 
+
 import {
   Card,
   CardContent,
@@ -13,7 +14,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { DashboardClient } from './dashboard-client';
-import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse, Role, UserRole } from '@prisma/client';
+import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse, Role, UserRole, User } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 
@@ -46,8 +47,29 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
   liveSessions: any[];
   trainingProviders: TrainingProvider[];
 }> {
+    let courseWhere: Prisma.CourseWhereInput = {
+      status: 'PUBLISHED',
+      isPublic: true,
+    };
+
+    if (user && user.trainingProviderId) {
+      courseWhere = {
+        status: 'PUBLISHED',
+        OR: [
+          { isPublic: true },
+          { 
+            isPublic: false,
+            trainingProviderId: user.trainingProviderId,
+          }
+        ]
+      };
+    } else if (user && !user.trainingProviderId) { // Super Admin
+        courseWhere = { status: 'PUBLISHED' };
+    }
+
+
     const courses = await prisma.course.findMany({
-        where: { status: 'PUBLISHED', isPublic: true },
+        where: courseWhere,
         include: { 
             modules: true, 
             product: true,
