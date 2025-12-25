@@ -33,17 +33,17 @@ export default function SuperAdminLoginPage() {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumber, password }),
+      body: JSON.stringify({ phoneNumber, password, loginAs: 'admin' }),
     });
 
     const data = await response.json();
 
-    if (data.isSuccess && data.user.role.name.toLowerCase() === 'super admin') {
+    if (data.isSuccess && data.user.roles.some((r: any) => r.role.name === 'Super Admin')) {
       toast({
         title: 'Login Successful',
         description: 'Welcome Super Admin!',
       });
-      router.push('/super-admin');
+      router.push('/super-admin/dashboard');
     } else {
       toast({
         title: 'Login Failed',
