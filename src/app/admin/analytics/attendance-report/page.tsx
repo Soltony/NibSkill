@@ -26,7 +26,6 @@ async function getAttendanceReportData(trainingProviderId: string | null | undef
     where: sessionsWhere,
     include: {
       attendedBy: {
-        where: { user: { roles: { some: { roleId: staffRole.id } } } },
         include: {
           user: {
             include: {
