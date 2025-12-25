@@ -259,7 +259,13 @@ export async function approveResetRequest(requestId: string) {
             where: { id: requestId },
             include: {
                 user: true,
-                course: true
+                course: {
+                    include: {
+                        modules: {
+                            select: { id: true }
+                        }
+                    }
+                }
             }
         });
 
@@ -267,29 +273,43 @@ export async function approveResetRequest(requestId: string) {
             return { success: false, message: "Request not found." };
         }
 
+        const moduleIds = request.course.modules.map(m => m.id);
+
         await prisma.$transaction([
+            // 1. Delete all quiz attempts for this user and course
             prisma.userCompletedCourse.deleteMany({
                 where: {
                     userId: request.userId,
                     courseId: request.courseId,
                 }
             }),
+            // 2. Delete all module completions for this user and course
+            prisma.userCompletedModule.deleteMany({
+                where: {
+                    userId: request.userId,
+                    moduleId: {
+                        in: moduleIds
+                    }
+                }
+            }),
+            // 3. Update the request status to Approved
             prisma.resetRequest.update({
                 where: { id: requestId },
                 data: { status: 'APPROVED' }
             }),
+            // 4. Notify the user
              prisma.notification.create({
                 data: {
                     userId: request.userId,
                     title: "Request Approved",
-                    description: `Your request to reset the quiz for "${request.course.title}" has been approved.`
+                    description: `Your request to reset the quiz for "${request.course.title}" has been approved. You are now required to retake the course modules.`
                 }
             })
         ]);
 
         revalidatePath('/admin/settings');
         revalidatePath(`/courses/${request.courseId}`);
-        return { success: true, message: 'Request approved. User attempts have been reset.' };
+        return { success: true, message: 'Request approved. User attempts and course progress have been reset.' };
 
     } catch (error) {
         console.error("Error approving reset request:", error);
