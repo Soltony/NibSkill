@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { LiveSessionStatus } from '@prisma/client'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -33,11 +34,22 @@ export async function addLiveSession(values: z.infer<typeof formSchema>) {
         
         const { isRestricted, allowedUserIds, ...sessionData } = validatedFields.data;
 
+        const now = new Date();
+        const sessionTime = new Date(sessionData.dateTime);
+        const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // Assuming 1-hour duration
+        let status: LiveSessionStatus = 'UPCOMING';
+        if (now >= sessionTime && now <= endTime) {
+            status = 'LIVE';
+        } else if (now > endTime) {
+            status = 'ENDED';
+        }
+
         await prisma.liveSession.create({
             data: {
                 ...sessionData,
                 dateTime: new Date(sessionData.dateTime),
                 isRestricted,
+                status: status,
                 trainingProviderId: session.trainingProviderId,
                 allowedAttendees: isRestricted && allowedUserIds ? {
                     create: allowedUserIds.map(userId => ({
