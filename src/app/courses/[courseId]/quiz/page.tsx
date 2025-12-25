@@ -8,7 +8,7 @@ import type { Quiz as TQuiz, Question, Option as TOption, Course, User, UserComp
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { BookCopy, ShieldExclamation } from 'lucide-react';
+import { BookCopy, ShieldIcon } from 'lucide-react';
 
 type QuizType = TQuiz & { 
   questions: (Question & { options: TOption[] })[],
@@ -92,7 +92,7 @@ export default async function QuizPage({ params }: { params: { courseId: string 
             <main className="flex min-h-screen flex-col items-center justify-center p-4">
                 <Card className="w-full max-w-lg text-center">
                     <CardHeader>
-                        <ShieldExclamation className="h-12 w-12 mx-auto text-destructive" />
+                        <ShieldIcon className="h-12 w-12 mx-auto text-destructive" />
                         <CardTitle className="mt-4">Quiz Locked</CardTitle>
                         <CardDescription>You have used all your attempts for this quiz.</CardDescription>
                     </CardHeader>
