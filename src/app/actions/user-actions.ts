@@ -31,16 +31,6 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             return { success: false, message: "Course not found." };
         }
         
-        const existingCompletion = await prisma.userCompletedCourse.findFirst({
-            where: {
-                userId, 
-                courseId,
-            },
-            orderBy: {
-                completionDate: 'desc'
-            }
-        });
-
         // Always create a new record for each attempt to track history.
         await prisma.userCompletedCourse.create({
             data: { userId, courseId, score }
