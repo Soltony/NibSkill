@@ -12,7 +12,7 @@ const loginSchema = z.object({
   email: z.string().email().optional(),
   phoneNumber: z.string().optional(),
   password: z.string().optional(),
-  loginAs: z.enum(['admin', 'staff']).optional(),
+  loginAs: z.enum(['admin', 'staff', 'super-admin']).optional(),
 });
 
 interface GuestJwtPayload extends JWTPayload {
@@ -32,12 +32,15 @@ type UserWithFullRoles = User & {
 };
 
 // Helper function to check if a user's roles match the intended login role
-const userHasRole = (user: UserWithFullRoles, loginAs: 'admin' | 'staff') => {
+const userHasRole = (user: UserWithFullRoles, loginAs: 'admin' | 'staff' | 'super-admin') => {
     return user.roles.some(userRole => {
         const roleName = userRole.role.name.toLowerCase();
+        if (loginAs === 'super-admin') {
+            return roleName === 'super admin';
+        }
         if (loginAs === 'admin') {
-            // Any role that isn't 'staff' is considered an admin-type role for login purposes.
-            return roleName !== 'staff';
+            // Any admin-type role that ISN'T super admin or staff
+            return roleName !== 'staff' && roleName !== 'super admin';
         }
         if (loginAs === 'staff') {
             return roleName === 'staff';
@@ -92,7 +95,8 @@ export async function POST(request: NextRequest) {
     // Now that we have a valid user for the role, find the specific role to use for the session
     selectedRole = candidateUser.roles.find(userRole => {
         const roleName = userRole.role.name.toLowerCase();
-        if (loginAs === 'admin') return roleName !== 'staff';
+        if (loginAs === 'super-admin') return roleName === 'super admin';
+        if (loginAs === 'admin') return roleName !== 'staff' && roleName !== 'super admin';
         if (loginAs === 'staff') return roleName === 'staff';
         return false;
     })?.role;

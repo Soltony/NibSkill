@@ -41,7 +41,7 @@ export default function LoginPage() {
     if (data.isSuccess) {
       toast({
         title: 'Login Successful',
-        description: `Welcome back, ${role === 'admin' ? 'Admin' : 'Staff'}!`,
+        description: `Welcome back, ${role.charAt(0).toUpperCase() + role.slice(1)}!`,
       });
       router.push(data.redirectTo || (role === 'admin' ? '/admin/analytics' : '/dashboard'));
     } else {
@@ -57,7 +57,7 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     return (
         <form onSubmit={(e) => handleLogin(e, role)}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
             <div className="space-y-2">
             <Label htmlFor={`${role}-phoneNumber`}>Phone Number</Label>
             <Input 
@@ -92,7 +92,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full">
-            Sign In as {role === 'admin' ? 'Admin' : 'Staff'}
+            Sign In as {role.charAt(0).toUpperCase() + role.slice(1)}
             </Button>
         </CardFooter>
         </form>

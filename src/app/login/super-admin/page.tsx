@@ -33,7 +33,7 @@ export default function SuperAdminLoginPage() {
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumber, password, loginAs: 'admin' }),
+      body: JSON.stringify({ phoneNumber, password, loginAs: 'super-admin' }),
     });
 
     const data = await response.json();
