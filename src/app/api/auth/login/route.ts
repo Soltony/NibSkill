@@ -36,7 +36,8 @@ const userHasRole = (user: UserWithFullRoles, loginAs: 'admin' | 'staff') => {
     return user.roles.some(userRole => {
         const roleName = userRole.role.name.toLowerCase();
         if (loginAs === 'admin') {
-            return ['admin', 'super admin', 'training provider'].includes(roleName);
+            // Any role that isn't 'staff' is considered an admin-type role for login purposes.
+            return roleName !== 'staff';
         }
         if (loginAs === 'staff') {
             return roleName === 'staff';
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
     // Now that we have a valid user for the role, find the specific role to use for the session
     selectedRole = candidateUser.roles.find(userRole => {
         const roleName = userRole.role.name.toLowerCase();
-        if (loginAs === 'admin') return ['admin', 'super admin', 'training provider'].includes(roleName);
+        if (loginAs === 'admin') return roleName !== 'staff';
         if (loginAs === 'staff') return roleName === 'staff';
         return false;
     })?.role;
