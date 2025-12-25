@@ -182,6 +182,7 @@ export async function endLiveSession(sessionId: string) {
         });
 
         revalidatePath('/admin/live-sessions');
+        revalidatePath('/live-sessions');
         return { success: true };
 
     } catch (error) {
