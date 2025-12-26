@@ -1,5 +1,3 @@
-
-
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -8,6 +6,7 @@ import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { roles } from '@/lib/data'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
+import { randomBytes } from 'crypto'
 
 const formSchema = z.object({
   name: z.string().min(2, "Provider name is required."),
@@ -16,7 +15,6 @@ const formSchema = z.object({
   adminFirstName: z.string().min(2, "Admin first name is required."),
   adminLastName: z.string().min(2, "Admin last name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPassword: z.string().min(6, "Password must be at least 6 characters."),
   adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
 })
 
@@ -27,7 +25,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
             return { success: false, message: "Invalid data provided." }
         }
 
-        const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPassword, adminPhoneNumber } = validatedFields.data;
+        const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPhoneNumber } = validatedFields.data;
 
         const providerAdminRole = await prisma.role.findFirst({
             where: { name: 'Training Provider' }
@@ -35,7 +33,8 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
         if (!providerAdminRole) {
             throw new Error("Training Provider role not found.");
         }
-
+        
+        const adminPassword = randomBytes(4).toString('hex'); // 8 chars
         const hashedPassword = await bcrypt.hash(adminPassword, 10);
         
         const defaultAdminRolePermissions = roles.find(r => r.name === 'Admin')?.permissions;

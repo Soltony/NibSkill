@@ -36,14 +36,12 @@ const formSchema = z.object({
   adminFirstName: z.string().min(2, "Admin first name is required."),
   adminLastName: z.string().min(2, "Admin last name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPassword: z.string().min(6, "Password must be at least 6 characters."),
   adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
 })
 
 export function AddProviderDialog() {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
-  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -54,7 +52,6 @@ export function AddProviderDialog() {
       adminFirstName: "",
       adminLastName: "",
       adminEmail: "",
-      adminPassword: "",
       adminPhoneNumber: "",
     },
   })
@@ -64,7 +61,7 @@ export function AddProviderDialog() {
     if (result.success) {
         toast({
             title: "Provider Registered",
-            description: `The provider "${values.name}" has been successfully registered.`,
+            description: `The provider "${values.name}" has been successfully registered. Their credentials have been sent via email.`,
         })
         setOpen(false)
         form.reset()
@@ -169,40 +166,6 @@ export function AddProviderDialog() {
                 <FormItem>
                   <FormLabel>Admin Email</FormLabel>
                   <FormControl><Input type="email" placeholder="admin@acme.com" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="adminPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Admin Password</FormLabel>
-                  <div className="relative">
-                    <FormControl>
-                      <Input
-                        type={showPassword ? "text" : "password"}
-                        {...field}
-                      />
-                    </FormControl>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                      <span className="sr-only">
-                        {showPassword ? "Hide password" : "Show password"}
-                      </span>
-                    </Button>
-                  </div>
                   <FormMessage />
                 </FormItem>
               )}

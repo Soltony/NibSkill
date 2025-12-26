@@ -1,4 +1,3 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -7,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email';
+import { randomBytes } from 'crypto';
 
 
 interface GuestJwtPayload extends JWTPayload {
@@ -24,7 +24,6 @@ const getJwtSecret = () => {
 const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email().optional().or(z.literal('')),
-  password: z.string().min(6),
   department: z.string().optional(),
   district: z.string().optional(),
   branch: z.string().optional(),
@@ -42,7 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ isSuccess: false, errors: validation.error.issues.map(i => i.message) }, { status: 400 });
     }
 
-    const { name, email, password, department, district, branch, phoneNumber, trainingProviderId } = validation.data;
+    const { name, email, department, district, branch, phoneNumber, trainingProviderId } = validation.data;
 
     const staffRole = await prisma.role.findFirst({
         where: { 
@@ -65,7 +64,8 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
         return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number already exists for this provider.'] }, { status: 409 });
     }
-
+    
+    const password = randomBytes(4).toString('hex'); // 8 chars
     const hashedPassword = await bcrypt.hash(password, 10);
     
     const newUser = await prisma.user.create({

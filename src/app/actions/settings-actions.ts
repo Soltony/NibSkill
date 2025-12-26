@@ -1,5 +1,3 @@
-
-
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -9,6 +7,7 @@ import bcrypt from 'bcryptjs'
 import { FieldType } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
+import { randomBytes } from 'crypto'
 
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -72,7 +71,6 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
 const registerUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
-  password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
   phoneNumber: z.string().min(1, "Phone number is required"),
   departmentId: z.string().optional(),
@@ -92,7 +90,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
             return { success: false, message: 'Invalid data provided.' };
         }
 
-        const { name, email, password, roleId, phoneNumber, departmentId, districtId, branchId } = validatedFields.data;
+        const { name, email, roleId, phoneNumber, departmentId, districtId, branchId } = validatedFields.data;
 
         if (phoneNumber) {
              const existingUserByPhone = await prisma.user.findFirst({
@@ -105,7 +103,8 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                  return { success: false, message: 'A user with this phone number already exists for this provider.' };
              }
         }
-
+        
+        const password = randomBytes(4).toString('hex'); // 8 characters
         const hashedPassword = await bcrypt.hash(password, 10);
         
         const newUser = await prisma.user.create({
