@@ -27,7 +27,7 @@ import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
 import type { RegistrationField as TRegistrationField, District, Branch, Department, TrainingProvider } from "@prisma/client";
 import Link from "next/link";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Eye, EyeOff } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initialRegistrationFields, FieldType } from "@/lib/data";
@@ -38,13 +38,20 @@ const baseSchema = z.object({
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   phoneNumber: z.string().min(1, "Phone number is required"),
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
+  password: z.string().min(6, "Password must be at least 6 characters."),
+  confirmPassword: z.string().min(6, "Please confirm your password."),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
+
 
 // Create initial default values from both static and dynamic fields
 const allDefaultValues = {
   name: "",
   email: "",
   password: "",
+  confirmPassword: "",
   phoneNumber: "",
   trainingProviderId: "",
   ...initialRegistrationFields.reduce((acc, field) => {
@@ -62,6 +69,7 @@ export default function RegisterPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [trainingProviders, setTrainingProviders] = useState<TrainingProvider[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
 
@@ -123,7 +131,7 @@ export default function RegisterPage() {
     if (data.isSuccess) {
       toast({
         title: "Registration Successful",
-        description: "Your login credentials have been sent to your email. You can now sign in.",
+        description: "You have successfully created an account. You can now log in.",
       });
       router.push("/login");
     } else {
@@ -267,7 +275,7 @@ export default function RegisterPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email (Optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="user@company.com" {...field} />
                     </FormControl>
@@ -313,6 +321,49 @@ export default function RegisterPage() {
               {registrationFields.map(field => (
                 <div key={field.id}>{renderField(field)}</div>
               ))}
+              <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <div className="relative">
+                        <FormControl>
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Must be at least 6 characters"
+                            {...field}
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                       <div className="relative">
+                        <FormControl>
+                            <Input type={showPassword ? "text" : "password"} {...field} />
+                        </FormControl>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>

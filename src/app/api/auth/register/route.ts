@@ -5,8 +5,6 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
-import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email';
-import { randomBytes } from 'crypto';
 
 
 interface GuestJwtPayload extends JWTPayload {
@@ -29,6 +27,7 @@ const registerSchema = z.object({
   branch: z.string().optional(),
   phoneNumber: z.string().min(1, "Phone number is required"),
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
+  password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
 export async function POST(request: NextRequest) {
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ isSuccess: false, errors: validation.error.issues.map(i => i.message) }, { status: 400 });
     }
 
-    const { name, email, department, district, branch, phoneNumber, trainingProviderId } = validation.data;
+    const { name, email, department, district, branch, phoneNumber, trainingProviderId, password } = validation.data;
 
     const staffRole = await prisma.role.findFirst({
         where: { 
@@ -65,10 +64,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number already exists for this provider.'] }, { status: 409 });
     }
     
-    const password = randomBytes(4).toString('hex'); // 8 chars
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    const newUser = await prisma.user.create({
+    await prisma.user.create({
       data: {
         name,
         email: email || null,
@@ -86,16 +84,6 @@ export async function POST(request: NextRequest) {
         }
       },
     });
-
-    if (newUser.email) {
-        const loginUrl = process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/login` : 'http://localhost:9002/login';
-        const emailHtml = getLoginCredentialsEmailTemplate(phoneNumber, password, loginUrl);
-        await sendEmail({
-            to: newUser.email,
-            subject: 'Your NIB Training Platform Credentials',
-            html: emailHtml
-        });
-    }
 
     return NextResponse.json({
       isSuccess: true,
