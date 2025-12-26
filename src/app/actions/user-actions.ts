@@ -24,7 +24,7 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
         const course = await prisma.course.findUnique({
             where: { id: courseId },
-            include: { quiz: true },
+            include: { quiz: true, modules: { select: { id: true } } },
         });
 
         if (!course) {
@@ -47,6 +47,19 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         }
         
         const passed = course.quiz ? score >= course.quiz.passingScore : true;
+        
+        // If the user failed, reset their module progress to force a retake.
+        if (!passed) {
+            const moduleIds = course.modules.map(m => m.id);
+            if (moduleIds.length > 0) {
+                await prisma.userCompletedModule.deleteMany({
+                    where: {
+                        userId: userId,
+                        moduleId: { in: moduleIds }
+                    }
+                });
+            }
+        }
         
         const notificationTitle = passed ? "Quiz Graded: Passed" : "Quiz Graded: Failed";
         const notificationDescription = `Your quiz for "${course.title}" has been graded. You scored ${score}%.`;
