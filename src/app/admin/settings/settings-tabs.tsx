@@ -73,9 +73,8 @@ type FullResetRequest = ResetRequest & { user: User; course: Course };
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().min(1, "Phone number is required"),
   departmentId: z.string().optional(),
   districtId: z.string().optional(),
   branchId: z.string().optional(),
@@ -168,7 +167,6 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     defaultValues: {
       name: "",
       email: "",
-      password: "",
       roleId: roles.find(r => r.name === 'Staff')?.id
     },
   })
@@ -176,7 +174,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
   const onRegisterUser = async (values: z.infer<typeof registrationSchema>) => {
     const result = await registerUser(values);
     if (result.success) {
-        toast({ title: "User Registered", description: `${values.name} has been added.` })
+        toast({ title: "User Registered", description: `${values.name} has been added. Their credentials have been sent via email.` })
         form.reset()
     } else {
         toast({ title: "Error", description: result.message, variant: "destructive" });
@@ -449,19 +447,6 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g. 2519..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
