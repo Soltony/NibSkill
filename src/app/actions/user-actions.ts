@@ -38,6 +38,17 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         
         const passed = course.quiz ? score >= course.quiz.passingScore : true;
         
+        const notificationTitle = passed ? "Quiz Graded: Passed" : "Quiz Graded: Failed";
+        const notificationDescription = `Your quiz for "${course.title}" has been graded. You scored ${score}%.`;
+
+        await prisma.notification.create({
+            data: {
+                userId: userId,
+                title: notificationTitle,
+                description: notificationDescription,
+            }
+        });
+
         if (passed && course.hasCertificate) {
             revalidatePath(`/courses/${courseId}/certificate`);
         }
@@ -45,6 +56,7 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         revalidatePath('/profile');
         revalidatePath(`/courses/${courseId}`); // Revalidate to show new progress
         revalidatePath('/dashboard');
+        revalidatePath('/layout'); // Revalidate layout to update notifications
         
         return { success: true, message: 'Course completion recorded.' }
     } catch (error) {
