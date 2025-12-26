@@ -7,6 +7,7 @@ import { z } from 'zod'
 import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { roles } from '@/lib/data'
+import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 
 const formSchema = z.object({
   name: z.string().min(2, "Provider name is required."),
@@ -65,8 +66,23 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
                         { name: 'Staff', permissions: defaultStaffRolePermissions || {} },
                     ]
                 }
+            },
+            include: {
+                users: true
             }
         });
+
+        const newAdmin = newProvider.users[0];
+        if (newAdmin?.email) {
+            const loginUrl = process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/login` : 'http://localhost:9002/login';
+            const emailHtml = getLoginCredentialsEmailTemplate(adminPhoneNumber, adminPassword, loginUrl);
+            await sendEmail({
+                to: newAdmin.email,
+                subject: 'Your NIB Training Platform Admin Credentials',
+                html: emailHtml
+            });
+        }
+
 
         revalidatePath('/super-admin/providers');
         revalidatePath('/super-admin/dashboard');
@@ -78,7 +94,6 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
             if (target.includes('name') || target.includes('accountNumber')) {
                  return { success: false, message: "A provider with this name or account number already exists." }
             }
-            // Fallback for other unique constraint issues, though less likely now
             return { success: false, message: "A user with this email or phone number might already exist in a conflicting context." };
         }
         return { success: false, message: "Failed to register training provider." }
@@ -173,4 +188,3 @@ export async function deleteTrainingProvider(providerId: string) {
         return { success: false, message: 'Failed to delete provider.' };
     }
 }
-

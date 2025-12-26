@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
+import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email';
+
 
 interface GuestJwtPayload extends JWTPayload {
   phoneNumber: string;
@@ -57,16 +59,11 @@ export async function POST(request: NextRequest) {
         where: {
             phoneNumber,
             trainingProviderId,
-            roles: {
-                some: {
-                    roleId: staffRole.id
-                }
-            }
         }
     });
 
     if (existingUser) {
-        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
+        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number already exists for this provider.'] }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -90,8 +87,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // We don't save the Super App token here anymore, to avoid the schema error.
-    // The payment initiation will rely on the guest cookie if it's present.
+    if (newUser.email) {
+        const loginUrl = process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/login` : 'http://localhost:9002/login';
+        const emailHtml = getLoginCredentialsEmailTemplate(phoneNumber, password, loginUrl);
+        await sendEmail({
+            to: newUser.email,
+            subject: 'Your NIB Training Platform Credentials',
+            html: emailHtml
+        });
+    }
 
     return NextResponse.json({
       isSuccess: true,

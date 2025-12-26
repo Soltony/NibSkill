@@ -8,6 +8,7 @@ import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { FieldType } from '@prisma/client'
 import { getSession } from '@/lib/auth'
+import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -31,8 +32,6 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
                 data: userData
             });
 
-            // This is a simplification. Assuming one role per user from the UI for now.
-            // For a true multi-role system, this would need to handle additions/removals.
             const existingUserRole = await tx.userRole.findFirst({
                 where: { userId: userId }
             });
@@ -75,7 +74,7 @@ const registerUserSchema = z.object({
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().min(1, "Phone number is required"),
   departmentId: z.string().optional(),
   districtId: z.string().optional(),
   branchId: z.string().optional(),
@@ -95,23 +94,21 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
         const { name, email, password, roleId, phoneNumber, departmentId, districtId, branchId } = validatedFields.data;
 
-        // Since phone number is the main identifier, check for its uniqueness if provided
         if (phoneNumber) {
              const existingUserByPhone = await prisma.user.findFirst({
                  where: { 
                     phoneNumber: phoneNumber,
-                    roles: { some: { roleId: roleId } },
                     trainingProviderId: session.trainingProviderId
                 },
              });
              if (existingUserByPhone) {
-                 return { success: false, message: 'A user with this phone number and role already exists.' };
+                 return { success: false, message: 'A user with this phone number already exists for this provider.' };
              }
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        await prisma.user.create({
+        const newUser = await prisma.user.create({
             data: {
                 name,
                 email: email || null,
@@ -130,12 +127,21 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
             }
         });
 
+        if (newUser.email) {
+            const loginUrl = process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/login` : 'http://localhost:9002/login';
+            const emailHtml = getLoginCredentialsEmailTemplate(phoneNumber, password, loginUrl);
+            await sendEmail({
+                to: newUser.email,
+                subject: 'Your NIB Training Platform Credentials',
+                html: emailHtml
+            });
+        }
+
         revalidatePath('/admin/settings');
         return { success: true, message: 'User registered successfully.' };
 
     } catch (error) {
         console.error("Error registering user:", error);
-        // Generic error message to avoid revealing specific database constraint failures
         return { success: false, message: 'Failed to register user. There might be a conflict with existing data.' };
     }
 }
@@ -336,4 +342,3 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
-
