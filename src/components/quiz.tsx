@@ -52,6 +52,9 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [isUnderReview, setIsUnderReview] = useState(false);
+  // New states to manage attempt recording and certificate issuance
+  const [isRecordingAttempt, setIsRecordingAttempt] = useState(false);
+  const [completionSaved, setCompletionSaved] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -108,6 +111,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     setShowResult(true);
 
     // Always record the attempt, regardless of pass/fail
+    setIsRecordingAttempt(true);
+    setCompletionSaved(false);
     startTransition(async () => {
         const result = await completeCourse({
             userId,
@@ -115,13 +120,19 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             score: finalScore,
         });
 
+        setIsRecordingAttempt(false);
+
         if (!result.success) {
             toast({
-            title: "Error Saving Attempt",
-            description: result.message,
-            variant: "destructive"
-            })
+                title: "Error Saving Attempt",
+                description: result.message,
+                variant: "destructive"
+            });
+            return;
         }
+
+        // Mark that the completion entry has been recorded so we can safely show the certificate
+        setCompletionSaved(true);
     });
 
   }, [answers, quiz, userId, toast]);
@@ -348,12 +359,19 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                     Back to Course
                 </Button>
             ) : passed && quiz.course.hasCertificate ? (
-                <Button asChild>
-                    <Link href={`/courses/${quiz.courseId}/certificate`}>
-                        <Award className="mr-2 h-4 w-4" />
-                        View Certificate
-                    </Link>
-                </Button>
+                completionSaved ? (
+                    <Button asChild>
+                        <Link href={`/courses/${quiz.courseId}/certificate`}>
+                            <Award className="mr-2 h-4 w-4" />
+                            View Certificate
+                        </Link>
+                    </Button>
+                ) : (
+                    <Button disabled>
+                        {isRecordingAttempt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Award className="mr-2 h-4 w-4" />}
+                        {isRecordingAttempt ? 'Issuing Certificate...' : 'Issuing Certificate...'}
+                    </Button>
+                )
             ) : null }
 
              {!isUnderReview && (

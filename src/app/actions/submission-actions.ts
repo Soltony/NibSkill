@@ -102,8 +102,19 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             };
 
             // Only mark course as completed if the user passed.
-            // But always record the attempt for history.
-            await tx.userCompletedCourse.create({ data: newAttempt });
+            // Record the attempt — update existing completion record if present instead of failing.
+            const existing = await tx.userCompletedCourse.findUnique({
+                where: { userId_courseId: { userId, courseId } }
+            });
+
+            if (!existing) {
+                await tx.userCompletedCourse.create({ data: newAttempt });
+            } else {
+                await tx.userCompletedCourse.update({
+                    where: { userId_courseId: { userId, courseId } },
+                    data: { score: finalScore, completionDate: new Date() }
+                });
+            }
             
             // If user failed and has attempts left, reset module progress.
             const allAttempts = await tx.quizSubmission.count({ where: { userId, quizId: submission.quizId }});

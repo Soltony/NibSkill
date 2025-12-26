@@ -31,10 +31,20 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             return { success: false, message: "Course not found." };
         }
         
-        // Always create a new record for each attempt to track history.
-        await prisma.userCompletedCourse.create({
-            data: { userId, courseId, score }
+        // Record the completion attempt. If a completion record already exists, update it instead
+        const existing = await prisma.userCompletedCourse.findUnique({
+            where: { userId_courseId: { userId, courseId } }
         });
+
+        if (!existing) {
+            await prisma.userCompletedCourse.create({ data: { userId, courseId, score } });
+        } else {
+            // Update completion date and score. Keep history outside of this model for now.
+            await prisma.userCompletedCourse.update({
+                where: { userId_courseId: { userId, courseId } },
+                data: { score, completionDate: new Date() }
+            });
+        }
         
         const passed = course.quiz ? score >= course.quiz.passingScore : true;
         
