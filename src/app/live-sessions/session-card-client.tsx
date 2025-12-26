@@ -1,7 +1,8 @@
 
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { MouseEvent } from "react";
 import type { LiveSession as SessionType, UserAttendedLiveSession } from "@prisma/client";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,19 +25,58 @@ type SessionCardProps = {
 export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, isAllowed }: SessionCardProps) => {
     const { toast } = useToast();
     const [hasAttended, setHasAttended] = useState(initialHasAttended);
+    // Track a live status that can be updated by polling so staff see admin-ended sessions immediately
+    const [currentStatus, setCurrentStatus] = useState(session.status);
 
     const now = new Date();
     const sessionTime = new Date(session.dateTime);
     const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // Assuming 1-hour duration
 
-    const isPast = now > endTime;
-    const isLive = now >= sessionTime && now <= endTime;
+    // Respect explicit session status (possibly updated via polling) in addition to time-based checks
+    const isPast = currentStatus === 'ENDED' || now > endTime;
+    const isLive = currentStatus === 'LIVE' && now >= sessionTime && now <= endTime;
+
+    // Poll the session status while it appears live so staff clients pick up admin-ended state quickly
+    useEffect(() => {
+        if (!isLive) return;
+        let stopped = false;
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/live-sessions/${session.id}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data?.success && data.session) {
+                    const newStatus = data.session.status as typeof currentStatus;
+                    if (newStatus !== currentStatus) {
+                        setCurrentStatus(newStatus);
+                        if (newStatus === 'ENDED') {
+                            // Notify user that session ended
+                            toast({ title: 'Session Ended', description: `The session "${session.title}" has been ended by the organizer.` });
+                        }
+                    }
+                }
+            } catch (error) {
+                // ignore transient errors
+            }
+        }, 5000);
+
+        return () => {
+            stopped = true;
+            clearInterval(interval);
+        };
+    }, [isLive, session.id, session.title, currentStatus, toast]);
     
-    const handleJoinAndAttend = async (e: React.MouseEvent) => {
+    const handleJoinAndAttend = async (e: MouseEvent) => {
         if (!isAllowed || hasAttended) return;
 
         // Prevent opening the link immediately if we are marking attendance
         e.preventDefault();
+
+        // If admin has ended session recently, prevent joining
+        if (currentStatus === 'ENDED') {
+            toast({ title: 'Session Ended', description: 'This session has been ended by the organizer.' });
+            return;
+        }
 
         setHasAttended(true); // Optimistic update
         const result = await markAttendance(session.id, userId);

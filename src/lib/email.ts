@@ -57,8 +57,8 @@ export const getLoginCredentialsEmailTemplate = (phoneNumber: string, password: 
                 border-radius: 5px;
             }
             .header {
-                background-color: #2e4c3d;
-                color: #fff;
+                background-color: #fecf12;
+                color: #000;
                 padding: 10px;
                 text-align: center;
                 border-radius: 5px 5px 0 0;
