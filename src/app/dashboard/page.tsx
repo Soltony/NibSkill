@@ -14,7 +14,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { DashboardClient } from './dashboard-client';
-import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse, Role, UserRole, User } from '@prisma/client';
+import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse, Role, UserRole, User, Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 
@@ -41,7 +41,7 @@ type CourseWithProgress = Course & {
 type UserWithRoles = User & { roles: (UserRole & {role: Role})[] };
 
 
-async function getDashboardData(user?: UserWithRoles | null): Promise<{
+async function getDashboardData(user?: UserWithRoles | null, isMiniApp: boolean = false): Promise<{
   courses: CourseWithProgress[];
   products: Product[];
   liveSessions: any[];
@@ -49,22 +49,34 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
 }> {
     let courseWhere: Prisma.CourseWhereInput = {
       status: 'PUBLISHED',
-      isPublic: true,
     };
+    
+    // Get user's purchased courses if they are logged in
+    const purchasedCourseIds = user 
+        ? (await prisma.userPurchasedCourse.findMany({ 
+              where: { userId: user.id }, 
+              select: { courseId: true } 
+          })).map(p => p.courseId)
+        : [];
+
+    if (isMiniApp) {
+        // Mini App: Only show paid courses
+        courseWhere.isPaid = true;
+    } else {
+        // Web Version: Show free courses OR paid courses they have purchased
+        courseWhere.OR = [
+            { isPaid: false },
+            { id: { in: purchasedCourseIds } }
+        ];
+    }
 
     if (user && user.trainingProviderId) {
-      courseWhere = {
-        status: 'PUBLISHED',
-        OR: [
+      courseWhere.OR = (courseWhere.OR || []).concat([
           { isPublic: true },
-          { 
-            isPublic: false,
-            trainingProviderId: user.trainingProviderId,
-          }
-        ]
-      };
-    } else if (user && !user.trainingProviderId) { // Super Admin
-        courseWhere = { status: 'PUBLISHED' };
+          { isPublic: false, trainingProviderId: user.trainingProviderId }
+      ]);
+    } else if (!user) { // Guest
+        courseWhere.isPublic = true;
     }
 
 
@@ -184,6 +196,7 @@ export default async function DashboardPage() {
   const session = await getSession();
   const guestSessionToken = cookies().get('miniapp_guest_session')?.value;
   let isGuest = false;
+  let isMiniApp = false;
   let userName = "Guest";
 
   // If no full session, check for a guest session.
@@ -192,6 +205,7 @@ export default async function DashboardPage() {
       try {
         await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
         isGuest = true;
+        isMiniApp = true; // Guest sessions are only from the mini-app
       } catch (e) {
         redirect('/login'); // Invalid guest token
       }
@@ -200,10 +214,14 @@ export default async function DashboardPage() {
     }
   } else {
     userName = session.name.split(' ')[0];
+    // A logged-in user can also be in the mini-app
+    if (guestSessionToken) {
+        isMiniApp = true;
+    }
   }
 
 
-  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(session || undefined);
+  const { courses, products, liveSessions, trainingProviders } = await getDashboardData(session || undefined, isMiniApp);
 
   return (
     <div className="space-y-8">
