@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const session = await getSession();
-    const guestSessionToken = cookies().get('miniapp_guest_session')?.value;
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
+    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+    const superAppToken = cookieStore.get('superapp_token')?.value;
     const body = await request.json();
     const { amount, courseId } = body;
 
@@ -66,7 +67,8 @@ export async function POST(request: NextRequest) {
 
     // Safety net - should not happen if logic above is correct
     if (!effectiveUserId) {
-        return NextResponse.json({ success: false, message: 'Authentication session not found.' }, { status: 401 });
+      console.log('[/api/payment/initiate] User not registered: prompting registration');
+      return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
     }
 
     const latestLogin = await prisma.loginHistory.findFirst({
