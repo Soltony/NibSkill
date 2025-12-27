@@ -6,6 +6,13 @@ import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { jwtVerify } from 'jose';
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
+  return new TextEncoder().encode(secret);
+};
 
 
 export async function POST(request: NextRequest) {
@@ -14,31 +21,51 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
     const guestSessionToken = cookies().get('miniapp_guest_session')?.value;
+    const cookieStore = cookies();
     const body = await request.json();
     const { amount, courseId } = body;
 
+    // If no full session and no guest session -> ask to login
     if (!session && !guestSessionToken) {
        return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
     }
 
+    // Determine an 'effective' user id: prefer full session, otherwise try to map guest token to an existing user
+    let effectiveUserId = session?.id ?? null;
     if (!session && guestSessionToken) {
-        return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
+        try {
+            const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
+            const phoneNumber = (payload as any).phoneNumber;
+            if (phoneNumber) {
+                const foundUser = await prisma.user.findFirst({ where: { phone: phoneNumber } });
+                if (foundUser) {
+                    effectiveUserId = foundUser.id;
+                }
+            }
+        } catch (err) {
+            // Invalid guest token - treat as guest
+        }
+
+        if (!effectiveUserId) {
+            return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
+        }
     }
-    
-    if (!session) {
-        // Should not happen if logic above is correct, but as a safeguard.
+
+    // Safety net - should not happen
+    if (!effectiveUserId) {
         return NextResponse.json({ success: false, message: 'Authentication session not found.' }, { status: 401 });
     }
 
     const latestLogin = await prisma.loginHistory.findFirst({
-        where: { userId: session.id },
+        where: { userId: effectiveUserId },
         orderBy: { loginTime: 'desc' }
     });
 
-    const token = latestLogin?.superAppToken;
+    // Prefer token from login history but fall back to the cookie set by /api/connect
+    const token = latestLogin?.superAppToken || cookieStore.get('superapp_token')?.value;
 
     if (!token) {
-      console.error(`[/api/payment/initiate] SuperApp token not found for user ${session.id}.`);
+      console.error(`[/api/payment/initiate] SuperApp token not found for user ${effectiveUserId}.`);
       return NextResponse.json({ success: false, message: 'SuperApp authentication token not found. Please re-enter from the main app.' }, { status: 401 });
     }
     
@@ -96,7 +123,7 @@ export async function POST(request: NextRequest) {
     await prisma.pendingTransaction.create({
         data: {
             transactionId,
-            userId: session.id,
+            userId: effectiveUserId,
             courseId: courseId,
             amount: parseFloat(safeAmount),
         }
