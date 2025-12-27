@@ -146,6 +146,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'SuperApp authentication token not found. Please re-enter from the main app.' }, { status: 401 });
     }
 
+    // HARD GUARD: If the token looks like a JWT (starts with eyJ), reject - it must be a SuperApp opaque token
+    if (token && String(token).startsWith('eyJ')) {
+      console.error('[/api/payment/initiate] Rejecting token that looks like a JWT (not a SuperApp token)');
+      return NextResponse.json({ success: false, message: 'Invalid SuperApp token. Please open from NIB SuperApp.' }, { status: 401 });
+    }
+
     if (!token) {
       console.error(`[/api/payment/initiate] SuperApp token not found for user ${effectiveUserId}.`);
       return NextResponse.json({ success: false, message: 'SuperApp authentication token not found. Please re-enter from the main app.' }, { status: 401 });

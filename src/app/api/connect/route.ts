@@ -33,6 +33,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Log token preview for debugging (temporary)
+    console.log('[CONNECT] Incoming Authorization token preview:', String(token).slice(0, 20), 'len:', String(token).length);
+
+    // HARD FAIL: Reject if a JWT was provided instead of the opaque SuperApp token
+    if (String(token).startsWith('eyJ')) {
+      console.error('[CONNECT] JWT received instead of SuperApp token');
+      return NextResponse.redirect(new URL('/unsupported-entry', request.url));
+    }
+
     const validationUrl = process.env.VALIDATE_TOKEN_URL;
     if (!validationUrl) {
       console.error('[CONNECT] VALIDATE_TOKEN_URL not set');
