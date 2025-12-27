@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
             const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
             const phoneNumber = (payload as any).phoneNumber;
             if (phoneNumber) {
-                const foundUser = await prisma.user.findFirst({ where: { phone: phoneNumber } });
+                const foundUser = await prisma.user.findFirst({ where: { phoneNumber: phoneNumber } });
                 if (foundUser) {
                     effectiveUserId = foundUser.id;
                 }
