@@ -25,6 +25,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { amount, courseId } = body;
 
+    console.log('[/api/payment/initiate] Session:', session ? 'PRESENT' : 'NO_SESSION');
+    console.log('[/api/payment/initiate] Guest session token:', guestSessionToken ? 'PRESENT' : 'NOT_PRESENT');
+    console.log('[/api/payment/initiate] Request body:', body);
+
     // If no full session and no guest session -> ask to login
     if (!session && !guestSessionToken) {
        return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
@@ -33,17 +37,26 @@ export async function POST(request: NextRequest) {
     // Determine an 'effective' user id: prefer full session, otherwise try to map guest token to an existing user
     let effectiveUserId = session?.id ?? null;
     if (!session && guestSessionToken) {
+        console.log('[/api/payment/initiate] Guest user attempted purchase');
         try {
             const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
             const phoneNumber = (payload as any).phoneNumber;
-            if (phoneNumber) {
-                const foundUser = await prisma.user.findFirst({ where: { phoneNumber: phoneNumber } });
+            
+            const course = await prisma.course.findUnique({ where: { id: courseId }, select: { trainingProviderId: true } });
+            
+            if (phoneNumber && course?.trainingProviderId) {
+                const foundUser = await prisma.user.findFirst({ 
+                    where: { 
+                        phoneNumber: phoneNumber,
+                        trainingProviderId: course.trainingProviderId
+                    } 
+                });
                 if (foundUser) {
                     effectiveUserId = foundUser.id;
                 }
             }
         } catch (err) {
-            // Invalid guest token - treat as guest
+            // Invalid guest token - treat as guest, will be handled below
         }
 
         if (!effectiveUserId) {
@@ -51,7 +64,7 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    // Safety net - should not happen
+    // Safety net - should not happen if logic above is correct
     if (!effectiveUserId) {
         return NextResponse.json({ success: false, message: 'Authentication session not found.' }, { status: 401 });
     }
