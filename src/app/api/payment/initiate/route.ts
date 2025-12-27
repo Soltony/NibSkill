@@ -65,37 +65,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If we didn't get phone from guest token, try superApp token (decode or validate endpoint)
+    // If we didn't get phone from guest token, try to validate SuperApp token via the validation endpoint (do NOT decode it)
     if (!phoneFromToken && superAppToken) {
-      try {
-        const { payload } = await jwtVerify(superAppToken, getJwtSecret(), { algorithms: ['HS256'] });
-        const rawPhone = (payload as any).phoneNumber || (payload as any).phone || (payload as any).phone_number;
-        const normalized = normalizePhone(rawPhone);
-        console.log('[/api/payment/initiate] Decoded superApp token payload phone:', { rawPhone, normalized });
-        phoneFromToken = normalized;
-      } catch (err) {
-        console.log('[/api/payment/initiate] superApp token is not a JWT or failed decode, attempting validate endpoint');
-        const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL || process.env.VALIDATE_TOKEN_URL || '';
-        if (VALIDATE_TOKEN_URL) {
-          try {
-            const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
-              method: 'GET',
-              headers: { Authorization: `Bearer ${superAppToken}`, Accept: 'application/json' },
-              cache: 'no-store'
-            });
-            if (externalResponse.ok) {
-              const rd = await externalResponse.json();
-              const rawPhone = rd.phone || rd.phoneNumber || rd.msisdn;
-              const normalized = normalizePhone(rawPhone);
-              console.log('[/api/payment/initiate] Phone from validate endpoint:', { rawPhone, normalized });
-              phoneFromToken = normalized;
-            } else {
-              console.log('[/api/payment/initiate] validate endpoint returned', externalResponse.status);
-            }
-          } catch (err2) {
-            console.log('[/api/payment/initiate] validate endpoint call failed:', (err2 as Error).message);
+      const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL || process.env.VALIDATE_TOKEN_URL || '';
+      if (VALIDATE_TOKEN_URL) {
+        try {
+          const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${superAppToken}`, Accept: 'application/json' },
+            cache: 'no-store'
+          });
+          if (externalResponse.ok) {
+            const rd = await externalResponse.json();
+            const rawPhone = rd.phone || rd.phoneNumber || rd.msisdn;
+            const normalized = normalizePhone(rawPhone);
+            console.log('[/api/payment/initiate] Phone from validate endpoint:', { rawPhone, normalized });
+            phoneFromToken = normalized;
+          } else {
+            console.log('[/api/payment/initiate] validate endpoint returned', externalResponse.status);
           }
+        } catch (err2) {
+          console.log('[/api/payment/initiate] validate endpoint call failed:', (err2 as Error).message);
         }
+      } else {
+        console.log('[/api/payment/initiate] No VALIDATE_TOKEN_URL configured; cannot validate SuperApp token for phone extraction');
       }
     }
 

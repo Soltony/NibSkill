@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     const normalizedPhone = normalizePhone(rawPhone);
 
-    const guestJwt = await new SignJWT({ phoneNumber: normalizedPhone, authToken: token })
+    const guestJwt = await new SignJWT({ phoneNumber: normalizedPhone })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('24h')
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       path: '/',
       httpOnly: true,
       secure: true, // required for SuperApp WebView
-      sameSite: 'lax',
+      sameSite: 'none', // required for MiniApp in WebView contexts
       maxAge: 60 * 60 * 24,
     });
 
