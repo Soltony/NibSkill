@@ -134,7 +134,24 @@ export async function POST(request: NextRequest) {
     });
 
     // Prefer token from login history but fall back to the cookie set by /api/connect
-    const token = latestLogin?.superAppToken || cookieStore.get('superapp_token')?.value;
+    const cookieToken = cookieStore.get('superapp_token')?.value;
+    const latestLoginToken = latestLogin?.superAppToken;
+    const token = latestLoginToken || cookieToken;
+
+    // Diagnostic log to verify we are using the SuperApp token (not the internal guest/session JWT)
+    console.log('[INITIATE] Token source:', {
+      isGuestSession: !!guestSessionToken,
+      hasSession: !!session,
+      hasLatestLoginToken: !!latestLoginToken,
+      hasCookieToken: !!cookieToken,
+      tokenPreview: token ? `${String(token).slice(0, 15)}... (len ${String(token).length})` : null
+    });
+
+    // Absolute rule: do not send guest session token (internal JWT) to NIB payment API
+    if (token && guestSessionToken && token === guestSessionToken) {
+      console.error('[/api/payment/initiate] Abort: token equals guest session token - SuperApp token required.');
+      return NextResponse.json({ success: false, message: 'SuperApp authentication token not found. Please re-enter from the main app.' }, { status: 401 });
+    }
 
     if (!token) {
       console.error(`[/api/payment/initiate] SuperApp token not found for user ${effectiveUserId}.`);
@@ -154,6 +171,8 @@ export async function POST(request: NextRequest) {
     const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
 
+    console.log('[INITIATE] CALLBACK_URL:', CALLBACK_URL);
+
     if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
       console.error('[/api/payment/initiate] Server configuration error: Missing payment gateway environment variables.');
       return NextResponse.json({ success: false, message: 'Server configuration error.' }, { status: 500 });
@@ -162,20 +181,22 @@ export async function POST(request: NextRequest) {
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
 
-    const params = {
-        accountNo: ACCOUNT_NO,
-        amount: safeAmount,
-        callBackURL: CALLBACK_URL,
-        companyName: COMPANY_NAME,
-        Key: NIB_PAYMENT_KEY,
-        token: token,
-        transactionId: transactionId,
-        transactionTime: transactionTime
-    };
-
-    const signatureString = Object.keys(params).sort().map(key => `${key}=${params[key as keyof typeof params]}`).join('&');
+    // IMPORTANT: NIB requires a *fixed* parameter order when computing the signature.
+    const signatureString =
+      `accountNo=${ACCOUNT_NO}` +
+      `&amount=${safeAmount}` +
+      `&callBackURL=${CALLBACK_URL}` +
+      `&companyName=${COMPANY_NAME}` +
+      `&Key=${NIB_PAYMENT_KEY}` +
+      `&token=${token}` +
+      `&transactionId=${transactionId}` +
+      `&transactionTime=${transactionTime}`;
 
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
+
+    // Debug: log signature string and signature hash (safe for debugging)
+    console.log('[INITIATE] Signature string:', signatureString);
+    console.log('[INITIATE] Signature hash:', signature);
 
     const paymentPayload = {
       accountNo: ACCOUNT_NO,
@@ -187,6 +208,26 @@ export async function POST(request: NextRequest) {
       transactionTime: transactionTime,
       signature: signature
     };
+
+    // Temporary debug endpoint: return payload + computed signature for comparison.
+    // NOTE: Enabled only when not in production to avoid leaking tokens.
+    if (body?.debug === true) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('[/api/payment/initiate] Debug payload request received in production - denied.');
+        return NextResponse.json({ success: false, message: 'Debug endpoint not allowed in production.' }, { status: 403 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        debug: true,
+        tokenUsed: token,
+        tokenPreview: token ? `${String(token).slice(0, 15)}... (len ${String(token).length})` : null,
+        signatureString,
+        signature,
+        paymentPayload,
+        callbackUrl: CALLBACK_URL
+      }, { status: 200 });
+    }
     
     if (dryRun) {
       return NextResponse.json({ success: true, dryRun: true, signatureString, signature, paymentPayload }, { status: 200 });
@@ -203,6 +244,7 @@ export async function POST(request: NextRequest) {
 
     let paymentResponse: Response;
     try {
+      console.log('[INITIATE] Sending payment request to NIB with token preview:', `${String(token).slice(0,15)}...`);
       paymentResponse = await fetch(NIB_PAYMENT_URL, {
         method: 'POST',
         headers: {
