@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -107,17 +108,13 @@ export default function RegisterPage() {
         });
         setDynamicSchema(schema as any);
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Could not load registration form. Please try again later.",
-          variant: "destructive"
-        })
+        console.error("Could not load registration form", error);
       } finally {
         setIsLoaded(true);
       }
     }
     fetchFormData();
-  }, [toast]);
+  }, []);
   
   const onRegisterUser = async (values: z.infer<typeof dynamicSchema>) => {
     const response = await fetch('/api/auth/register', {
