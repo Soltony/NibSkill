@@ -20,40 +20,100 @@ export async function POST(request: NextRequest) {
 
   try {
     const session = await getSession();
-    const guestSessionToken = cookies().get('miniapp_guest_session')?.value;
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
+    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+    const superAppToken = cookieStore.get('superapp_token')?.value;
     const body = await request.json();
     const { amount, courseId } = body;
 
-    // If no full session and no guest session -> ask to login
-    if (!session && !guestSessionToken) {
-       return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
+    console.log('[/api/payment/initiate] session present:', !!session, 'sessionId:', session?.id);
+    console.log('[/api/payment/initiate] guestSessionToken present:', !!guestSessionToken, 'superAppToken present:', !!superAppToken);
+
+    // Small helper to normalize phone numbers for lookup
+    const normalizePhone = (p?: string | null) => {
+      if (!p) return null;
+      return p.replace(/[^\d]/g, '');
+    };
+
+    // Extract phone from available tokens (guest JWT, then superApp token either by decode or validate endpoint)
+    let phoneFromToken: string | null = null;
+
+    if (guestSessionToken) {
+      try {
+        const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
+        const rawPhone = (payload as any).phoneNumber || (payload as any).phone || (payload as any).phone_number;
+        phoneFromToken = normalizePhone(rawPhone);
+        console.log('[/api/payment/initiate] phone extracted from guest token:', phoneFromToken, 'raw:', rawPhone);
+      } catch (err) {
+        console.log('[/api/payment/initiate] failed to decode guest token:', (err as Error).message);
+      }
     }
 
-    // Determine an 'effective' user id: prefer full session, otherwise try to map guest token to an existing user
-    let effectiveUserId = session?.id ?? null;
-    if (!session && guestSessionToken) {
-        try {
-            const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
-            const phoneNumber = (payload as any).phoneNumber;
-            if (phoneNumber) {
-                const foundUser = await prisma.user.findFirst({ where: { phone: phoneNumber } });
-                if (foundUser) {
-                    effectiveUserId = foundUser.id;
-                }
+    // If we still don't have a phone and a SuperApp token exists, try to decode it; if not decodable, call validation endpoint
+    if (!phoneFromToken && superAppToken) {
+      // Try decode as JWT
+      try {
+        const { payload } = await jwtVerify(superAppToken, getJwtSecret(), { algorithms: ['HS256'] });
+        const rawPhone = (payload as any).phoneNumber || (payload as any).phone || (payload as any).phone_number;
+        phoneFromToken = normalizePhone(rawPhone);
+        console.log('[/api/payment/initiate] phone extracted from superApp token (decoded):', phoneFromToken, 'raw:', rawPhone);
+      } catch (err) {
+        // Not a JWT or failed - try external validation endpoint
+        const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL || process.env.VALIDATE_TOKEN_URL || '';
+        if (VALIDATE_TOKEN_URL) {
+          try {
+            const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${superAppToken}`, Accept: 'application/json' },
+              cache: 'no-store'
+            });
+            if (externalResponse.ok) {
+              const rd = await externalResponse.json();
+              const rawPhone = rd.phone || rd.phoneNumber || rd.msisdn;
+              phoneFromToken = normalizePhone(rawPhone);
+              console.log('[/api/payment/initiate] phone extracted from superApp validate endpoint:', phoneFromToken, 'raw:', rawPhone);
+            } else {
+              console.log('[/api/payment/initiate] validate endpoint returned', externalResponse.status);
             }
-        } catch (err) {
-            // Invalid guest token - treat as guest
+          } catch (err2) {
+            console.log('[/api/payment/initiate] error calling validate endpoint:', (err2 as Error).message);
+          }
         }
-
-        if (!effectiveUserId) {
-            return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
-        }
+      }
     }
 
-    // Safety net - should not happen
+    // Decide authentication/registration using phone-first logic (do not gate purely on getSession())
+    let effectiveUserId: string | null = session?.id ?? null;
+
+    // If we don't have a session but we have a phone, try to find a registered user
+    if (!effectiveUserId && phoneFromToken) {
+      // Try exact match first
+      let foundUser = await prisma.user.findFirst({ where: { phoneNumber: phoneFromToken } });
+
+      // Fallback contains match without leading +
+      if (!foundUser && phoneFromToken) {
+        const containsVal = phoneFromToken.replace(/^\+/, '');
+        foundUser = await prisma.user.findFirst({ where: { phoneNumber: { contains: containsVal } } });
+      }
+
+      if (foundUser) {
+        console.log(`[/api/payment/initiate] Matched phone ${phoneFromToken} to user ${foundUser.id}`);
+        effectiveUserId = foundUser.id;
+      } else {
+        console.log('[/api/payment/initiate] No user found for phone from token:', phoneFromToken);
+      }
+    }
+
+    // If we don't have a session and we couldn't extract a phone at all, ask to login
+    if (!effectiveUserId && !phoneFromToken) {
+      console.log('[/api/payment/initiate] No session and no phone info; rejecting with login redirect');
+      return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
+    }
+
+    // If after attempting phone lookup we still have no effective user, ask the user to register
     if (!effectiveUserId) {
-        return NextResponse.json({ success: false, message: 'Authentication session not found.' }, { status: 401 });
+      console.log('[/api/payment/initiate] User not registered: prompting registration');
+      return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
     }
 
     const latestLogin = await prisma.loginHistory.findFirst({
