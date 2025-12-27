@@ -35,37 +35,94 @@ export async function POST(request: NextRequest) {
        return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
     }
 
-    // Determine an 'effective' user id: prefer full session, otherwise try to map guest token to an existing user
-    let effectiveUserId = session?.id ?? null;
-    if (!session && guestSessionToken) {
-        console.log('[/api/payment/initiate] Guest user attempted purchase');
-        try {
-            const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
-            const phoneNumber = (payload as any).phoneNumber;
-            
-            const course = await prisma.course.findUnique({ where: { id: courseId }, select: { trainingProviderId: true } });
-            
-            if (phoneNumber && course?.trainingProviderId) {
-                const foundUser = await prisma.user.findFirst({ 
-                    where: { 
-                        phoneNumber: phoneNumber,
-                        trainingProviderId: course.trainingProviderId
-                    } 
-                });
-                if (foundUser) {
-                    effectiveUserId = foundUser.id;
-                }
-            }
-        } catch (err) {
-            // Invalid guest token - treat as guest, will be handled below
-        }
+    // Phone-first decision flow (do NOT gate on session alone)
+    // 1) Try to extract phone from guest session token
+    // 2) If not found, try to extract/validate from superApp token
+    // 3) Normalize phone and lookup user in DB (relaxed matching)
 
-        if (!effectiveUserId) {
-            return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
-        }
+    let effectiveUserId = session?.id ?? null;
+
+    const normalizePhone = (p?: string | null) => {
+      if (!p) return null;
+      // Remove all non-digit characters
+      const digits = p.replace(/[^\d]/g, '');
+      return digits || null;
+    };
+
+    let phoneFromToken: string | null = null;
+
+    // Try guest token first
+    if (guestSessionToken) {
+      console.log('[/api/payment/initiate] Guest user attempted purchase');
+      try {
+        const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
+        const rawPhone = (payload as any).phoneNumber || (payload as any).phone || (payload as any).phone_number;
+        const normalized = normalizePhone(rawPhone);
+        console.log('[/api/payment/initiate] Decoded guest token payload phone:', { rawPhone, normalized });
+        phoneFromToken = normalized;
+      } catch (err) {
+        console.log('[/api/payment/initiate] Failed to decode guest token:', (err as Error).message);
+      }
     }
 
-    // Safety net - should not happen if logic above is correct
+    // If we didn't get phone from guest token, try superApp token (decode or validate endpoint)
+    if (!phoneFromToken && superAppToken) {
+      try {
+        const { payload } = await jwtVerify(superAppToken, getJwtSecret(), { algorithms: ['HS256'] });
+        const rawPhone = (payload as any).phoneNumber || (payload as any).phone || (payload as any).phone_number;
+        const normalized = normalizePhone(rawPhone);
+        console.log('[/api/payment/initiate] Decoded superApp token payload phone:', { rawPhone, normalized });
+        phoneFromToken = normalized;
+      } catch (err) {
+        console.log('[/api/payment/initiate] superApp token is not a JWT or failed decode, attempting validate endpoint');
+        const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL || process.env.VALIDATE_TOKEN_URL || '';
+        if (VALIDATE_TOKEN_URL) {
+          try {
+            const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
+              method: 'GET',
+              headers: { Authorization: `Bearer ${superAppToken}`, Accept: 'application/json' },
+              cache: 'no-store'
+            });
+            if (externalResponse.ok) {
+              const rd = await externalResponse.json();
+              const rawPhone = rd.phone || rd.phoneNumber || rd.msisdn;
+              const normalized = normalizePhone(rawPhone);
+              console.log('[/api/payment/initiate] Phone from validate endpoint:', { rawPhone, normalized });
+              phoneFromToken = normalized;
+            } else {
+              console.log('[/api/payment/initiate] validate endpoint returned', externalResponse.status);
+            }
+          } catch (err2) {
+            console.log('[/api/payment/initiate] validate endpoint call failed:', (err2 as Error).message);
+          }
+        }
+      }
+    }
+
+    // If we have a phone and no effective session user, try to find a registered user
+    if (!effectiveUserId && phoneFromToken) {
+      // Relaxed matching: exact or contains
+      let foundUser = await prisma.user.findFirst({ where: { phoneNumber: phoneFromToken } });
+      if (!foundUser) {
+        const containsVal = phoneFromToken.replace(/^\+/, '');
+        foundUser = await prisma.user.findFirst({ where: { phoneNumber: { contains: containsVal } } });
+      }
+
+      if (foundUser) {
+        console.log(`[/api/payment/initiate] Matched phone ${phoneFromToken} to user ${foundUser.id}`);
+        effectiveUserId = foundUser.id;
+      } else {
+        console.log('[/api/payment/initiate] No user found for phone from token:', phoneFromToken);
+      }
+    }
+
+    // If we don't have a session and couldn't extract a phone, ask to login
+    if (!effectiveUserId && !phoneFromToken) {
+      console.log('[/api/payment/initiate] No session and no phone info; rejecting with login redirect');
+      return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
+    }
+
+    // If after phone lookup we still have no matched user, prompt to register
     if (!effectiveUserId) {
       console.log('[/api/payment/initiate] User not registered: prompting registration');
       return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
