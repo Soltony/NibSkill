@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const session = await getSession();
-    const guestSessionToken = cookies().get('miniapp_guest_session')?.value;
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
+    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+    const superAppToken = cookieStore.get('superapp_token')?.value;
     const body = await request.json();
     const { amount, courseId } = body;
 
@@ -34,39 +35,90 @@ export async function POST(request: NextRequest) {
        return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
     }
 
-    // Determine an 'effective' user id: prefer full session, otherwise try to map guest token to an existing user
-    let effectiveUserId = session?.id ?? null;
-    if (!session && guestSessionToken) {
-        console.log('[/api/payment/initiate] Guest user attempted purchase');
-        try {
-            const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
-            const phoneNumber = (payload as any).phoneNumber;
-            
-            const course = await prisma.course.findUnique({ where: { id: courseId }, select: { trainingProviderId: true } });
-            
-            if (phoneNumber && course?.trainingProviderId) {
-                const foundUser = await prisma.user.findFirst({ 
-                    where: { 
-                        phoneNumber: phoneNumber,
-                        trainingProviderId: course.trainingProviderId
-                    } 
-                });
-                if (foundUser) {
-                    effectiveUserId = foundUser.id;
-                }
-            }
-        } catch (err) {
-            // Invalid guest token - treat as guest, will be handled below
-        }
+    // Phone-first decision flow (do NOT gate on session alone)
+    // 1) Try to extract phone from guest session token
+    // 2) If not found, try to extract/validate from superApp token
+    // 3) Normalize phone and lookup user in DB (relaxed matching)
 
-        if (!effectiveUserId) {
-            return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
-        }
+    let effectiveUserId = session?.id ?? null;
+
+    const normalizePhone = (p?: string | null) => {
+      if (!p) return null;
+      // Remove all non-digit characters
+      const digits = p.replace(/[^\d]/g, '');
+      return digits || null;
+    };
+
+    let phoneFromToken: string | null = null;
+
+    // Try guest token first
+    if (guestSessionToken) {
+      console.log('[/api/payment/initiate] Guest user attempted purchase');
+      try {
+        const { payload } = await jwtVerify(guestSessionToken, getJwtSecret(), { algorithms: ['HS256'] });
+        const rawPhone = (payload as any).phoneNumber || (payload as any).phone || (payload as any).phone_number;
+        const normalized = normalizePhone(rawPhone);
+        console.log('[/api/payment/initiate] Decoded guest token payload phone:', { rawPhone, normalized });
+        phoneFromToken = normalized;
+      } catch (err) {
+        console.log('[/api/payment/initiate] Failed to decode guest token:', (err as Error).message);
+      }
     }
 
-    // Safety net - should not happen if logic above is correct
+    // If we didn't get phone from guest token, try to validate SuperApp token via the validation endpoint (do NOT decode it)
+    if (!phoneFromToken && superAppToken) {
+      const VALIDATE_TOKEN_URL = process.env.NIB_VALIDATE_TOKEN_URL || process.env.VALIDATE_TOKEN_URL || '';
+      if (VALIDATE_TOKEN_URL) {
+        try {
+          const externalResponse = await fetch(VALIDATE_TOKEN_URL, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${superAppToken}`, Accept: 'application/json' },
+            cache: 'no-store'
+          });
+          if (externalResponse.ok) {
+            const rd = await externalResponse.json();
+            const rawPhone = rd.phone || rd.phoneNumber || rd.msisdn;
+            const normalized = normalizePhone(rawPhone);
+            console.log('[/api/payment/initiate] Phone from validate endpoint:', { rawPhone, normalized });
+            phoneFromToken = normalized;
+          } else {
+            console.log('[/api/payment/initiate] validate endpoint returned', externalResponse.status);
+          }
+        } catch (err2) {
+          console.log('[/api/payment/initiate] validate endpoint call failed:', (err2 as Error).message);
+        }
+      } else {
+        console.log('[/api/payment/initiate] No VALIDATE_TOKEN_URL configured; cannot validate SuperApp token for phone extraction');
+      }
+    }
+
+    // If we have a phone and no effective session user, try to find a registered user
+    if (!effectiveUserId && phoneFromToken) {
+      // Relaxed matching: exact or contains
+      let foundUser = await prisma.user.findFirst({ where: { phoneNumber: phoneFromToken } });
+      if (!foundUser) {
+        const containsVal = phoneFromToken.replace(/^\+/, '');
+        foundUser = await prisma.user.findFirst({ where: { phoneNumber: { contains: containsVal } } });
+      }
+
+      if (foundUser) {
+        console.log(`[/api/payment/initiate] Matched phone ${phoneFromToken} to user ${foundUser.id}`);
+        effectiveUserId = foundUser.id;
+      } else {
+        console.log('[/api/payment/initiate] No user found for phone from token:', phoneFromToken);
+      }
+    }
+
+    // If we don't have a session and couldn't extract a phone, ask to login
+    if (!effectiveUserId && !phoneFromToken) {
+      console.log('[/api/payment/initiate] No session and no phone info; rejecting with login redirect');
+      return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
+    }
+
+    // If after phone lookup we still have no matched user, prompt to register
     if (!effectiveUserId) {
-        return NextResponse.json({ success: false, message: 'Authentication session not found.' }, { status: 401 });
+      console.log('[/api/payment/initiate] User not registered: prompting registration');
+      return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
     }
 
     const latestLogin = await prisma.loginHistory.findFirst({
@@ -75,7 +127,30 @@ export async function POST(request: NextRequest) {
     });
 
     // Prefer token from login history but fall back to the cookie set by /api/connect
-    const token = latestLogin?.superAppToken || cookieStore.get('superapp_token')?.value;
+    const cookieToken = cookieStore.get('superapp_token')?.value;
+    const latestLoginToken = latestLogin?.superAppToken;
+    const token = latestLoginToken || cookieToken;
+
+    // Diagnostic log to verify we are using the SuperApp token (not the internal guest/session JWT)
+    console.log('[INITIATE] Token source:', {
+      isGuestSession: !!guestSessionToken,
+      hasSession: !!session,
+      hasLatestLoginToken: !!latestLoginToken,
+      hasCookieToken: !!cookieToken,
+      tokenPreview: token ? `${String(token).slice(0, 15)}... (len ${String(token).length})` : null
+    });
+
+    // Absolute rule: do not send guest session token (internal JWT) to NIB payment API
+    if (token && guestSessionToken && token === guestSessionToken) {
+      console.error('[/api/payment/initiate] Abort: token equals guest session token - SuperApp token required.');
+      return NextResponse.json({ success: false, message: 'SuperApp authentication token not found. Please re-enter from the main app.' }, { status: 401 });
+    }
+
+    // HARD GUARD: If the token looks like a JWT (starts with eyJ), reject - it must be a SuperApp opaque token
+    if (token && String(token).startsWith('eyJ')) {
+      console.error('[/api/payment/initiate] Rejecting token that looks like a JWT (not a SuperApp token)');
+      return NextResponse.json({ success: false, message: 'Invalid SuperApp token. Please open from NIB SuperApp.' }, { status: 401 });
+    }
 
     if (!token) {
       console.error(`[/api/payment/initiate] SuperApp token not found for user ${effectiveUserId}.`);
@@ -95,6 +170,8 @@ export async function POST(request: NextRequest) {
     const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
 
+    console.log('[INITIATE] CALLBACK_URL:', CALLBACK_URL);
+
     if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
       console.error('[/api/payment/initiate] Server configuration error: Missing payment gateway environment variables.');
       return NextResponse.json({ success: false, message: 'Server configuration error.' }, { status: 500 });
@@ -103,20 +180,22 @@ export async function POST(request: NextRequest) {
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
 
-    const params = {
-        accountNo: ACCOUNT_NO,
-        amount: safeAmount,
-        callBackURL: CALLBACK_URL,
-        companyName: COMPANY_NAME,
-        Key: NIB_PAYMENT_KEY,
-        token: token,
-        transactionId: transactionId,
-        transactionTime: transactionTime
-    };
-
-    const signatureString = Object.keys(params).sort().map(key => `${key}=${params[key as keyof typeof params]}`).join('&');
+    // IMPORTANT: NIB requires a *fixed* parameter order when computing the signature.
+    const signatureString =
+      `accountNo=${ACCOUNT_NO}` +
+      `&amount=${safeAmount}` +
+      `&callBackURL=${CALLBACK_URL}` +
+      `&companyName=${COMPANY_NAME}` +
+      `&Key=${NIB_PAYMENT_KEY}` +
+      `&token=${token}` +
+      `&transactionId=${transactionId}` +
+      `&transactionTime=${transactionTime}`;
 
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
+
+    // Debug: log signature string and signature hash (safe for debugging)
+    console.log('[INITIATE] Signature string:', signatureString);
+    console.log('[INITIATE] Signature hash:', signature);
 
     const paymentPayload = {
       accountNo: ACCOUNT_NO,
@@ -128,6 +207,26 @@ export async function POST(request: NextRequest) {
       transactionTime: transactionTime,
       signature: signature
     };
+
+    // Temporary debug endpoint: return payload + computed signature for comparison.
+    // NOTE: Enabled only when not in production to avoid leaking tokens.
+    if (body?.debug === true) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('[/api/payment/initiate] Debug payload request received in production - denied.');
+        return NextResponse.json({ success: false, message: 'Debug endpoint not allowed in production.' }, { status: 403 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        debug: true,
+        tokenUsed: token,
+        tokenPreview: token ? `${String(token).slice(0, 15)}... (len ${String(token).length})` : null,
+        signatureString,
+        signature,
+        paymentPayload,
+        callbackUrl: CALLBACK_URL
+      }, { status: 200 });
+    }
     
     if (dryRun) {
       return NextResponse.json({ success: true, dryRun: true, signatureString, signature, paymentPayload }, { status: 200 });
@@ -144,6 +243,7 @@ export async function POST(request: NextRequest) {
 
     let paymentResponse: Response;
     try {
+      console.log('[INITIATE] Sending payment request to NIB with token preview:', `${String(token).slice(0,15)}...`);
       paymentResponse = await fetch(NIB_PAYMENT_URL, {
         method: 'POST',
         headers: {

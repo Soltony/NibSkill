@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
+import prisma from '@/lib/db';
+import { randomUUID } from 'crypto';
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
@@ -29,6 +31,15 @@ export async function GET(request: NextRequest) {
         { status: 'error', message: 'Bearer token is missing.' },
         { status: 401 }
       );
+    }
+
+    // Log token preview for debugging (temporary)
+    console.log('[CONNECT] Incoming Authorization token preview:', String(token).slice(0, 20), 'len:', String(token).length);
+
+    // HARD FAIL: Reject if a JWT was provided instead of the opaque SuperApp token
+    if (String(token).startsWith('eyJ')) {
+      console.error('[CONNECT] JWT received instead of SuperApp token');
+      return NextResponse.redirect(new URL('/unsupported-entry', request.url));
     }
 
     const validationUrl = process.env.VALIDATE_TOKEN_URL;
@@ -62,22 +73,31 @@ export async function GET(request: NextRequest) {
     }
 
     const validationResult = await externalResponse.json();
-    const phoneNumber = validationResult.phone;
+    const rawPhone = validationResult.phone || validationResult.phoneNumber || validationResult.msisdn;
 
-    if (!phoneNumber) {
+    if (!rawPhone) {
       return NextResponse.json(
         { status: 'error', message: 'Phone number not found in validation response.' },
         { status: 400 }
       );
     }
 
-    const guestJwt = await new SignJWT({ phoneNumber, authToken: token })
+    // Normalize phone and create guest JWT
+    const normalizePhone = (p?: string | null) => {
+      if (!p) return null;
+      const digits = String(p).replace(/[^\d]/g, '');
+      return digits || null;
+    };
+
+    const normalizedPhone = normalizePhone(rawPhone);
+
+    const guestJwt = await new SignJWT({ phoneNumber: normalizedPhone })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('24h')
       .sign(getJwtSecret());
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
 
     // Store guest session JWT (used for identifying mini-app guest sessions)
     cookieStore.set('miniapp_guest_session', guestJwt, {
@@ -89,19 +109,82 @@ export async function GET(request: NextRequest) {
     });
 
     // Also store the raw SuperApp token (used for authenticating with NIB payment API)
-    // This mirrors the behavior of the working project so future API calls can read from cookie
     cookieStore.set('superapp_token', token, {
       path: '/',
       httpOnly: true,
       secure: true, // required for SuperApp WebView
+      sameSite: 'none', // required for MiniApp in WebView contexts
+      maxAge: 60 * 60 * 24,
+    });
+
+    // Mirror phone number for client-side access (non-HTTP-only cookie)
+    cookieStore.set('phone_number', normalizedPhone || '', {
+      path: '/',
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24,
+    });
+
+    // Check if the user exists in our DB and, if so, create an internal session and login history
+    const user = await prisma.user.findFirst({ where: { phoneNumber: { contains: normalizedPhone || '' } }, include: { roles: { include: { role: true } } } });
+
+    if (user) {
+      console.log('[CONNECT] Existing user found for phone:', normalizedPhone, 'userId:', user.id);
+
+      const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
+      const userAgent = request.headers.get('user-agent');
+      const newSessionId = randomUUID();
+
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: user.id }, data: { activeSessionId: newSessionId } }),
+        prisma.loginHistory.create({ data: { userId: user.id, ipAddress: typeof ipAddress === 'string' ? ipAddress : null, userAgent } }),
+      ]);
+
+      const expirationTime = '24h';
+      const primaryRole = user.roles?.[0]?.role?.name ?? undefined;
+
+      const internalToken = await new SignJWT({
+        userId: user.id,
+        role: primaryRole,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        sessionId: newSessionId,
+        trainingProviderId: user.trainingProviderId,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime(expirationTime)
+        .sign(getJwtSecret());
+
+      // Set our app's internal auth token cookie
+      cookieStore.set('session', internalToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24,
+      });
+
+      const url = new URL(request.url);
+      const redirectUrl = `${url.protocol}//${url.host}/dashboard`;
+      console.log('[CONNECT] Redirecting to dashboard for registered user:', redirectUrl);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // User not found; mirror phone for registration and redirect to home (client will handle registration)
+    cookieStore.set('miniapp_phone', normalizedPhone || '', {
+      path: '/',
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24,
     });
 
     const url = new URL(request.url);
-    const redirectUrl = `${url.protocol}//${url.host}/dashboard`;
-
-    console.log('[CONNECT] Redirecting to:', redirectUrl);
+    const redirectUrl = `${url.protocol}//${url.host}/`;
+    console.log('[CONNECT] User not registered; redirecting to home:', redirectUrl);
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {

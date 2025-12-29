@@ -98,20 +98,55 @@ async function getCourseData(courseId: string, userId?: string, isMiniApp: boole
 
 export default async function CourseDetailPage({ params }: { params: { courseId: string } }) {
   const session = await getSession();
-  const guestSessionToken = cookies().get('miniapp_guest_session')?.value;
+  const cookieStore = await cookies();
+  const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
   let isMiniApp = false;
 
   if (guestSessionToken) {
-      isMiniApp = true;
+    isMiniApp = true;
   }
-  
+
   // A user must be logged in or be a guest in the mini-app
   if (!session && !guestSessionToken) {
     redirect('/login');
   }
 
+  // Determine effective user id: prefer full session, otherwise try to map guest token to an existing user
+  let effectiveUserId: string | undefined = session?.id;
+
+  // helper to normalize phone numbers
+  const normalizePhone = (p?: string | null) => {
+    if (!p) return null;
+    const digits = String(p).replace(/[^\d]/g, '');
+    return digits || null;
+  };
+
+  if (!effectiveUserId && guestSessionToken) {
+    try {
+      const { jwtVerify } = await import('jose');
+      const { payload } = await jwtVerify(guestSessionToken, new TextEncoder().encode(process.env.JWT_SECRET || ''), { algorithms: ['HS256'] });
+      const rawPhone = (payload as any).phoneNumber || (payload as any).phone || (payload as any).phone_number;
+      const normalized = normalizePhone(rawPhone);
+      console.log('[COURSE PAGE] guest token phone:', { rawPhone, normalized });
+      if (normalized) {
+        // relaxed match
+        let foundUser = await prisma.user.findFirst({ where: { phoneNumber: normalized } });
+        if (!foundUser) {
+          const containsVal = normalized.replace(/^\+/, '');
+          foundUser = await prisma.user.findFirst({ where: { phoneNumber: { contains: containsVal } } });
+        }
+        if (foundUser) {
+          effectiveUserId = foundUser.id;
+          console.log('[COURSE PAGE] mapped guest phone to user:', effectiveUserId);
+        }
+      }
+    } catch (err) {
+      console.log('[COURSE PAGE] failed to decode guest token:', (err as Error).message);
+    }
+  }
+
   const { courseId } = params;
-  const { course, completedModules, user, previousAttempts, resetRequest, isPurchased } = await getCourseData(courseId, session?.id, isMiniApp);
+  const { course, completedModules, user, previousAttempts, resetRequest, isPurchased } = await getCourseData(courseId, effectiveUserId, isMiniApp);
 
   if (!course) {
     notFound();
