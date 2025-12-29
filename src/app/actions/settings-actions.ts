@@ -94,14 +94,19 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
         const { name, email, roleId, phoneNumber, departmentId, districtId, branchId } = validatedFields.data;
 
         if (phoneNumber) {
-             const existingUserByPhone = await prisma.user.findFirst({
+             const existingUser = await prisma.user.findFirst({
                  where: { 
                     phoneNumber: phoneNumber,
-                    trainingProviderId: session.trainingProviderId
+                    trainingProviderId: session.trainingProviderId,
+                    roles: {
+                        some: {
+                            roleId: roleId,
+                        }
+                    }
                 },
              });
-             if (existingUserByPhone) {
-                 return { success: false, message: 'A user with this phone number already exists for this provider.' };
+             if (existingUser) {
+                 return { success: false, message: 'A user with this phone number and role already exists for this provider.' };
              }
         }
         
@@ -342,3 +347,5 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
+
+    
