@@ -31,22 +31,29 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             return { success: false, message: "Course not found." };
         }
         
-        // Record the completion attempt. If a completion record already exists, update it instead
-        const existing = await prisma.userCompletedCourse.findUnique({
-            where: { userId_courseId: { userId, courseId } }
+        const passed = course.quiz ? score >= course.quiz.passingScore : true;
+        
+        // Record the attempt. If a completion record already exists, update it.
+        // If not, create a new one.
+        const existingAttempt = await prisma.userCompletedCourse.findFirst({
+            where: { userId: userId, courseId: courseId },
         });
 
-        if (!existing) {
-            await prisma.userCompletedCourse.create({ data: { userId, courseId, score } });
-        } else {
-            // Update completion date and score. Keep history outside of this model for now.
+        if (existingAttempt) {
             await prisma.userCompletedCourse.update({
-                where: { userId_courseId: { userId, courseId } },
-                data: { score, completionDate: new Date() }
+                where: { id: existingAttempt.id },
+                data: { score: score, completionDate: new Date() }
+            });
+        } else {
+            await prisma.userCompletedCourse.create({
+                data: {
+                    userId: userId,
+                    courseId: courseId,
+                    score: score,
+                    completionDate: new Date(),
+                },
             });
         }
-        
-        const passed = course.quiz ? score >= course.quiz.passingScore : true;
         
         // If the user failed, reset their module progress to force a retake.
         if (!passed) {
@@ -71,8 +78,15 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
                 description: notificationDescription,
             }
         });
+        
+        // Check if the course is part of a learning path
+        const isCourseInLearningPath = await prisma.learningPathCourse.count({
+            where: { courseId: courseId }
+        }) > 0;
 
-        if (passed && course.hasCertificate) {
+        // Only revalidate for a certificate if the user passed, the course has a cert,
+        // AND the course is NOT part of a learning path.
+        if (passed && course.hasCertificate && !isCourseInLearningPath) {
             revalidatePath(`/courses/${courseId}/certificate`);
         }
 
@@ -113,11 +127,14 @@ export async function updateUserProfile(values: z.infer<typeof profileFormSchema
 
         const { name, email, phoneNumber } = validatedFields.data;
         
-        if (email && email !== session.email) {
-            const existingUser = await prisma.user.findFirst({ where: { email } });
-            if (existingUser && existingUser.id !== session.id) {
-                return { success: false, message: "Email is already in use by another account." };
-            }
+        const existingUserWithEmail = email ? await prisma.user.findFirst({ where: { email, id: { not: session.id } } }) : null;
+        if (existingUserWithEmail) {
+            return { success: false, message: "Email is already in use by another account." };
+        }
+
+        const existingUserWithPhone = phoneNumber ? await prisma.user.findFirst({ where: { phoneNumber, id: { not: session.id } } }) : null;
+        if (existingUserWithPhone) {
+            return { success: false, message: "Phone number is already in use by another account." };
         }
 
         await prisma.user.update({

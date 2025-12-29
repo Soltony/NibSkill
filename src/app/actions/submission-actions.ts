@@ -101,8 +101,6 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
                 completionDate: new Date()
             };
 
-            // Only mark course as completed if the user passed.
-            // Record the attempt — update existing completion record if present instead of failing.
             const existing = await tx.userCompletedCourse.findUnique({
                 where: { userId_courseId: { userId, courseId } }
             });
@@ -116,7 +114,6 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
                 });
             }
             
-            // If user failed, reset module progress to force a retake.
             if (!passed) {
                 const moduleIds = submission.quiz.course.modules.map(m => m.id);
                 if (moduleIds.length > 0) {
@@ -129,6 +126,11 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
                 }
             }
         });
+        
+        // Check if the course is part of a learning path
+        const isCourseInLearningPath = await prisma.learningPathCourse.count({
+            where: { courseId: courseId }
+        }) > 0;
 
         await prisma.notification.create({
             data: {
@@ -138,7 +140,9 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
             }
         });
 
-        if (passed && submission.quiz.course.hasCertificate) {
+        // Only revalidate for a certificate if the user passed, the course has a cert,
+        // AND the course is NOT part of a learning path.
+        if (passed && submission.quiz.course.hasCertificate && !isCourseInLearningPath) {
              revalidatePath(`/courses/${submission.quiz.courseId}/certificate`);
         }
         
