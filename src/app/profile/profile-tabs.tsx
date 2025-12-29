@@ -26,7 +26,7 @@ type EarnedBadge = UserBadge & { badge: Badge }
 
 const profileFormSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters."),
-    email: z.string().email("Invalid email address."),
+    email: z.string().email("Invalid email address.").optional().or(z.literal('')),
     phoneNumber: z.string().optional(),
 })
 
@@ -59,9 +59,10 @@ type ProfileTabsProps = {
     user: UserWithDepartment;
     completedCourses: CompletedCourse[];
     userBadges: EarnedBadge[];
+    learningPathCourseIds: string[];
 }
 
-export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsProps) {
+export function ProfileTabs({ user, completedCourses, userBadges, learningPathCourseIds }: ProfileTabsProps) {
     const { toast } = useToast();
     const coursesCompletedCount = completedCourses.filter(c => c.course.quiz && c.score >= c.course.quiz.passingScore).length;
     
@@ -77,7 +78,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
         resolver: zodResolver(profileFormSchema),
         defaultValues: {
             name: user.name,
-            email: user.email,
+            email: user.email || "",
             phoneNumber: user.phoneNumber || "",
         }
     });
@@ -98,6 +99,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
         }
     }
 
+    const learningPathCourseIdsSet = new Set(learningPathCourseIds);
 
     return (
         <Tabs defaultValue="overview">
@@ -181,6 +183,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                             <TableBody>
                                 {completedCourses.length > 0 ? completedCourses.map(c => {
                                     const passed = c.course.quiz ? c.score >= c.course.quiz.passingScore : false;
+                                    const showCertificate = c.course.hasCertificate && passed && !learningPathCourseIdsSet.has(c.courseId);
                                     return (
                                         <TableRow key={c.courseId + c.completionDate.toISOString()}>
                                             <TableCell className="font-medium">{c.course.title}</TableCell>
@@ -194,7 +197,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                {c.course.hasCertificate && passed ? (
+                                                {showCertificate ? (
                                                     <Button asChild variant="link">
                                                         <Link href={`/courses/${c.courseId}/certificate`}>View</Link>
                                                     </Button>
@@ -247,7 +250,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                                         <FormItem>
                                             <FormLabel>Email Address</FormLabel>
                                             <FormControl>
-                                                <Input type="email" {...field} />
+                                                <Input type="email" {...field} value={field.value ?? ""} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -260,7 +263,7 @@ export function ProfileTabs({ user, completedCourses, userBadges }: ProfileTabsP
                                         <FormItem>
                                             <FormLabel>Phone Number (Optional)</FormLabel>
                                             <FormControl>
-                                                <Input {...field} />
+                                                <Input {...field} value={field.value ?? ""} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
