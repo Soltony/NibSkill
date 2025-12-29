@@ -172,3 +172,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ isSuccess: false, errors: ['Unexpected server error.'] }, { status: 500 });
   }
 }
+
