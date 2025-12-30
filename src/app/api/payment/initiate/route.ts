@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   try {
     let session = await getSession();
-    let superAppToken = cookieStore.get('superapp_token')?.value;
+    let superAppToken: string | undefined;
 
     const body = await request.json();
     const { courseId } = body;
@@ -78,14 +78,19 @@ export async function POST(request: NextRequest) {
       // This is safe because we've verified their existence.
       session = { id: existingUser.id } as any;
 
-    } else if (!superAppToken) {
-       superAppToken = cookieStore.get('superapp_token')?.value;
+    } else {
+        const tokenFromHistory = await prisma.loginHistory.findFirst({
+            where: { userId: session.id },
+            orderBy: { loginTime: 'desc' },
+            select: { superAppToken: true }
+        });
+        superAppToken = tokenFromHistory?.superAppToken ?? undefined;
     }
 
 
     if (!superAppToken) {
-        console.error('[NIB INITIATE] Error: SuperApp authorization token (superapp_token) not found in cookie.');
-        return NextResponse.json({ error: 'User session not found. Please log in through the SuperApp.' }, { status: 401 });
+        console.error('[NIB INITIATE] Error: SuperApp authorization token not found for user.');
+        return NextResponse.json({ error: 'User session not found or token missing. Please log in through the SuperApp.' }, { status: 401 });
     }
 
     const ACCOUNT_NO = process.env.ACCOUNT_NO;

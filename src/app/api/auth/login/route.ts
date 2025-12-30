@@ -110,12 +110,25 @@ export async function POST(request: NextRequest) {
     if (user.trainingProvider && !user.trainingProvider.isActive) {
       return NextResponse.json({ isSuccess: false, errors: ["Your organization's account has been deactivated. Please contact support."] }, { status: 403 });
     }
+    
+    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+    let superAppToken: string | undefined;
+
+    if (guestSessionToken) {
+        try {
+            const { payload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+            superAppToken = payload.authToken;
+        } catch (e) {
+            // Invalid guest token, ignore
+        }
+    }
 
     await prisma.loginHistory.create({
         data: {
             userId: user.id,
             ipAddress: request.ip,
             userAgent: request.headers.get('user-agent'),
+            superAppToken: superAppToken,
         }
     });
 
@@ -146,7 +159,6 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24,
     });
     
-    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
     if (guestSessionToken) {
       cookieStore.delete('miniapp_guest_session');
     }
@@ -172,4 +184,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ isSuccess: false, errors: ['Unexpected server error.'] }, { status: 500 });
   }
 }
-

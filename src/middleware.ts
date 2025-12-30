@@ -21,6 +21,8 @@ const getJwtSecret = () => {
 const publicPaths = [
   '/login',
   '/login/register',
+  '/login/admin',
+  '/login/super-admin',
   '/api/auth/login',
   '/api/auth/register',
   '/api/connect',
@@ -33,7 +35,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionCookie = request.cookies.get('session')?.value;
   const guestSessionCookie = request.cookies.get('miniapp_guest_session')?.value;
+  
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
+  const isConnectPath = pathname === '/api/connect';
+
+  if (isConnectPath) {
+    return NextResponse.next();
+  }
 
   // If user has a full session, they are logged in.
   if (sessionCookie) {

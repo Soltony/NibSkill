@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
-import { jwtVerify, type JWTPayload } from 'jose';
+import { jwtVerify, type JWTPayload, SignJWT } from 'jose';
 
 interface GuestJwtPayload extends JWTPayload {
   phoneNumber: string;
@@ -70,6 +70,17 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+    let superAppToken: string | undefined;
+    if (guestSessionToken) {
+        try {
+            const { payload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+            superAppToken = payload.authToken;
+        } catch (e) {
+            // Invalid guest token, ignore
+        }
+    }
     
     const newUser = await prisma.user.create({
       data: {
@@ -86,12 +97,16 @@ export async function POST(request: NextRequest) {
             create: {
                 roleId: staffRole.id
             }
-        }
+        },
+        loginHistory: superAppToken ? {
+            create: {
+                ipAddress: request.ip,
+                userAgent: request.headers.get('user-agent'),
+                superAppToken: superAppToken,
+            }
+        } : undefined,
       },
     });
-
-    // We don't save the Super App token here anymore, to avoid the schema error.
-    // The payment initiation will rely on the guest cookie if it's present.
 
     return NextResponse.json({
       isSuccess: true,
