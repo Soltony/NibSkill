@@ -116,8 +116,11 @@ export async function gradeSubmission({ submissionId, finalScore }: { submission
                 });
             }
             
-            // If user failed, reset module progress to force a retake.
-            if (!passed) {
+            // If user failed and has attempts left, reset module progress.
+            const allAttempts = await tx.quizSubmission.count({ where: { userId, quizId: submission.quizId }});
+            const maxAttempts = submission.quiz.maxAttempts ?? 0;
+
+            if (!passed && (maxAttempts === 0 || allAttempts < maxAttempts)) {
                 const moduleIds = submission.quiz.course.modules.map(m => m.id);
                 if (moduleIds.length > 0) {
                   await tx.userCompletedModule.deleteMany({

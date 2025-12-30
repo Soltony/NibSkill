@@ -28,7 +28,7 @@ import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
 import type { RegistrationField as TRegistrationField, District, Branch, Department, TrainingProvider } from "@prisma/client";
 import Link from "next/link";
-import { PlusCircle, Eye, EyeOff } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initialRegistrationFields, FieldType } from "@/lib/data";
@@ -37,22 +37,16 @@ import { initialRegistrationFields, FieldType } from "@/lib/data";
 const baseSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   phoneNumber: z.string().min(1, "Phone number is required"),
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
-  password: z.string().min(6, "Password must be at least 6 characters."),
-  confirmPassword: z.string().min(6, "Please confirm your password."),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
 });
-
 
 // Create initial default values from both static and dynamic fields
 const allDefaultValues = {
   name: "",
   email: "",
   password: "",
-  confirmPassword: "",
   phoneNumber: "",
   trainingProviderId: "",
   ...initialRegistrationFields.reduce((acc, field) => {
@@ -70,7 +64,6 @@ export default function RegisterPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [trainingProviders, setTrainingProviders] = useState<TrainingProvider[]>([]);
-  const [showPassword, setShowPassword] = useState(false);
   
   const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
 
@@ -108,13 +101,17 @@ export default function RegisterPage() {
         });
         setDynamicSchema(schema as any);
       } catch (error) {
-        console.error("Could not load registration form", error);
+        toast({
+          title: "Error",
+          description: "Could not load registration form. Please try again later.",
+          variant: "destructive"
+        })
       } finally {
         setIsLoaded(true);
       }
     }
     fetchFormData();
-  }, []);
+  }, [toast]);
   
   const onRegisterUser = async (values: z.infer<typeof dynamicSchema>) => {
     const response = await fetch('/api/auth/register', {
@@ -128,7 +125,7 @@ export default function RegisterPage() {
     if (data.isSuccess) {
       toast({
         title: "Registration Successful",
-        description: "You have successfully created an account. You can now log in.",
+        description: "You can now sign in with your new account.",
       });
       router.push("/login");
     } else {
@@ -282,6 +279,19 @@ export default function RegisterPage() {
               />
               <FormField
                 control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="phoneNumber"
                 render={({ field }) => (
                   <FormItem>
@@ -318,49 +328,6 @@ export default function RegisterPage() {
               {registrationFields.map(field => (
                 <div key={field.id}>{renderField(field)}</div>
               ))}
-              <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <div className="relative">
-                        <FormControl>
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Must be at least 6 characters"
-                            {...field}
-                          />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
-                       <div className="relative">
-                        <FormControl>
-                            <Input type={showPassword ? "text" : "password"} {...field} />
-                        </FormControl>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>

@@ -1,3 +1,4 @@
+
 import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
@@ -5,7 +6,6 @@ import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
-
 
 interface GuestJwtPayload extends JWTPayload {
   phoneNumber: string;
@@ -22,12 +22,12 @@ const getJwtSecret = () => {
 const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email().optional().or(z.literal('')),
+  password: z.string().min(6),
   department: z.string().optional(),
   district: z.string().optional(),
   branch: z.string().optional(),
   phoneNumber: z.string().min(1, "Phone number is required"),
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
-  password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
 export async function POST(request: NextRequest) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ isSuccess: false, errors: validation.error.issues.map(i => i.message) }, { status: 400 });
     }
 
-    const { name, email, department, district, branch, phoneNumber, trainingProviderId, password } = validation.data;
+    const { name, email, password, department, district, branch, phoneNumber, trainingProviderId } = validation.data;
 
     const staffRole = await prisma.role.findFirst({
         where: { 
@@ -57,16 +57,21 @@ export async function POST(request: NextRequest) {
         where: {
             phoneNumber,
             trainingProviderId,
+            roles: {
+                some: {
+                    roleId: staffRole.id
+                }
+            }
         }
     });
 
     if (existingUser) {
-        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number already exists for this provider.'] }, { status: 409 });
+        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
     }
-    
+
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         name,
         email: email || null,
@@ -84,6 +89,9 @@ export async function POST(request: NextRequest) {
         }
       },
     });
+
+    // We don't save the Super App token here anymore, to avoid the schema error.
+    // The payment initiation will rely on the guest cookie if it's present.
 
     return NextResponse.json({
       isSuccess: true,

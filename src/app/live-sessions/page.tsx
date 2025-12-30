@@ -41,17 +41,14 @@ export default async function LiveSessionsPage() {
     const now = new Date();
     const oneHour = 60 * 60 * 1000;
 
-    // Treat sessions explicitly marked ENDED as past immediately so trainees stop seeing them as live
     const liveAndUpcomingSessions = sessions.filter(s => {
         const sessionEndTime = new Date(s.dateTime).getTime() + oneHour;
-        // Exclude sessions that have been explicitly ended
-        return s.status !== 'ENDED' && sessionEndTime > now.getTime();
+        return sessionEndTime > now.getTime();
     }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
     
     const pastSessions = sessions.filter(s => {
         const sessionEndTime = new Date(s.dateTime).getTime() + oneHour;
-        // Include sessions that are ended either by time or by admin action
-        return s.status === 'ENDED' || sessionEndTime <= now.getTime();
+        return sessionEndTime <= now.getTime();
     }).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
 

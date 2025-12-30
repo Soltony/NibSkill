@@ -52,6 +52,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [isUnderReview, setIsUnderReview] = useState(false);
+  // New states to manage attempt recording and certificate issuance
+  const [isRecordingAttempt, setIsRecordingAttempt] = useState(false);
   const [completionSaved, setCompletionSaved] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -60,7 +62,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
 
   const handleSubmit = useCallback(() => {
     if (quiz.quizType === 'OPEN_LOOP') {
-        setScore(100); 
+        // For non-graded quizzes, we don't calculate score.
+        setScore(100); // Assume 100 to show a "completion" state
         setShowResult(true);
         return;
     }
@@ -107,6 +110,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     setScore(finalScore);
     setShowResult(true);
 
+    // Always record the attempt, regardless of pass/fail
+    setIsRecordingAttempt(true);
     setCompletionSaved(false);
     startTransition(async () => {
         const result = await completeCourse({
@@ -114,6 +119,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             courseId: quiz.courseId,
             score: finalScore,
         });
+
+        setIsRecordingAttempt(false);
 
         if (!result.success) {
             toast({
@@ -123,6 +130,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
             });
             return;
         }
+
+        // Mark that the completion entry has been recorded so we can safely show the certificate
         setCompletionSaved(true);
     });
 
@@ -359,8 +368,8 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
                     </Button>
                 ) : (
                     <Button disabled>
-                        {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Award className="mr-2 h-4 w-4" />}
-                        {isPending ? 'Issuing Certificate...' : 'Issuing Certificate...'}
+                        {isRecordingAttempt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Award className="mr-2 h-4 w-4" />}
+                        {isRecordingAttempt ? 'Issuing Certificate...' : 'Issuing Certificate...'}
                     </Button>
                 )
             ) : null }
