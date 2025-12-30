@@ -8,7 +8,21 @@ async function getCertificateData(pathId: string, user: { id: string, name: stri
 
     const learningPath = await prisma.learningPath.findUnique({
         where: { id: pathId },
-        include: { courses: true }
+        include: { 
+            courses: {
+                include: {
+                    course: {
+                        include: {
+                            quiz: {
+                                select: {
+                                    passingScore: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     });
 
     if (!learningPath || !learningPath.trainingProviderId) {
@@ -21,7 +35,6 @@ async function getCertificateData(pathId: string, user: { id: string, name: stri
 
     const courseIds = learningPath.courses.map(c => c.courseId);
     
-    // Check if this specific user has completed ALL courses in this path
     const completions = await prisma.userCompletedCourse.findMany({
         where: {
             userId: user.id,
@@ -31,13 +44,28 @@ async function getCertificateData(pathId: string, user: { id: string, name: stri
             completionDate: 'desc'
         }
     });
+    
+    const completionMap = new Map(completions.map(c => [c.courseId, c.score]));
 
-    const isPathCompleted = courseIds.every(id => completions.some(c => c.courseId === id));
+    // A path is completed if every course in it has a completion record
+    // AND the score meets the passing requirement for that course's quiz.
+    const isPathCompleted = learningPath.courses.every(({ course }) => {
+        const score = completionMap.get(course.id);
+        if (score === undefined) {
+            return false; // Not completed at all
+        }
+        if (course.quiz) {
+            return score >= course.quiz.passingScore; // Must pass the quiz
+        }
+        return true; // Course has no quiz, completion is enough
+    });
+
 
     if (!isPathCompleted) {
         return { template: null, learningPath: null, completionDate: null };
     }
 
+    // Use the most recent completion date from any course in the path as the issue date.
     const latestCompletionDate = completions[0]?.completionDate;
 
     return { template, learningPath, completionDate: latestCompletionDate };
