@@ -7,15 +7,28 @@ import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { jwtVerify, type JWTPayload } from 'jose';
+
+
+const getJwtSecret = () => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
+    return new TextEncoder().encode(secret);
+};
+
+interface GuestJwtPayload extends JWTPayload {
+  phoneNumber: string;
+  authToken: string;
+}
+
 
 export async function POST(request: NextRequest) {
   console.log('[/api/payment/initiate] Received payment initiation request.');
+  const cookieStore = cookies();
 
   try {
-    const session = await getSession();
-    if (!session?.id) {
-        return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
-    }
+    let session = await getSession();
+    let superAppToken = cookieStore.get('superapp_token')?.value;
 
     const body = await request.json();
     const { amount, courseId } = body;
@@ -24,8 +37,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Amount and courseId are required.' }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    const superAppToken = cookieStore.get('superapp_token')?.value;
+    // If no full session, check for guest session from MiniApp
+    if (!session) {
+      const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+      if (!guestSessionToken) {
+        return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
+      }
+
+      const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+      superAppToken = guestPayload.authToken;
+
+      // Check if this guest user is already registered as a Staff member
+      const course = await prisma.course.findUnique({ where: { id: courseId }, select: { trainingProviderId: true }});
+      const staffRole = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: course?.trainingProviderId }});
+      
+      const existingUser = staffRole ? await prisma.user.findFirst({
+        where: {
+          phoneNumber: guestPayload.phoneNumber,
+          trainingProviderId: course?.trainingProviderId,
+          roles: { some: { roleId: staffRole.id } }
+        }
+      }) : null;
+
+      if (!existingUser) {
+        // User is not registered, instruct client to redirect to sign up
+        return NextResponse.json({ success: false, message: 'Please register to purchase this course.', redirectTo: '/login/register' }, { status: 403 });
+      }
+      
+      // If the user exists, we can create a temporary session object for this transaction.
+      // This is safe because we've verified their existence.
+      session = { id: existingUser.id } as any;
+
+    } else if (!superAppToken) {
+       superAppToken = cookieStore.get('superapp_token')?.value;
+    }
+
 
     if (!superAppToken) {
         console.error('[NIB INITIATE] Error: SuperApp authorization token (superapp_token) not found in cookie.');
