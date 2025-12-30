@@ -1,4 +1,5 @@
 
+'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
@@ -7,46 +8,28 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
-
 export async function POST(request: NextRequest) {
   console.log('[/api/payment/initiate] Received payment initiation request.');
 
   try {
     const session = await getSession();
-    const guestSessionToken = cookies().get('miniapp_guest_session')?.value;
+    if (!session?.id) {
+        return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { amount, courseId } = body;
 
-    if (!session && !guestSessionToken) {
-       return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
+    if (amount === undefined || amount === null || !courseId) {
+      return NextResponse.json({ success: false, message: 'Amount and courseId are required.' }, { status: 400 });
     }
 
-    if (!session && guestSessionToken) {
-        return NextResponse.json({ success: false, message: 'Guest users must register to make a purchase.', redirectTo: '/login/register' }, { status: 403 });
-    }
-    
-    if (!session) {
-        // Should not happen if logic above is correct, but as a safeguard.
-        return NextResponse.json({ success: false, message: 'Authentication session not found.' }, { status: 401 });
-    }
+    const cookieStore = cookies();
+    const superAppToken = cookieStore.get('superapp_token')?.value;
 
-    const latestLogin = await prisma.loginHistory.findFirst({
-        where: { userId: session.id },
-        orderBy: { loginTime: 'desc' }
-    });
-
-    const token = latestLogin?.superAppToken;
-
-    if (!token) {
-      console.error(`[/api/payment/initiate] SuperApp token not found for user ${session.id}.`);
-      return NextResponse.json({ success: false, message: 'SuperApp authentication token not found. Please re-enter from the main app.' }, { status: 401 });
-    }
-    
-    const safeAmount = String(amount);
-    const dryRun = body.dryRun ?? false;
-
-    if (amount === undefined || amount === null) {
-      return NextResponse.json({ success: false, message: 'Amount is required.' }, { status: 400 });
+    if (!superAppToken) {
+        console.error('[NIB INITIATE] Error: SuperApp authorization token (superapp_token) not found in cookie.');
+        return NextResponse.json({ error: 'User session not found. Please log in through the SuperApp.' }, { status: 401 });
     }
 
     const ACCOUNT_NO = process.env.ACCOUNT_NO;
@@ -55,27 +38,26 @@ export async function POST(request: NextRequest) {
     const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
     const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
 
-    if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL) {
+    if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !CALLBACK_URL) {
       console.error('[/api/payment/initiate] Server configuration error: Missing payment gateway environment variables.');
       return NextResponse.json({ success: false, message: 'Server configuration error.' }, { status: 500 });
     }
-
+    
+    const safeAmount = String(amount);
     const transactionId = crypto.randomUUID();
     const transactionTime = format(new Date(), 'yyyyMMddHHmmss');
 
-    const params = {
-        accountNo: ACCOUNT_NO,
-        amount: safeAmount,
-        callBackURL: CALLBACK_URL,
-        companyName: COMPANY_NAME,
-        Key: NIB_PAYMENT_KEY,
-        token: token,
-        transactionId: transactionId,
-        transactionTime: transactionTime
-    };
-
-    const signatureString = Object.keys(params).sort().map(key => `${key}=${params[key as keyof typeof params]}`).join('&');
-
+    const signatureString = [
+        `accountNo=${ACCOUNT_NO}`,
+        `amount=${safeAmount}`,
+        `callBackURL=${CALLBACK_URL}`,
+        `companyName=${COMPANY_NAME}`,
+        `Key=${NIB_PAYMENT_KEY}`,
+        `token=${superAppToken}`,
+        `transactionId=${transactionId}`,
+        `transactionTime=${transactionTime}`
+    ].join('&');
+    
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
     const paymentPayload = {
@@ -83,15 +65,11 @@ export async function POST(request: NextRequest) {
       amount: safeAmount,
       callBackURL: CALLBACK_URL,
       companyName: COMPANY_NAME,
-      token: token,
+      token: superAppToken,
       transactionId: transactionId,
       transactionTime: transactionTime,
       signature: signature
     };
-    
-    if (dryRun) {
-      return NextResponse.json({ success: true, dryRun: true, signatureString, signature, paymentPayload }, { status: 200 });
-    }
 
     await prisma.pendingTransaction.create({
         data: {
@@ -108,7 +86,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${superAppToken}`
         },
         body: JSON.stringify(paymentPayload)
       });
@@ -119,25 +97,32 @@ export async function POST(request: NextRequest) {
 
     const responseText = await paymentResponse.text().catch(() => '');
     let responseData: any;
+
     try {
-      responseData = responseText ? JSON.parse(responseText) : {};
+      if (!responseText) {
+        throw new Error("NIB payment response was empty.");
+      }
+      responseData = JSON.parse(responseText);
     } catch (e) {
-      responseData = responseText;
+      console.error("[/api/payment/initiate] Failed to parse NIB response:", responseText);
+      return NextResponse.json({ error: 'Failed to parse NIB payment response.', raw: responseText }, { status: 502 });
     }
-
-    const paymentToken = responseData && typeof responseData === 'object' ? responseData.token : undefined;
-
+    
     if (!paymentResponse.ok) {
       if (paymentResponse.status === 401) {
-        return NextResponse.json({ success: false, message: 'Payment gateway unauthorized. Verify the token sent in the Authorization header and that the signature is correct.', details: responseData }, { status: 401 });
+        return NextResponse.json({ success: false, message: 'Payment gateway unauthorized. Verify the token and signature.', details: responseData }, { status: 401 });
       }
-      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request. Please try again.', details: responseData }, { status: paymentResponse.status });
+      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request.', details: responseData }, { status: paymentResponse.status });
     }
+    
+    const paymentToken = responseData?.token;
 
     if (!paymentToken) {
-      console.error('[/api/payment/initiate] Payment gateway returned no token:', responseData);
-      return NextResponse.json({ success: false, message: 'Payment gateway did not return a payment token. Please try again later.' }, { status: 502 });
+      console.error('[/api/payment/initiate] Payment gateway returned no payment token:', responseData);
+      return NextResponse.json({ success: false, message: 'Payment gateway did not return a payment token.' }, { status: 502 });
     }
+    
+    // Optionally update the pending transaction with the NIB-provided session/payment token if needed for reconciliation
     
     return NextResponse.json({ success: true, paymentToken, transactionId });
     
