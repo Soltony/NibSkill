@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: 'Amount and courseId are required.' }, { status: 400 });
     }
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const superAppToken = cookieStore.get('superapp_token')?.value;
 
     if (!superAppToken) {
