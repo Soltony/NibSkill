@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
   try {
     let session = await getSession();
     let superAppToken: string | undefined;
+    let userId: string | undefined;
 
     const body = await request.json();
     const { courseId } = body;
@@ -74,11 +75,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, message: 'Please register to purchase this course.', redirectTo: '/login/register' }, { status: 403 });
       }
       
-      // If the user exists, we can create a temporary session object for this transaction.
-      // This is safe because we've verified their existence.
-      session = { id: existingUser.id } as any;
+      userId = existingUser.id;
 
     } else {
+        userId = session.id;
         const tokenFromHistory = await prisma.loginHistory.findFirst({
             where: { userId: session.id },
             orderBy: { loginTime: 'desc' },
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
     await prisma.pendingTransaction.create({
         data: {
             transactionId,
-            userId: session.id,
+            userId: userId!,
             courseId: courseId,
             amount: parseFloat(safeAmount),
         }
@@ -182,8 +182,6 @@ export async function POST(request: NextRequest) {
       console.error('[/api/payment/initiate] Payment gateway returned no payment token:', responseData);
       return NextResponse.json({ success: false, message: 'Payment gateway did not return a payment token.' }, { status: 502 });
     }
-    
-    // Optionally update the pending transaction with the NIB-provided session/payment token if needed for reconciliation
     
     return NextResponse.json({ success: true, paymentToken, transactionId });
     

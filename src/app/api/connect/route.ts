@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
@@ -8,7 +9,6 @@ const getJwtSecret = () => {
     console.error('[CONNECT] JWT_SECRET is not set');
     throw new Error('JWT_SECRET environment variable is not set.');
   }
-  console.log('[CONNECT] JWT_SECRET loaded successfully');
   return new TextEncoder().encode(secret);
 };
 
