@@ -10,6 +10,7 @@ async function getCertificateData(pathId: string, user: { id: string, name: stri
         where: { id: pathId },
         include: { 
             courses: {
+                orderBy: { order: 'asc' },
                 include: {
                     course: {
                         include: {
@@ -48,7 +49,7 @@ async function getCertificateData(pathId: string, user: { id: string, name: stri
     const completionMap = new Map(completions.map(c => [c.courseId, c.score]));
 
     // A path is completed if every course in it has a completion record
-    // AND the score meets the passing requirement for that course's quiz.
+    // AND the score meets the passing requirement for that course's quiz if a quiz exists.
     const isPathCompleted = learningPath.courses.every(({ course }) => {
         const score = completionMap.get(course.id);
         if (score === undefined) {
@@ -57,7 +58,8 @@ async function getCertificateData(pathId: string, user: { id: string, name: stri
         if (course.quiz) {
             return score >= course.quiz.passingScore; // Must pass the quiz
         }
-        return true; // Course has no quiz, completion is enough
+        // If there's no quiz, having a completion record is enough.
+        return true; 
     });
 
 
