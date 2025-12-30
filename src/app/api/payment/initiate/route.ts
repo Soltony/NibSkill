@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
 
   try {
-    let session = await getSession();
+    let session: any | null = null;
     let superAppToken: string | undefined;
     let userId: string | undefined;
 
@@ -49,42 +49,96 @@ export async function POST(request: NextRequest) {
 
     const amount = course.price;
 
-    // If no full session, check for guest session from MiniApp
-    if (!session) {
-      const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
-      if (!guestSessionToken) {
-        return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
-      }
+    // Determine SuperApp token and user from Authorization header (preferred), guest cookie, or existing session.
+    const authHeader = request.headers.get('authorization') ?? request.headers.get('Authorization');
 
-      const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
-      superAppToken = guestPayload.authToken;
-
-      // Check if this guest user is already registered as a Staff member
-      const staffRole = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: course.trainingProviderId }});
-      
-      const existingUser = staffRole ? await prisma.user.findFirst({
-        where: {
-          phoneNumber: guestPayload.phoneNumber,
-          trainingProviderId: course.trainingProviderId,
-          roles: { some: { roleId: staffRole.id } }
+    if (authHeader?.toLowerCase().startsWith('bearer ')) {
+      const token = authHeader.slice(7).trim();
+      console.log('[/api/payment/initiate] Authorization header found; verifying SuperApp token.');
+      try {
+        // Try verifying/decrypting JWT locally to get phone number
+        let phoneNumber: string | undefined;
+        try {
+          const { payload } = await jwtVerify<{ phoneNumber: string }>(token, getJwtSecret());
+          phoneNumber = (payload as any).phoneNumber;
+        } catch (jwtErr) {
+          // Local verification failed — try SuperApp verify endpoint if configured
+          const verifyUrl = process.env.SUPERAPP_VERIFY_URL;
+          if (verifyUrl) {
+            const resp = await fetch(verifyUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            });
+            if (resp.ok) {
+              const data = await resp.json().catch(() => null);
+              phoneNumber = data?.phoneNumber ?? data?.phone ?? undefined;
+            } else {
+              console.error('[/api/payment/initiate] SuperApp verify endpoint returned', resp.status);
+            }
+          }
         }
-      }) : null;
 
-      if (!existingUser) {
-        // User is not registered, instruct client to redirect to sign up
-        return NextResponse.json({ success: false, message: 'Please register to purchase this course.', redirectTo: '/login/register' }, { status: 403 });
+        if (!phoneNumber) {
+          return NextResponse.json({ success: false, message: 'Invalid SuperApp token.' }, { status: 401 });
+        }
+        console.log('[/api/payment/initiate] SuperApp phone resolved:', phoneNumber);
+        // Check if this phone number is registered as Staff for this training provider
+        const staffRole = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: course.trainingProviderId }});
+        const existingUser = staffRole ? await prisma.user.findFirst({
+          where: {
+            phoneNumber,
+            trainingProviderId: course.trainingProviderId,
+            roles: { some: { roleId: staffRole.id } }
+          }
+        }) : null;
+
+        if (!existingUser) {
+          // Unregistered guest according to phone number — redirect to registration
+          return NextResponse.json({ success: false, message: 'Please register to purchase this course.', redirectTo: '/login/register' }, { status: 403 });
+        }
+
+        userId = existingUser.id;
+        superAppToken = token;
+
+      } catch (err) {
+        console.error('[/api/payment/initiate] Error verifying SuperApp token:', err);
+        return NextResponse.json({ success: false, message: 'Invalid SuperApp token.' }, { status: 401 });
       }
-      
-      userId = existingUser.id;
 
     } else {
+      // No Authorization header — try guest cookie first, then fall back to full session
+      const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
+      if (guestSessionToken) {
+        console.log('[/api/payment/initiate] Using guest cookie session');
+        const { payload: guestPayload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
+        superAppToken = guestPayload.authToken;
+        const staffRole = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: course.trainingProviderId }});
+        const existingUser = staffRole ? await prisma.user.findFirst({
+          where: {
+            phoneNumber: guestPayload.phoneNumber,
+            trainingProviderId: course.trainingProviderId,
+            roles: { some: { roleId: staffRole.id } }
+          }
+        }) : null;
+        if (!existingUser) {
+          return NextResponse.json({ success: false, message: 'Please register to purchase this course.', redirectTo: '/login/register' }, { status: 403 });
+        }
+        userId = existingUser.id;
+      } else {
+        // No guest cookie — check full session
+        session = await getSession();
+        if (!session) {
+          return NextResponse.json({ success: false, message: 'User not authenticated.', redirectTo: '/login' }, { status: 403 });
+        }
+        console.log('[/api/payment/initiate] Using full server session for user', session.id);
         userId = session.id;
         const tokenFromHistory = await prisma.loginHistory.findFirst({
-            where: { userId: session.id },
-            orderBy: { loginTime: 'desc' },
-            select: { superAppToken: true }
+          where: { userId: session.id },
+          orderBy: { loginTime: 'desc' },
+          select: { superAppToken: true }
         });
         superAppToken = tokenFromHistory?.superAppToken ?? undefined;
+      }
     }
 
 
