@@ -1,4 +1,5 @@
 
+
 import {
   Card,
   CardContent,
@@ -22,7 +23,7 @@ async function getProfileData(userId: string) {
     });
 
     if (!user) {
-        return { currentUser: null, completedCourses: [], userBadges: [], learningPathCourses: [] };
+        return { currentUser: null, completedCourses: [], userBadges: [], learningPathCourseIds: [], completedLearningPaths: [] };
     }
 
     const completedCourses = await prisma.userCompletedCourse.findMany({
@@ -41,19 +42,49 @@ async function getProfileData(userId: string) {
         where: { userId: user.id },
         include: { badge: true }
     });
-
-    const learningPathCourses = await prisma.learningPathCourse.findMany({
-        where: {
-            learningPath: {
-                hasCertificate: true
-            }
-        },
-        select: {
-            courseId: true
-        }
-    });
     
-    return { currentUser: user, completedCourses, userBadges, learningPathCourses };
+    // Get all learning paths and their courses
+    const allLearningPaths = await prisma.learningPath.findMany({
+      where: { hasCertificate: true },
+      include: {
+        courses: {
+          include: {
+            course: {
+              include: {
+                quiz: {
+                  select: {
+                    passingScore: true,
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const userCompletionsMap = new Map(completedCourses.map(c => [c.courseId, c.score]));
+    
+    // Determine which learning paths are fully completed by the user
+    const completedLearningPathIds = allLearningPaths.filter(path => 
+      path.courses.every(({ course }) => {
+        const score = userCompletionsMap.get(course.id);
+        if (score === undefined) return false; // Not completed
+        if (course.quiz) {
+            return score >= (course.quiz.passingScore ?? 0);
+        }
+        return true; // Completed if no quiz
+      })
+    ).map(path => path.id);
+
+
+    return { 
+        currentUser: user, 
+        completedCourses, 
+        userBadges, 
+        learningPathCourseIds: allLearningPaths.flatMap(p => p.courses.map(c => c.courseId)),
+        completedLearningPaths: completedLearningPathIds,
+    };
 }
 
 export default async function ProfilePage() {
@@ -62,7 +93,7 @@ export default async function ProfilePage() {
     redirect('/login');
   }
 
-  const { currentUser, completedCourses, userBadges, learningPathCourses } = await getProfileData(sessionUser.id);
+  const { currentUser, completedCourses, userBadges, learningPathCourseIds, completedLearningPaths } = await getProfileData(sessionUser.id);
 
   if (!currentUser) {
     return <div>Could not find user data. Please try logging in again.</div>
@@ -96,7 +127,8 @@ export default async function ProfilePage() {
         user={userSafeForClient}
         completedCourses={completedCourses}
         userBadges={userBadges}
-        learningPathCourseIds={learningPathCourses.map(lpc => lpc.courseId)}
+        learningPathCourseIds={learningPathCourseIds}
+        completedLearningPaths={completedLearningPaths}
       />
 
     </div>

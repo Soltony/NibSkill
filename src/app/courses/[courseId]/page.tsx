@@ -37,12 +37,17 @@ async function getCourseData(courseId: string, userId?: string) {
   });
 
   if (!course) {
-    return { course: null, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false };
+    return { course: null, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false, isPartOfLearningPath: false };
   }
+  
+  const isPartOfLearningPath = await prisma.learningPathCourse.count({
+    where: { courseId: courseId }
+  }) > 0;
+
 
   // If there's no user, it's a guest session, return public data only
   if (!userId) {
-    return { course, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false };
+    return { course, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false, isPartOfLearningPath };
   }
   
   // If there's a logged-in user, fetch their specific data
@@ -72,7 +77,8 @@ async function getCourseData(courseId: string, userId?: string) {
     user, 
     previousAttempts: course.completedBy, 
     resetRequest,
-    isPurchased: !!purchaseRecord
+    isPurchased: !!purchaseRecord,
+    isPartOfLearningPath
   };
 }
 
@@ -85,7 +91,7 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
   }
 
   const { courseId } = params;
-  const { course, completedModules, user, previousAttempts, resetRequest, isPurchased } = await getCourseData(courseId, session?.id);
+  const { course, completedModules, user, previousAttempts, resetRequest, isPurchased, isPartOfLearningPath } = await getCourseData(courseId, session?.id);
 
   if (!course) {
     notFound();
@@ -100,9 +106,10 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
             </Link>
         </Button>
         <CourseDetailClient 
-            courseData={{ course, completedModules, user, previousAttempts, resetRequest, isPurchased } as any} 
+            courseData={{ course, completedModules, user, previousAttempts, resetRequest, isPurchased, isPartOfLearningPath } as any} 
         />
     </div>
   );
 }
+
 

@@ -52,6 +52,7 @@ type CourseData = {
     previousAttempts: UserCompletedCourse[];
     resetRequest: ResetRequest | null;
     isPurchased: boolean;
+    isPartOfLearningPath: boolean;
 }
 
 type CourseDetailClientProps = {
@@ -251,14 +252,39 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     }
     setIsRequestingReset(false);
   }
+  
+  const canViewCertificate = hasPassed && course.hasCertificate && !courseData.isPartOfLearningPath;
+
 
   const renderQuizButton = () => {
     if (course.isPaid && !isPurchased) return null;
-    if (!quiz) return <p className="text-muted-foreground">Quiz not available for this course.</p>;
+    if (!quiz) {
+       if (canViewCertificate) {
+         return (
+             <Button size="lg" asChild>
+                <Link href={`/courses/${course.id}/certificate`}>
+                    <Award className="mr-2 h-5 w-5" />
+                    View Certificate
+                </Link>
+            </Button>
+         )
+       }
+       return <p className="text-muted-foreground">Quiz not available for this course.</p>;
+    }
     if (isGuest) return <p className="text-sm mt-2 text-muted-foreground">Register or log in to take the quiz.</p>;
     if (!allModulesCompleted) return <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>;
 
     if (quiz.quizType === 'CLOSED_LOOP' && hasPassed) {
+        if(canViewCertificate) {
+            return (
+                <Button size="lg" asChild>
+                    <Link href={`/courses/${course.id}/certificate`}>
+                        <Award className="mr-2 h-5 w-5" />
+                        View Certificate
+                    </Link>
+                </Button>
+            );
+        }
         return (
              <Button size="lg" disabled>
                 <ShieldCheck className="mr-2 h-5 w-5" />

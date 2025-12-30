@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -60,9 +61,10 @@ type ProfileTabsProps = {
     completedCourses: CompletedCourse[];
     userBadges: EarnedBadge[];
     learningPathCourseIds: string[];
+    completedLearningPaths: string[];
 }
 
-export function ProfileTabs({ user, completedCourses, userBadges, learningPathCourseIds }: ProfileTabsProps) {
+export function ProfileTabs({ user, completedCourses, userBadges, learningPathCourseIds, completedLearningPaths }: ProfileTabsProps) {
     const { toast } = useToast();
     const coursesCompletedCount = completedCourses.filter(c => c.course.quiz && c.score >= c.course.quiz.passingScore).length;
     
@@ -100,6 +102,7 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
     }
 
     const learningPathCourseIdsSet = new Set(learningPathCourseIds);
+    const completedLearningPathsSet = new Set(completedLearningPaths);
 
     return (
         <Tabs defaultValue="overview">
@@ -183,7 +186,26 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                             <TableBody>
                                 {completedCourses.length > 0 ? completedCourses.map(c => {
                                     const passed = c.course.quiz ? c.score >= c.course.quiz.passingScore : false;
-                                    const showCertificate = c.course.hasCertificate && passed && !learningPathCourseIdsSet.has(c.courseId);
+                                    const isLPCourse = learningPathCourseIdsSet.has(c.courseId);
+                                    let showCertificate = false;
+                                    let certificateLink = `/courses/${c.courseId}/certificate`;
+
+                                    if(c.course.hasCertificate && passed) {
+                                        if (!isLPCourse) {
+                                            // It's a standalone course
+                                            showCertificate = true;
+                                        } else {
+                                            // It's part of a learning path, find which one
+                                            // This is a simplification; a course could be in multiple paths
+                                            const pathId = completedLearningPaths.find(pId => learningPathCourseIds.includes(c.courseId));
+                                            if (pathId && completedLearningPathsSet.has(pathId)) {
+                                                showCertificate = true;
+                                                certificateLink = `/learning-paths/${pathId}/certificate`;
+                                            }
+                                        }
+                                    }
+
+
                                     return (
                                         <TableRow key={c.courseId + c.completionDate.toISOString()}>
                                             <TableCell className="font-medium">{c.course.title}</TableCell>
@@ -199,7 +221,7 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                                             <TableCell className="text-right">
                                                 {showCertificate ? (
                                                     <Button asChild variant="link">
-                                                        <Link href={`/courses/${c.courseId}/certificate`}>View</Link>
+                                                        <Link href={certificateLink}>View</Link>
                                                     </Button>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground">N/A</span>
