@@ -24,18 +24,29 @@ interface GuestJwtPayload extends JWTPayload {
 
 export async function POST(request: NextRequest) {
   console.log('[/api/payment/initiate] Received payment initiation request.');
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   try {
     let session = await getSession();
     let superAppToken = cookieStore.get('superapp_token')?.value;
 
     const body = await request.json();
-    const { amount, courseId } = body;
+    const { courseId } = body;
 
-    if (amount === undefined || amount === null || !courseId) {
-      return NextResponse.json({ success: false, message: 'Amount and courseId are required.' }, { status: 400 });
+    if (!courseId) {
+      return NextResponse.json({ success: false, message: 'Course ID is required.' }, { status: 400 });
     }
+    
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { price: true, trainingProviderId: true, isPaid: true }
+    });
+
+    if (!course || !course.isPaid || course.price === null) {
+      return NextResponse.json({ success: false, message: 'Invalid or free course specified.' }, { status: 404 });
+    }
+
+    const amount = course.price;
 
     // If no full session, check for guest session from MiniApp
     if (!session) {
@@ -48,13 +59,12 @@ export async function POST(request: NextRequest) {
       superAppToken = guestPayload.authToken;
 
       // Check if this guest user is already registered as a Staff member
-      const course = await prisma.course.findUnique({ where: { id: courseId }, select: { trainingProviderId: true }});
-      const staffRole = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: course?.trainingProviderId }});
+      const staffRole = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: course.trainingProviderId }});
       
       const existingUser = staffRole ? await prisma.user.findFirst({
         where: {
           phoneNumber: guestPayload.phoneNumber,
-          trainingProviderId: course?.trainingProviderId,
+          trainingProviderId: course.trainingProviderId,
           roles: { some: { roleId: staffRole.id } }
         }
       }) : null;

@@ -160,7 +160,7 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
         const paymentResponse = await fetch('/api/payment/initiate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount: course.price, courseId: course.id })
+            body: JSON.stringify({ courseId: course.id })
         });
         
         const paymentData = await paymentResponse.json();
