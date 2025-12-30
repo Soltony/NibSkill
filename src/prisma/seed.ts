@@ -100,7 +100,7 @@ async function main() {
     const hashedPassword = await bcrypt.hash(password, 10);
     const isSuperAdmin = role === 'super-admin';
 
-    await prisma.user.upsert({
+    const createdUser = await prisma.user.upsert({
       where: { id: user.id },
       update: {
         password: hashedPassword,
@@ -116,10 +116,20 @@ async function main() {
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,
-        roleId: roleRecord!.id,
         trainingProviderId: isSuperAdmin ? null : provider.id,
       },
     });
+
+    if (roleRecord) {
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: createdUser.id, roleId: roleRecord.id } },
+        update: {},
+        create: {
+          userId: createdUser.id,
+          roleId: roleRecord.id,
+        },
+      });
+    }
   }
   console.log('Seeded users');
 
@@ -227,25 +237,48 @@ async function main() {
     });
 
     for (const q of questions) {
-        const { options, ...questionData } = q;
-        const createdQuestion = await prisma.question.upsert({
-            where: { id: q.id },
-            update: {
-                ...questionData,
-                quizId: createdQuiz.id
-            },
-            create: {
-                ...questionData,
-                quizId: createdQuiz.id
-            }
-        });
+        const { options, correctAnswerId, ...questionData } = q;
+        
+        let correctOptionDatabaseId = correctAnswerId;
 
-        for (const opt of options) {
-             await prisma.option.upsert({
-                where: { id: opt.id },
-                update: { ...opt, questionId: createdQuestion.id },
-                create: { ...opt, questionId: createdQuestion.id },
+        // For multiple choice, we need to create options first to get their IDs
+        if (q.type === 'MULTIPLE_CHOICE' || q.type === 'TRUE_FALSE') {
+          const tempQuestion = await prisma.question.upsert({
+              where: { id: q.id },
+              update: { ...questionData, quizId: createdQuiz.id, correctAnswerId: 'placeholder' },
+              create: { ...questionData, quizId: createdQuiz.id, correctAnswerId: 'placeholder' }
+          });
+
+          const createdOptions = [];
+          for (const opt of options) {
+            const createdOpt = await prisma.option.upsert({
+              where: { id: opt.id },
+              update: { text: opt.text, questionId: tempQuestion.id },
+              create: { id: opt.id, text: opt.text, questionId: tempQuestion.id }
             });
+            createdOptions.push(createdOpt);
+          }
+
+          const correctOption = createdOptions.find(opt => opt.text === correctAnswerId);
+          if (correctOption) {
+            correctOptionDatabaseId = correctOption.id;
+          } else {
+             console.error(`Could not find correct option for question: ${q.text}`);
+             continue; // Skip updating this question's correct answer if not found
+          }
+
+          await prisma.question.update({
+            where: { id: tempQuestion.id },
+            data: { correctAnswerId: correctOptionDatabaseId }
+          });
+
+        } else {
+          // For other question types, the answer is stored directly
+           await prisma.question.upsert({
+              where: { id: q.id },
+              update: { ...questionData, quizId: createdQuiz.id, correctAnswerId: correctAnswerId },
+              create: { ...questionData, quizId: createdQuiz.id, correctAnswerId: correctAnswerId }
+          });
         }
     }
   }
@@ -328,6 +361,23 @@ async function main() {
     }
   }
   console.log('Seeded user completed courses');
+
+  // Seed UserPurchasedCourse
+  if (user1ForCompletion) {
+      const course2 = await prisma.course.findUnique({ where: { id: 'course-2' } });
+      if (course2) {
+          await prisma.userPurchasedCourse.upsert({
+              where: { userId_courseId: { userId: user1ForCompletion.id, courseId: course2.id } },
+              update: {},
+              create: {
+                  userId: user1ForCompletion.id,
+                  courseId: course2.id,
+                  amount: course2.price || 49.99,
+              }
+          });
+          console.log('Seeded user purchased courses');
+      }
+  }
   
   // Seed Certificate Template
   await prisma.certificateTemplate.upsert({

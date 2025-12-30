@@ -25,7 +25,7 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
     include: { 
       courses: { 
         orderBy: { order: 'asc' },
-        include: { course: { include: { modules: true, product: true } } } 
+        include: { course: { include: { modules: true, product: true, quiz: true } } } 
       } 
     },
   })
@@ -41,13 +41,13 @@ export default async function LearningPathDetailPage({ params }: { params: { pat
           userId: user.id,
           courseId: { in: courseIds }
       },
-      select: { courseId: true }
+      select: { courseId: true, score: true }
   });
-  const completedCourseIds = new Set(userCourseCompletions.map(c => c.courseId));
 
   const coursesWithProgress = learningPath.courses.map(({ course }) => {
-      const isCompleted = completedCourseIds.has(course.id);
-      return { ...course, isCompleted };
+      const completion = userCourseCompletions.find(c => c.courseId === course.id);
+      const hasPassed = completion ? completion.score >= (course.quiz?.passingScore ?? 0) : false;
+      return { ...course, isCompleted: hasPassed };
   });
 
   const allCoursesInPathCompleted = coursesWithProgress.every(c => c.isCompleted);

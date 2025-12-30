@@ -97,15 +97,19 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
         // Since phone number is the main identifier, check for its uniqueness if provided
         if (phoneNumber) {
-             const existingUserByPhone = await prisma.user.findFirst({
+             const existingUser = await prisma.user.findFirst({
                  where: { 
                     phoneNumber: phoneNumber,
-                    roles: { some: { roleId: roleId } },
-                    trainingProviderId: session.trainingProviderId
+                    trainingProviderId: session.trainingProviderId,
+                    roles: {
+                        some: {
+                            roleId: roleId,
+                        }
+                    }
                 },
              });
-             if (existingUserByPhone) {
-                 return { success: false, message: 'A user with this phone number and role already exists.' };
+             if (existingUser) {
+                 return { success: false, message: 'A user with this phone number and role already exists for this provider.' };
              }
         }
 
@@ -337,3 +341,4 @@ export async function deleteRegistrationField(id: string) {
     }
 }
 
+    

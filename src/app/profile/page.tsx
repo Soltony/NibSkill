@@ -22,7 +22,7 @@ async function getProfileData(userId: string) {
     });
 
     if (!user) {
-        return { currentUser: null, completedCourses: [], userBadges: [] };
+        return { currentUser: null, completedCourses: [], userBadges: [], learningPathCourses: [] };
     }
 
     const completedCourses = await prisma.userCompletedCourse.findMany({
@@ -30,7 +30,7 @@ async function getProfileData(userId: string) {
         include: { 
             course: {
                 include: {
-                    quiz: true
+                    quiz: true,
                 }
             } 
         },
@@ -41,8 +41,19 @@ async function getProfileData(userId: string) {
         where: { userId: user.id },
         include: { badge: true }
     });
+
+    const learningPathCourses = await prisma.learningPathCourse.findMany({
+        where: {
+            learningPath: {
+                hasCertificate: true
+            }
+        },
+        select: {
+            courseId: true
+        }
+    });
     
-    return { currentUser: user, completedCourses, userBadges };
+    return { currentUser: user, completedCourses, userBadges, learningPathCourses };
 }
 
 export default async function ProfilePage() {
@@ -51,7 +62,7 @@ export default async function ProfilePage() {
     redirect('/login');
   }
 
-  const { currentUser, completedCourses, userBadges } = await getProfileData(sessionUser.id);
+  const { currentUser, completedCourses, userBadges, learningPathCourses } = await getProfileData(sessionUser.id);
 
   if (!currentUser) {
     return <div>Could not find user data. Please try logging in again.</div>
@@ -85,6 +96,7 @@ export default async function ProfilePage() {
         user={userSafeForClient}
         completedCourses={completedCourses}
         userBadges={userBadges}
+        learningPathCourseIds={learningPathCourses.map(lpc => lpc.courseId)}
       />
 
     </div>
