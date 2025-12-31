@@ -13,11 +13,11 @@ import {
 } from '@/components/ui/accordion';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2, Award, ShieldCheck, ShieldAlert, History, Info } from 'lucide-react';
+import { Video, FileText, Presentation, Music, Bookmark, Pencil, ShoppingCart, Loader2, Award, ShieldCheck, ShieldAlert, History, Info, Hourglass } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModuleContent } from '@/components/module-content';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse, ResetRequest, Role, UserRole, UserPurchasedCourse } from '@prisma/client';
+import type { Course, Module, Product, Quiz as TQuiz, Question, Option as TOption, UserCompletedModule, User, Currency, UserCompletedCourse, ResetRequest, Role, UserRole, UserPurchasedCourse, QuizSubmission } from '@prisma/client';
 import { FeatureNotImplementedDialog } from '@/components/feature-not-implemented-dialog';
 import { toggleModuleCompletion } from '@/app/actions/user-actions';
 import { requestQuizReset } from '@/app/actions/quiz-actions';
@@ -53,6 +53,7 @@ type CourseData = {
     resetRequest: ResetRequest | null;
     isPurchased: boolean;
     isPartOfLearningPath: boolean;
+    pendingSubmission: QuizSubmission | null;
 }
 
 type CourseDetailClientProps = {
@@ -277,6 +278,16 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
        return <p className="text-muted-foreground">Quiz not available for this course.</p>;
     }
     if (isGuest) return <p className="text-sm mt-2 text-muted-foreground">Register or log in to take the quiz.</p>;
+    
+    if (courseData.pendingSubmission) {
+      return (
+        <Button size="lg" disabled>
+          <Hourglass className="mr-2 h-5 w-5" />
+          Quiz Submitted, Awaiting Review
+        </Button>
+      )
+    }
+
     if (!allModulesCompleted) return <p className="text-sm mt-2 text-muted-foreground">Complete all modules to unlock the quiz.</p>;
 
     if (quiz.quizType === 'CLOSED_LOOP' && hasPassed) {
@@ -442,3 +453,4 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
     </div>
   );
 }
+

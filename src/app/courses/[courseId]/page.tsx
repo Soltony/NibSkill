@@ -37,7 +37,7 @@ async function getCourseData(courseId: string, userId?: string) {
   });
 
   if (!course) {
-    return { course: null, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false, isPartOfLearningPath: false };
+    return { course: null, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false, isPartOfLearningPath: false, pendingSubmission: null };
   }
   
   const isPartOfLearningPath = await prisma.learningPathCourse.count({
@@ -47,11 +47,11 @@ async function getCourseData(courseId: string, userId?: string) {
 
   // If there's no user, it's a guest session, return public data only
   if (!userId) {
-    return { course, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false, isPartOfLearningPath };
+    return { course, completedModules: [], user: null, previousAttempts: [], resetRequest: null, isPurchased: false, isPartOfLearningPath, pendingSubmission: null };
   }
   
   // If there's a logged-in user, fetch their specific data
-  const [completedModules, user, resetRequest, purchaseRecord] = await Promise.all([
+  const [completedModules, user, resetRequest, purchaseRecord, pendingSubmission] = await Promise.all([
     prisma.userCompletedModule.findMany({
       where: {
         userId: userId,
@@ -68,6 +68,13 @@ async function getCourseData(courseId: string, userId?: string) {
     }),
     course.isPaid ? prisma.userPurchasedCourse.findUnique({
       where: { userId_courseId: { userId, courseId } }
+    }) : Promise.resolve(null),
+    course.quiz ? prisma.quizSubmission.findFirst({
+      where: {
+        userId: userId,
+        quizId: course.quiz.id,
+        status: 'PENDING_REVIEW'
+      }
     }) : Promise.resolve(null)
   ]);
 
@@ -78,7 +85,8 @@ async function getCourseData(courseId: string, userId?: string) {
     previousAttempts: course.completedBy, 
     resetRequest,
     isPurchased: !!purchaseRecord,
-    isPartOfLearningPath
+    isPartOfLearningPath,
+    pendingSubmission,
   };
 }
 
@@ -91,9 +99,9 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
   }
 
   const { courseId } = params;
-  const { course, completedModules, user, previousAttempts, resetRequest, isPurchased, isPartOfLearningPath } = await getCourseData(courseId, session?.id);
+  const courseData = await getCourseData(courseId, session?.id);
 
-  if (!course) {
+  if (!courseData.course) {
     notFound();
   }
 
@@ -106,7 +114,7 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
             </Link>
         </Button>
         <CourseDetailClient 
-            courseData={{ course, completedModules, user, previousAttempts, resetRequest, isPurchased, isPartOfLearningPath } as any} 
+            courseData={courseData as any} 
         />
     </div>
   );
