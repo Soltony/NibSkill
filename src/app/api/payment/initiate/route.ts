@@ -110,12 +110,18 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization') ?? request.headers.get('Authorization');
     superAppToken = superAppTokenFromCookie ?? (authHeader?.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : undefined);
 
+    // Trim and normalize token to avoid accidental whitespace issues
+    superAppToken = superAppToken?.trim();
+
     if (!superAppToken) {
       console.error('[/api/payment/initiate] Error: SuperApp token not provided (superapp_token cookie or Authorization header required)');
       return NextResponse.json({ success: false, message: 'SuperApp token missing. Please launch from the SuperApp.' }, { status: 401 });
     }
 
     console.log('[/api/payment/initiate] SuperApp token present (redacted in logs).');
+    try {
+      console.log('[/api/payment/initiate] Outgoing Authorization header: Bearer ***REDACTED*** (length=' + superAppToken.length + ')');
+    } catch {}
 
 
     if (!superAppToken) {
@@ -199,6 +205,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': `Bearer ${superAppToken}`
         },
         body: JSON.stringify(paymentPayload),
