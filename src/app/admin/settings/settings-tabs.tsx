@@ -35,7 +35,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Trash2, Mail } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import {
@@ -54,6 +54,7 @@ import { AddRoleDialog } from "@/components/add-role-dialog"
 import { EditRoleDialog } from "@/components/edit-role-dialog"
 import { registerUser, deleteRole, updateRegistrationFields, deleteRegistrationField, updateUser, deleteUser } from "@/app/actions/settings-actions"
 import { approveResetRequest, rejectResetRequest } from "@/app/actions/quiz-actions"
+import { resendCredentialsEmail } from "@/app/actions/user-actions"
 import { Badge } from "@/components/ui/badge"
 import { AddDistrictDialog } from "@/components/add-district-dialog"
 import { EditDistrictDialog, DeleteDistrictButton } from "@/components/edit-district-dialog"
@@ -72,7 +73,7 @@ type FullResetRequest = ResetRequest & { user: User; course: Course };
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  email: z.string().email("Invalid email address").optional().or(z.literal('')),
   password: z.string().min(6, "Password must be at least 6 characters"),
   roleId: z.string({ required_error: "A role is required." }),
   phoneNumber: z.string().optional(),
@@ -241,6 +242,15 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     }
   }
 
+  const handleResendCredentials = async (userId: string) => {
+    const result = await resendCredentialsEmail(userId);
+    if (result.success) {
+      toast({ title: "Email Sent", description: result.message });
+    } else {
+      toast({ title: "Error", description: result.message, variant: "destructive" });
+    }
+  };
+
   const handleApprove = async (requestId: string) => {
     const result = await approveResetRequest(requestId);
     if (result.success) {
@@ -315,6 +325,10 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                                 <EditUserDialog user={user} roles={filteredRolesForForms}>
                                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit</DropdownMenuItem>
                                 </EditUserDialog>
+                                <DropdownMenuItem onSelect={() => handleResendCredentials(user.id)}>
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    Resend Email
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onSelect={() => setUserToDelete(user)} className="text-destructive">
                                     Delete

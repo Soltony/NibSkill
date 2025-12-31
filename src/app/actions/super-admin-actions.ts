@@ -7,6 +7,7 @@ import { z } from 'zod'
 import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { roles } from '@/lib/data'
+import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 
 const formSchema = z.object({
   name: z.string().min(2, "Provider name is required."),
@@ -65,8 +66,22 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
                         { name: 'Staff', permissions: defaultStaffRolePermissions || {} },
                     ]
                 }
+            },
+             include: {
+                users: true // Include the created user to get their email
             }
         });
+        
+        const newAdmin = newProvider.users[0];
+        if (newAdmin && newAdmin.email) {
+            const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/login/admin` : 'http://localhost:3000/login/admin';
+            await sendEmail({
+                to: newAdmin.email,
+                subject: "Your NIB Training Admin Account Credentials",
+                html: getLoginCredentialsEmailTemplate(newAdmin.phoneNumber || newAdmin.email, adminPassword, loginUrl),
+            });
+        }
+
 
         revalidatePath('/super-admin/providers');
         revalidatePath('/super-admin/dashboard');
@@ -173,4 +188,5 @@ export async function deleteTrainingProvider(providerId: string) {
         return { success: false, message: 'Failed to delete provider.' };
     }
 }
+
 

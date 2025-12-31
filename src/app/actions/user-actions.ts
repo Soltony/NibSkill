@@ -6,12 +6,65 @@ import { z } from 'zod'
 import prisma from '@/lib/db'
 import { cookies } from 'next/headers'
 import { getSession } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
+import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 
 const completeCourseSchema = z.object({
   userId: z.string(),
   courseId: z.string(),
   score: z.number().min(0).max(100),
 })
+
+function generateRandomPassword(length = 10) {
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+}
+
+export async function resendCredentialsEmail(userId: string) {
+    try {
+        const session = await getSession();
+        if (!session) {
+            return { success: false, message: "Not authenticated." };
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.email) {
+            return { success: false, message: "User not found or has no email address." };
+        }
+        
+        // Security check: ensure admin has authority over the user
+        if (session.role.name !== 'Super Admin' && user.trainingProviderId !== session.trainingProviderId) {
+             return { success: false, message: "You do not have permission to manage this user." };
+        }
+
+        const newPassword = generateRandomPassword();
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword }
+        });
+        
+        const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/login` : 'http://localhost:3000/login';
+
+        await sendEmail({
+            to: user.email,
+            subject: 'Your NIB Training Account Credentials',
+            html: getLoginCredentialsEmailTemplate(user.phoneNumber || user.email, newPassword, loginUrl)
+        });
+
+        return { success: true, message: `A new password has been sent to ${user.email}.` };
+
+    } catch (error) {
+        console.error("Error resending credentials:", error);
+        return { success: false, message: 'Failed to resend credentials email.' };
+    }
+}
+
 
 export async function completeCourse(values: z.infer<typeof completeCourseSchema>) {
     try {
@@ -24,7 +77,7 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
         const course = await prisma.course.findUnique({
             where: { id: courseId },
-            include: { quiz: true },
+            include: { quiz: true, modules: { select: { id: true }} },
         });
 
         if (!course) {
@@ -55,8 +108,11 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
             });
         }
         
-        // If the user failed, reset their module progress to force a retake.
-        if (!passed) {
+        // If the user failed and has attempts left, reset their module progress to force a retake.
+        const attemptsUsed = await prisma.userCompletedCourse.count({ where: { userId, courseId }});
+        const maxAttempts = course.quiz?.maxAttempts ?? 0;
+        
+        if (!passed && (maxAttempts === 0 || attemptsUsed < maxAttempts)) {
             const moduleIds = course.modules.map(m => m.id);
             if (moduleIds.length > 0) {
                 await prisma.userCompletedModule.deleteMany({

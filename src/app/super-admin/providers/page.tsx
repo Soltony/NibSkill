@@ -22,6 +22,7 @@ import { EditProviderDialog } from "../edit-provider-dialog"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { ToggleProviderStatusButton } from "../toggle-provider-status-button"
+import { ResendAdminEmailButton } from "../resend-admin-email-button"
 
 type ProviderWithAdmin = TrainingProvider & { users: User[] };
 export const dynamic = "force-dynamic";
@@ -101,6 +102,7 @@ export default async function SuperAdminProvidersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                            {admin && <ResendAdminEmailButton admin={admin} />}
                             <EditProviderDialog provider={provider} admin={admin} />
                             <ToggleProviderStatusButton provider={provider} />
                         </div>

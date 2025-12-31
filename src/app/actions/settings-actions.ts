@@ -8,6 +8,7 @@ import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { FieldType } from '@prisma/client'
 import { getSession } from '@/lib/auth'
+import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -115,7 +116,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        await prisma.user.create({
+        const newUser = await prisma.user.create({
             data: {
                 name,
                 email: email || null,
@@ -133,6 +134,16 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 branchId: branchId || null,
             }
         });
+        
+        if (newUser.email) {
+            const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/login` : 'http://localhost:3000/login';
+            await sendEmail({
+                to: newUser.email,
+                subject: "Your Account Credentials for NIB Training",
+                html: getLoginCredentialsEmailTemplate(newUser.phoneNumber || newUser.email, password, loginUrl),
+            });
+        }
+
 
         revalidatePath('/admin/settings');
         return { success: true, message: 'User registered successfully.' };
