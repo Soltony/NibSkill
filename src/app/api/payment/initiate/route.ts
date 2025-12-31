@@ -110,24 +110,59 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization') ?? request.headers.get('Authorization');
     superAppToken = superAppTokenFromCookie ?? (authHeader?.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : undefined);
 
+    // Trim and normalize token to avoid accidental whitespace issues
+    superAppToken = superAppToken?.trim();
+
     if (!superAppToken) {
       console.error('[/api/payment/initiate] Error: SuperApp token not provided (superapp_token cookie or Authorization header required)');
       return NextResponse.json({ success: false, message: 'SuperApp token missing. Please launch from the SuperApp.' }, { status: 401 });
     }
 
     console.log('[/api/payment/initiate] SuperApp token present (redacted in logs).');
+    try {
+      console.log('[/api/payment/initiate] Outgoing Authorization header: Bearer ***REDACTED*** (length=' + superAppToken.length + ')');
+    } catch {}
 
+    // Validate SuperApp token against the token validation endpoint before calling NIB
+    const validateUrl = process.env.VALIDATE_TOKEN_URL ?? process.env.TOKEN_VALIDATION_API_URL;
+    if (validateUrl) {
+      try {
+        const validateRes = await fetch(validateUrl, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${superAppToken}`, Accept: 'application/json' },
+          cache: 'no-store',
+        });
 
-    if (!superAppToken) {
-        console.error('[NIB INITIATE] Error: SuperApp authorization token not found for user.');
-        return NextResponse.json({ error: 'User session not found or token missing. Please log in through the SuperApp.' }, { status: 401 });
+        if (!validateRes.ok) {
+          const errText = await validateRes.text().catch(() => '');
+          console.error('[/api/payment/initiate] SuperApp token validation failed:', validateRes.status, errText);
+          return NextResponse.json({ success: false, message: 'SuperApp token validation failed.' }, { status: 401 });
+        }
+
+        const validateData = await validateRes.json().catch(() => null);
+        const validatedPhone = validateData?.phone;
+        console.log('[/api/payment/initiate] Token validation returned phone:', validatedPhone ?? 'none');
+
+        if (!validatedPhone || validatedPhone !== phoneNumber) {
+          console.error('[/api/payment/initiate] Token validation phone mismatch:', validatedPhone, 'expected:', phoneNumber);
+          return NextResponse.json({ success: false, message: 'Token phone mismatch. Please re-authenticate from the SuperApp.' }, { status: 401 });
+        }
+
+        console.log('[/api/payment/initiate] SuperApp token validated successfully for phone:', validatedPhone);
+      } catch (err) {
+        console.error('[/api/payment/initiate] Error validating SuperApp token:', err);
+        return NextResponse.json({ success: false, message: 'Could not validate SuperApp token.' }, { status: 502 });
+      }
+    } else {
+      console.warn('[/api/payment/initiate] VALIDATE_TOKEN_URL not set; skipping SuperApp token validation.');
     }
 
-    const ACCOUNT_NO = process.env.ACCOUNT_NO;
-    const CALLBACK_URL = process.env.CALLBACK_URL;
-    const COMPANY_NAME = process.env.COMPANY_NAME;
-    const NIB_PAYMENT_KEY = process.env.NIB_PAYMENT_KEY;
-    const NIB_PAYMENT_URL = process.env.NIB_PAYMENT_URL;
+    // Normalize environment values to avoid trailing-space/signature issues
+    const ACCOUNT_NO = (process.env.ACCOUNT_NO || '').trim();
+    const CALLBACK_URL = (process.env.CALLBACK_URL || '').trim();
+    const COMPANY_NAME = (process.env.COMPANY_NAME || '').trim();
+    const NIB_PAYMENT_KEY = (process.env.NIB_PAYMENT_KEY || '').trim();
+    const NIB_PAYMENT_URL = (process.env.NIB_PAYMENT_URL || '').trim();
 
     if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !CALLBACK_URL) {
       console.error('[/api/payment/initiate] Server configuration error: Missing payment gateway environment variables.');
@@ -148,6 +183,18 @@ export async function POST(request: NextRequest) {
         `transactionId=${transactionId}`,
         `transactionTime=${transactionTime}`
     ].join('&');
+
+    // Diagnostic: log a redacted preview of the signature string and related lengths to debug 401s
+    try {
+      const redactedSigString = signatureString.replace(`token=${superAppToken}`, 'token=***REDACTED***');
+      console.log('[/api/payment/initiate] Signature string preview (redacted):', redactedSigString);
+      console.log('[/api/payment/initiate] token length:', superAppToken?.length, 'NIB key length:', (NIB_PAYMENT_KEY || '').length);
+      console.log('[/api/payment/initiate] callback:', CALLBACK_URL);
+      console.log('[/api/payment/initiate] companyName:', COMPANY_NAME);
+      console.log('[/api/payment/initiate] accountNo:', ACCOUNT_NO);
+    } catch (diagErr) {
+      console.warn('[/api/payment/initiate] Could not print signature diagnostics', diagErr);
+    }
     
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
@@ -161,6 +208,18 @@ export async function POST(request: NextRequest) {
       transactionTime: transactionTime,
       signature: signature
     };
+
+    // Debug: show a masked preview of the payload we will send to NIB (do not log raw token)
+    console.log('[/api/payment/initiate] NIB payload preview:', {
+      accountNo: paymentPayload.accountNo,
+      amount: paymentPayload.amount,
+      callBackURL: paymentPayload.callBackURL,
+      companyName: paymentPayload.companyName,
+      token: paymentPayload.token ? '***REDACTED***' : undefined,
+      transactionId: paymentPayload.transactionId,
+      transactionTime: paymentPayload.transactionTime,
+      signature: paymentPayload.signature,
+    });
 
     // Create a PendingTransaction only if we don't already have one (new standard passes an existing transactionId)
     if (!pendingTx) {
@@ -187,6 +246,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': `Bearer ${superAppToken}`
         },
         body: JSON.stringify(paymentPayload),
@@ -215,11 +275,22 @@ export async function POST(request: NextRequest) {
       console.error("[/api/payment/initiate] Failed to parse NIB response:", responseText);
       return NextResponse.json({ error: 'Failed to parse NIB payment response.', raw: responseText }, { status: 502 });
     }
+
+    // Log NIB response for debugging (mask sensitive fields if present)
+    try {
+      const loggedResponse = { ...responseData };
+      if (loggedResponse.token) loggedResponse.token = '***REDACTED***';
+      console.log('[/api/payment/initiate] NIB response status:', paymentResponse.status, 'body:', loggedResponse);
+    } catch (logErr) {
+      console.warn('[/api/payment/initiate] Could not log NIB response safely', logErr);
+    }
     
     if (!paymentResponse.ok) {
       if (paymentResponse.status === 401) {
+        console.error('[/api/payment/initiate] NIB returned 401 — token or signature likely invalid. Response body:', responseData);
         return NextResponse.json({ success: false, message: 'Payment gateway unauthorized. Verify the token and signature.', details: responseData }, { status: 401 });
       }
+      console.error('[/api/payment/initiate] NIB rejected payment request:', paymentResponse.status, responseData);
       return NextResponse.json({ success: false, message: 'Payment gateway rejected the request.', details: responseData }, { status: paymentResponse.status });
     }
     
