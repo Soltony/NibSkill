@@ -187,6 +187,12 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
         const paymentToken = paymentData.paymentToken;
 
+        if (typeof window !== 'undefined') {
+            // Debug logs to confirm that Step 4 executes inside the MiniApp WebView
+            console.log('[MiniApp][Step4] myJsChannel present:', !!window.myJsChannel);
+            console.log('[MiniApp][Step4] paymentToken:', paymentToken);
+        }
+
         if (window.myJsChannel?.postMessage) {
             window.myJsChannel.postMessage({ token: paymentToken });
             toast({
