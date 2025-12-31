@@ -9,6 +9,16 @@ import bcrypt from 'bcryptjs'
 import { roles } from '@/lib/data'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 
+function generateRandomPassword(length = 12) {
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+}
+
+
 const formSchema = z.object({
   name: z.string().min(2, "Provider name is required."),
   address: z.string().min(5, "Address is required."),
@@ -16,7 +26,6 @@ const formSchema = z.object({
   adminFirstName: z.string().min(2, "Admin first name is required."),
   adminLastName: z.string().min(2, "Admin last name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPassword: z.string().min(6, "Password must be at least 6 characters."),
   adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
 })
 
@@ -27,7 +36,9 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
             return { success: false, message: "Invalid data provided." }
         }
 
-        const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPassword, adminPhoneNumber } = validatedFields.data;
+        const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPhoneNumber } = validatedFields.data;
+        
+        const generatedPassword = generateRandomPassword();
 
         const providerAdminRole = await prisma.role.findFirst({
             where: { name: 'Training Provider' }
@@ -36,7 +47,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
             throw new Error("Training Provider role not found.");
         }
 
-        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        const hashedPassword = await bcrypt.hash(generatedPassword, 10);
         
         const defaultAdminRolePermissions = roles.find(r => r.name === 'Admin')?.permissions;
         const defaultStaffRolePermissions = roles.find(r => r.name === 'Staff')?.permissions;
@@ -78,7 +89,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
             await sendEmail({
                 to: newAdmin.email,
                 subject: "Your NIB Training Admin Account Credentials",
-                html: getLoginCredentialsEmailTemplate(newAdmin.phoneNumber || newAdmin.email, adminPassword, loginUrl),
+                html: getLoginCredentialsEmailTemplate(newAdmin.phoneNumber || newAdmin.email, generatedPassword, loginUrl),
             });
         }
 
@@ -188,5 +199,6 @@ export async function deleteTrainingProvider(providerId: string) {
         return { success: false, message: 'Failed to delete provider.' };
     }
 }
+
 
 
