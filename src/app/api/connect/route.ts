@@ -96,6 +96,16 @@ export async function GET(request: NextRequest) {
       maxAge: 60 * 60 * 24, // 24 hours
     });
 
+    // Persist the original SuperApp token so downstream flows (payment initiation -> NIB) can forward it
+    // to the payment gateway. Keep it opaque and don't decode it server-side.
+    cookieStore.set('superapp_token', token, {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24, // 24 hours
+    });
+
     const url = new URL(request.url);
     const redirectUrl = `${url.protocol}//${url.host}/dashboard`;
 
