@@ -154,6 +154,18 @@ export async function POST(request: NextRequest) {
         `transactionId=${transactionId}`,
         `transactionTime=${transactionTime}`
     ].join('&');
+
+    // Diagnostic: log a redacted preview of the signature string and related lengths to debug 401s
+    try {
+      const redactedSigString = signatureString.replace(`token=${superAppToken}`, 'token=***REDACTED***');
+      console.log('[/api/payment/initiate] Signature string preview (redacted):', redactedSigString);
+      console.log('[/api/payment/initiate] token length:', superAppToken?.length, 'NIB key length:', (NIB_PAYMENT_KEY || '').length);
+      console.log('[/api/payment/initiate] callback:', CALLBACK_URL);
+      console.log('[/api/payment/initiate] companyName:', COMPANY_NAME);
+      console.log('[/api/payment/initiate] accountNo:', ACCOUNT_NO);
+    } catch (diagErr) {
+      console.warn('[/api/payment/initiate] Could not print signature diagnostics', diagErr);
+    }
     
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
