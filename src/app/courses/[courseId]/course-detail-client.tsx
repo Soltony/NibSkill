@@ -156,6 +156,11 @@ export function CourseDetailClient({ courseData: initialCourseData }: CourseDeta
 
 
   const handleBuyCourse = async () => {
+    if (!isMiniApp) {
+      toast({ title: 'Payment Unavailable', description: 'Payments are only available within the NIBtera Super App.' });
+      return;
+    }
+
     setIsPaying(true);
     try {
         const paymentResponse = await fetch('/api/payment/initiate', {
