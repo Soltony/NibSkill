@@ -162,6 +162,18 @@ export async function POST(request: NextRequest) {
       signature: signature
     };
 
+    // Debug: show a masked preview of the payload we will send to NIB (do not log raw token)
+    console.log('[/api/payment/initiate] NIB payload preview:', {
+      accountNo: paymentPayload.accountNo,
+      amount: paymentPayload.amount,
+      callBackURL: paymentPayload.callBackURL,
+      companyName: paymentPayload.companyName,
+      token: paymentPayload.token ? '***REDACTED***' : undefined,
+      transactionId: paymentPayload.transactionId,
+      transactionTime: paymentPayload.transactionTime,
+      signature: paymentPayload.signature,
+    });
+
     // Create a PendingTransaction only if we don't already have one (new standard passes an existing transactionId)
     if (!pendingTx) {
       await prisma.pendingTransaction.create({
@@ -215,11 +227,22 @@ export async function POST(request: NextRequest) {
       console.error("[/api/payment/initiate] Failed to parse NIB response:", responseText);
       return NextResponse.json({ error: 'Failed to parse NIB payment response.', raw: responseText }, { status: 502 });
     }
+
+    // Log NIB response for debugging (mask sensitive fields if present)
+    try {
+      const loggedResponse = { ...responseData };
+      if (loggedResponse.token) loggedResponse.token = '***REDACTED***';
+      console.log('[/api/payment/initiate] NIB response status:', paymentResponse.status, 'body:', loggedResponse);
+    } catch (logErr) {
+      console.warn('[/api/payment/initiate] Could not log NIB response safely', logErr);
+    }
     
     if (!paymentResponse.ok) {
       if (paymentResponse.status === 401) {
+        console.error('[/api/payment/initiate] NIB returned 401 — token or signature likely invalid. Response body:', responseData);
         return NextResponse.json({ success: false, message: 'Payment gateway unauthorized. Verify the token and signature.', details: responseData }, { status: 401 });
       }
+      console.error('[/api/payment/initiate] NIB rejected payment request:', paymentResponse.status, responseData);
       return NextResponse.json({ success: false, message: 'Payment gateway rejected the request.', details: responseData }, { status: paymentResponse.status });
     }
     
