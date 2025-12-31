@@ -86,6 +86,16 @@ export async function GET(request: NextRequest) {
       maxAge: 60 * 60 * 24, // 24 hours
     });
 
+    // Also store the verified phone number for MiniApp flows so downstream APIs (like /api/payment/initiate) can
+    // trust the SuperApp-verified phone without needing to decode/verify opaque tokens.
+    cookieStore.set('miniapp_phone', phoneNumber, {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24, // 24 hours
+    });
+
     const url = new URL(request.url);
     const redirectUrl = `${url.protocol}//${url.host}/dashboard`;
 
