@@ -1,7 +1,7 @@
 
 import { notFound } from "next/navigation";
 import prisma from "@/lib/db";
-import { CertificateClient } from "./certificate-client";
+import { CertificateClient } from "@/app/courses/[courseId]/certificate/certificate-client";
 import { getSession } from "@/lib/auth";
 
 async function getCertificateData(pathId: string, user: { id: string, name: string }) {
@@ -89,7 +89,8 @@ export default async function LearningPathCertificatePage({ params }: { params: 
     return (
         <CertificateClient 
             template={template}
-            path={learningPath}
+            item={learningPath}
+            itemType="path"
             user={user}
             completionDate={completionDate}
         />

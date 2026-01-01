@@ -42,6 +42,8 @@ export async function updateCertificateTemplate(values: z.infer<typeof formSchem
         });
 
         revalidatePath('/admin/certificate');
+        revalidatePath('/courses', 'layout');
+        revalidatePath('/learning-paths', 'layout');
         return { success: true, message: 'Certificate template updated successfully.' }
     } catch (error) {
         console.error("Error updating certificate template:", error);
