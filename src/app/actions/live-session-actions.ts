@@ -171,8 +171,23 @@ export async function endLiveSession(sessionId: string) {
         if (!session) {
             return { success: false, message: "Session not found." };
         }
+        
+        const now = new Date();
+        const sessionTime = new Date(session.dateTime);
+        const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // 1-hour duration
+        
+        let realTimeStatus: LiveSessionStatus = session.status;
+        if (realTimeStatus !== 'ENDED') {
+            if (now >= sessionTime && now <= endTime) {
+                realTimeStatus = 'LIVE';
+            } else if (now > endTime) {
+                realTimeStatus = 'ENDED';
+            } else {
+                realTimeStatus = 'UPCOMING';
+            }
+        }
 
-        if (session.status !== 'LIVE') {
+        if (realTimeStatus !== 'LIVE') {
             return { success: false, message: "Only live sessions can be ended." };
         }
         
