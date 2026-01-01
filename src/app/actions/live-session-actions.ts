@@ -183,7 +183,7 @@ export async function endLiveSession(sessionId: string) {
 
         revalidatePath('/admin/live-sessions');
         revalidatePath('/live-sessions');
-        return { success: true };
+        return { success: true, message: 'Session ended successfully.' };
 
     } catch (error) {
         console.error("Error ending live session:", error);
