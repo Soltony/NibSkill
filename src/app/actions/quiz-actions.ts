@@ -47,7 +47,7 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   id: z.string().optional(),
   text: z.string().min(1, "Question text cannot be empty."),
-  type: z.enum(['MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_IN_THE_BLANK', 'SHORT_ANSWER']),
+  type: z.string().transform((val) => val.toUpperCase()).pipe(z.enum(['MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_IN_THE_BLANK', 'SHORT_ANSWER'])),
   options: z.array(optionSchema),
   correctAnswerId: z.string().min(1, "A correct answer is required."),
   weight: z.coerce.number().min(0.1, "Weight must be greater than 0."),
