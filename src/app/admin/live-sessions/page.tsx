@@ -55,7 +55,31 @@ async function getData(trainingProviderId: string | null | undefined, userRole: 
     where: usersWhere
   });
 
-  return { sessions, users };
+  // Re-calculate status on every fetch for real-time accuracy
+  const now = new Date();
+  const oneHour = 60 * 60 * 1000;
+
+  const sessionsWithRealtimeStatus = sessions.map(session => {
+    const sessionTime = new Date(session.dateTime);
+    const endTime = new Date(sessionTime.getTime() + oneHour);
+    let currentStatus: LiveSessionStatus = session.status;
+    
+    // Only update if it's not already ended
+    if (currentStatus !== 'ENDED') {
+        if (now >= sessionTime && now <= endTime) {
+            currentStatus = 'LIVE';
+        } else if (now > endTime) {
+            currentStatus = 'ENDED';
+        } else {
+            currentStatus = 'UPCOMING';
+        }
+    }
+    
+    return { ...session, status: currentStatus };
+  });
+
+
+  return { sessions: sessionsWithRealtimeStatus, users };
 }
 
 export default async function LiveSessionManagementPage() {
@@ -151,3 +175,4 @@ export default async function LiveSessionManagementPage() {
     </div>
   )
 }
+
