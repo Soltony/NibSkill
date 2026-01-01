@@ -17,6 +17,15 @@ const updateUserSchema = z.object({
   phoneNumber: z.string().optional(),
 })
 
+function generateRandomPassword(length = 12) {
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return password;
+}
+
 export async function updateUser(userId: string, values: z.infer<typeof updateUserSchema>) {
     try {
         const validatedFields = updateUserSchema.safeParse(values);
@@ -73,8 +82,7 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
 
 const registerUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address").optional().or(z.literal('')),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Invalid email address"),
   roleId: z.string({ required_error: "A role is required." }),
   phoneNumber: z.string().optional(),
   departmentId: z.string().optional(),
@@ -94,7 +102,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
             return { success: false, message: 'Invalid data provided.' };
         }
 
-        const { name, email, password, roleId, phoneNumber, departmentId, districtId, branchId } = validatedFields.data;
+        const { name, email, roleId, phoneNumber, departmentId, districtId, branchId } = validatedFields.data;
 
         // Since phone number is the main identifier, check for its uniqueness if provided
         if (phoneNumber) {
@@ -113,7 +121,8 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                  return { success: false, message: 'A user with this phone number and role already exists for this provider.' };
              }
         }
-
+        
+        const password = generateRandomPassword();
         const hashedPassword = await bcrypt.hash(password, 10);
         
         const newUser = await prisma.user.create({
