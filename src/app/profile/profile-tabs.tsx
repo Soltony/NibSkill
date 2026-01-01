@@ -1,10 +1,9 @@
 
-
 "use client"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText, BadgeCheck, BadgeX } from "lucide-react"
+import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText, BadgeCheck, BadgeX, KeyRound } from "lucide-react"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -14,11 +13,12 @@ import { z } from "zod"
 import { useToast } from "@/hooks/use-toast"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { updateUserProfile, logout } from "@/app/actions/user-actions"
+import { updateUserProfile } from "@/app/actions/user-actions"
 
 import type { User, Badge, UserBadge, UserCompletedCourse, Course, Department, Quiz } from "@prisma/client"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
 
 
 type CompletedCourse = UserCompletedCourse & { course: Course & { quiz: Quiz | null } }
@@ -30,6 +30,16 @@ const profileFormSchema = z.object({
     email: z.string().email("Invalid email address.").optional().or(z.literal('')),
     phoneNumber: z.string().optional(),
 })
+
+const passwordFormSchema = z.object({
+    currentPassword: z.string().min(1, "Current password is required."),
+    newPassword: z.string().min(8, "New password must be at least 8 characters long."),
+    confirmPassword: z.string()
+}).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+});
+
 
 const badgeIcons: { [key: string]: React.ReactNode } = {
     Footprints: <Footprints className="h-10 w-10" />,
@@ -66,6 +76,7 @@ type ProfileTabsProps = {
 
 export function ProfileTabs({ user, completedCourses, userBadges, learningPathCourseIds, completedLearningPaths }: ProfileTabsProps) {
     const { toast } = useToast();
+    const router = useRouter();
     const coursesCompletedCount = completedCourses.filter(c => c.course.quiz && c.score >= c.course.quiz.passingScore).length;
     
     const attempts = completedCourses.length;
@@ -76,7 +87,7 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
         )
         : 0;
         
-    const form = useForm<z.infer<typeof profileFormSchema>>({
+    const profileForm = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
         defaultValues: {
             name: user.name,
@@ -84,8 +95,17 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
             phoneNumber: user.phoneNumber || "",
         }
     });
+
+    const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
+        resolver: zodResolver(passwordFormSchema),
+        defaultValues: {
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+        }
+    });
     
-    const onSubmit = async (values: z.infer<typeof profileFormSchema>) => {
+    const onProfileSubmit = async (values: z.infer<typeof profileFormSchema>) => {
         const result = await updateUserProfile(values);
         if (result.success) {
             toast({
@@ -101,15 +121,43 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
         }
     }
 
+    const onPasswordSubmit = async (values: z.infer<typeof passwordFormSchema>) => {
+        const response = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(values),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            toast({
+                title: 'Password Changed',
+                description: 'Your password has been changed successfully. Please log in again.',
+            });
+            // Wait for toast to show then redirect
+            setTimeout(() => {
+                router.push('/login');
+            }, 2000);
+        } else {
+            toast({
+                title: 'Error',
+                description: data.errors?.[0] || 'An unexpected error occurred.',
+                variant: 'destructive',
+            });
+        }
+    }
+
     const learningPathCourseIdsSet = new Set(learningPathCourseIds);
     const completedLearningPathsSet = new Set(completedLearningPaths);
 
     return (
         <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="overview">Profile Overview</TabsTrigger>
                 <TabsTrigger value="history">My Learning History</TabsTrigger>
                 <TabsTrigger value="edit">Edit Profile</TabsTrigger>
+                <TabsTrigger value="password">Change Password</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-6 space-y-6">
                  <div className="grid gap-4 md:grid-cols-3">
@@ -192,11 +240,8 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
 
                                     if(c.course.hasCertificate && passed) {
                                         if (!isLPCourse) {
-                                            // It's a standalone course
                                             showCertificate = true;
                                         } else {
-                                            // It's part of a learning path, find which one
-                                            // This is a simplification; a course could be in multiple paths
                                             const pathId = completedLearningPaths.find(pId => learningPathCourseIds.includes(c.courseId));
                                             if (pathId && completedLearningPathsSet.has(pathId)) {
                                                 showCertificate = true;
@@ -250,10 +295,10 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-md">
+                        <Form {...profileForm}>
+                            <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6 max-w-md">
                                 <FormField 
-                                    control={form.control}
+                                    control={profileForm.control}
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem>
@@ -266,7 +311,7 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                                     )}
                                 />
                                 <FormField 
-                                    control={form.control}
+                                    control={profileForm.control}
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem>
@@ -279,7 +324,7 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                                     )}
                                 />
                                 <FormField 
-                                    control={form.control}
+                                    control={profileForm.control}
                                     name="phoneNumber"
                                     render={({ field }) => (
                                         <FormItem>
@@ -291,8 +336,67 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" disabled={form.formState.isSubmitting}>
-                                    {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+                                <Button type="submit" disabled={profileForm.formState.isSubmitting}>
+                                    {profileForm.formState.isSubmitting ? "Saving..." : "Save Changes"}
+                                </Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+             <TabsContent value="password" className="mt-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Change Password</CardTitle>
+                        <CardDescription>
+                            For security, you will be logged out after changing your password.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...passwordForm}>
+                            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6 max-w-md">
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="currentPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Current Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="newPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>New Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={passwordForm.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Confirm New Password</FormLabel>
+                                            <FormControl>
+                                                <Input type="password" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
+                                    <KeyRound className="mr-2 h-4 w-4" />
+                                    {passwordForm.formState.isSubmitting ? "Updating..." : "Update Password"}
                                 </Button>
                             </form>
                         </Form>
