@@ -42,11 +42,14 @@ export default async function LiveSessionsPage() {
     const oneHour = 60 * 60 * 1000;
 
     const liveAndUpcomingSessions = sessions.filter(s => {
+        if (s.status === 'ENDED') return false; // ended sessions should not appear here
+        if (s.status === 'LIVE') return true; // explicitly include live sessions
         const sessionEndTime = new Date(s.dateTime).getTime() + oneHour;
         return sessionEndTime > now.getTime();
     }).sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
     
     const pastSessions = sessions.filter(s => {
+        if (s.status === 'ENDED') return true; // ended sessions should appear as past
         const sessionEndTime = new Date(s.dateTime).getTime() + oneHour;
         return sessionEndTime <= now.getTime();
     }).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
