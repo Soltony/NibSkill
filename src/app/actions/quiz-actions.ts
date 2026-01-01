@@ -64,15 +64,7 @@ const updateQuizFormSchema = z.object({
 
 export async function updateQuiz(quizId: string, values: z.infer<typeof updateQuizFormSchema>) {
     try {
-        const transformedValues = {
-            ...values,
-            questions: values.questions.map(q => ({
-                ...q,
-                type: q.type.toUpperCase() as QuestionType,
-            }))
-        };
-
-        const validatedFields = updateQuizFormSchema.safeParse(transformedValues);
+        const validatedFields = updateQuizFormSchema.safeParse(values);
         if (!validatedFields.success) {
             console.error("Quiz validation failed:", validatedFields.error.flatten());
             return { success: false, message: "Invalid data provided. Check question and option fields." }
@@ -100,7 +92,7 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                 
                 const questionPayload = {
                     text: qData.text,
-                    type: qData.type,
+                    type: qData.type as QuestionType,
                     weight: qData.weight,
                 };
 
@@ -139,12 +131,30 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                     });
 
                      if (qData.type === 'MULTIPLE_CHOICE' || qData.type === 'TRUE_FALSE') {
-                        await tx.option.deleteMany({ where: { questionId: qData.id } });
-                        
-                        const createdOptions = await Promise.all(qData.options.map(opt => 
-                            tx.option.create({ data: { text: opt.text, questionId: qData.id! } })
-                        ));
-                        
+                        const existingOptions = await tx.option.findMany({ where: { questionId: qData.id } });
+                        const incomingOptionTexts = new Set(qData.options.map(opt => opt.text));
+                        const optionsToDelete = existingOptions.filter(opt => !incomingOptionTexts.has(opt.text));
+
+                        if (optionsToDelete.length > 0) {
+                            const optionIdsToDelete = optionsToDelete.map(opt => opt.id);
+                            // IMPORTANT: Delete answers referencing these options first
+                            await tx.answer.deleteMany({
+                                where: { selectedOptionId: { in: optionIdsToDelete } }
+                            });
+                            await tx.option.deleteMany({ where: { id: { in: optionIdsToDelete } } });
+                        }
+
+                        const createdOptions = [];
+                        for (const opt of qData.options) {
+                            const existing = existingOptions.find(eo => eo.text === opt.text);
+                            if (existing) {
+                                createdOptions.push(existing);
+                            } else {
+                                const newOpt = await tx.option.create({ data: { text: opt.text, questionId: qData.id! } });
+                                createdOptions.push(newOpt);
+                            }
+                        }
+
                         const correctOption = createdOptions.find(opt => opt.text === qData.correctAnswerId);
                         if (!correctOption) throw new Error(`Correct answer text "${qData.correctAnswerId}" not found for existing question "${qData.text}"`);
 
@@ -153,7 +163,6 @@ export async function updateQuiz(quizId: string, values: z.infer<typeof updateQu
                             data: { correctAnswerId: correctOption.id }
                         });
                     } else if (qData.type === 'FILL_IN_THE_BLANK' || qData.type === 'SHORT_ANSWER') {
-                        await tx.option.deleteMany({ where: { questionId: qData.id } });
                         await tx.question.update({
                             where: { id: qData.id },
                             data: { correctAnswerId: qData.correctAnswerId }
