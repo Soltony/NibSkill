@@ -46,7 +46,7 @@ export function CertificateClient({ template, item, itemType, user, completionDa
     
     const certificateStyle = {
       '--cert-primary': template.primaryColor,
-      borderStyle: template.borderStyle,
+      borderStyle: template.borderStyle || 'solid',
     } as React.CSSProperties;
 
     const backLink = itemType === 'course' ? `/courses/${item.id}` : `/learning-paths/${item.id}`;

@@ -49,7 +49,8 @@ export default async function UserCertificatePage({ params }: { params: { course
     return (
         <CertificateClient 
             template={template}
-            course={course}
+            item={course}
+            itemType="course"
             user={user}
             completionDate={completionDate}
         />
