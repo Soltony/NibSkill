@@ -1,6 +1,6 @@
 
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,6 +28,8 @@ import { logout } from './actions/user-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Notification, User as UserType, Role as RoleType } from '@prisma/client';
 import { Button } from '@/components/ui/button';
+import useIdleTimeout from '@/hooks/use-idle-timeout';
+import { SessionTimeoutDialog } from '@/components/session-timeout-dialog';
 
 type CurrentUser = UserType & { role: RoleType; notifications: Notification[]; isGuest?: boolean };
 export const UserContext = React.createContext<string | null>(null);
@@ -38,7 +40,43 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isPublicPage = pathname === '/login' || pathname.startsWith('/login/');
+  const [showTimeoutDialog, setShowTimeoutDialog] = useState(false);
+  const [countdown, setCountdown] = useState(60);
+  const countdownRef = useRef<NodeJS.Timeout>();
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/login';
+  };
+
+  const onIdle = () => {
+    if (currentUser && !currentUser.isGuest) {
+      setShowTimeoutDialog(true);
+      setCountdown(60);
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current!);
+            handleLogout();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+  };
+
+  const { resetTimer } = useIdleTimeout(15 * 60 * 1000, onIdle); // 15 minutes
+
+  const handleContinueSession = () => {
+    setShowTimeoutDialog(false);
+    if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+    }
+    resetTimer();
+  };
+
+  const isPublicPage = pathname === '/login' || pathname.startsWith('/login/') || pathname === '/change-password';
 
   useEffect(() => {
     async function fetchUser() {
@@ -144,11 +182,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
     return pathname.startsWith(path);
   }
-
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/login';
-  };
 
   const hasAnyAdminReadAccess = !isGuest && adminNavItems.some(item => item.permission === true);
   const isStaffView = !isAdminPath && !isSuperAdminPath;
@@ -273,6 +306,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </SidebarProvider>
         </UserContext.Provider>
         <Toaster />
+        {!isPublicPage && !isGuest && (
+            <SessionTimeoutDialog
+            open={showTimeoutDialog}
+            onContinue={handleContinueSession}
+            onLogout={handleLogout}
+            countdown={countdown}
+            />
+        )}
       </body>
     </html>
   );
