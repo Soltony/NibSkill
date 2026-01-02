@@ -29,8 +29,18 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, 
     const sessionTime = new Date(session.dateTime);
     const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000); // Assuming 1-hour duration
 
-    const isPast = now > endTime;
-    const isLive = now >= sessionTime && now <= endTime;
+    // Default time-based state
+    let isPast = now > endTime;
+    let isLive = now >= sessionTime && now <= endTime;
+
+    // Respect explicit status overrides from the server
+    if (session.status === 'ENDED') {
+        isPast = true;
+        isLive = false;
+    } else if (session.status === 'LIVE') {
+        isLive = true;
+        isPast = false;
+    }
     
     const handleJoinAndAttend = async (e: React.MouseEvent) => {
         if (!isAllowed || hasAttended) return;
@@ -57,7 +67,9 @@ export const SessionCard = ({ session, userId, hasAttended: initialHasAttended, 
             <CardHeader>
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="w-fit mb-2">{session.platform.replace('_', ' ')}</Badge>
-                {isPast ? (
+                {session.status === 'ENDED' ? (
+                    <Badge variant="outline">Ended</Badge>
+                ) : isPast ? (
                     <Badge variant="outline">Past</Badge>
                 ) : isLive ? (
                     <Badge variant="destructive" className="animate-pulse">
