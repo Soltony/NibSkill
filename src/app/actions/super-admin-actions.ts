@@ -85,6 +85,18 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
         });
         
         const newAdmin = newProvider.users[0];
+
+        await prisma.user.update({
+            where: { id: newAdmin.id },
+            data: {
+                trainingProvider: {
+                    connect: {
+                        id: newProvider.id,
+                    },
+                },
+            },
+        });
+
         if (newAdmin && newAdmin.email) {
             const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/login/admin` : 'http://localhost:3000/login/admin';
             await sendEmail({

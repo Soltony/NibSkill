@@ -1,5 +1,4 @@
 
-
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -138,7 +137,9 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 },
                 phoneNumber: phoneNumber,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-                trainingProviderId: session.trainingProviderId,
+                trainingProvider: {
+                    connect: { id: session.trainingProviderId }
+                },
                 department: departmentId ? { connect: { id: departmentId } } : undefined,
                 district: districtId ? { connect: { id: districtId } } : undefined,
                 branch: branchId ? { connect: { id: branchId } } : undefined,

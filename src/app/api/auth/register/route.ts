@@ -92,7 +92,9 @@ export async function POST(request: NextRequest) {
         branch: branchId ? { connect: { id: branchId } } : undefined,
         phoneNumber: phoneNumber,
         avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-        trainingProviderId: trainingProviderId,
+        trainingProvider: {
+            connect: { id: trainingProviderId }
+        },
         passwordChangeRequired: false, // Self-registered users set their own password
         roles: {
             create: {
