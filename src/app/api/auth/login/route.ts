@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
       sessionId,
       trainingProviderId: user.trainingProviderId,
+      passwordChangeRequired: user.passwordChangeRequired,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -164,12 +165,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { password: _, ...userWithoutPassword } = user;
-
-    let redirectTo = '/dashboard';
-    if (selectedRole.name === 'Super Admin') {
-      redirectTo = '/super-admin/dashboard';
-    } else if (loginAs === 'admin') {
-      redirectTo = '/admin/analytics';
+    
+    let redirectTo = user.passwordChangeRequired ? '/change-password' : '/dashboard';
+    
+    if (!user.passwordChangeRequired) {
+        if (selectedRole.name === 'Super Admin') {
+            redirectTo = '/super-admin/dashboard';
+        } else if (loginAs === 'admin') {
+            redirectTo = '/admin/analytics';
+        }
     }
 
 

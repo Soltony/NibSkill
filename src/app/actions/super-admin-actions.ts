@@ -64,6 +64,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
                         password: hashedPassword,
                         phoneNumber: adminPhoneNumber,
                         avatarUrl: `https://picsum.photos/seed/${adminEmail}/100/100`,
+                        passwordChangeRequired: true,
                         roles: {
                             create: {
                                 roleId: providerAdminRole.id
@@ -147,6 +148,7 @@ export async function updateTrainingProvider(values: z.infer<typeof updateProvid
             if (adminPassword) {
                 const hashedPassword = await bcrypt.hash(adminPassword, 10);
                 userUpdateData.password = hashedPassword;
+                userUpdateData.passwordChangeRequired = true;
             }
 
             await tx.user.update({
@@ -199,6 +201,3 @@ export async function deleteTrainingProvider(providerId: string) {
         return { success: false, message: 'Failed to delete provider.' };
     }
 }
-
-
-

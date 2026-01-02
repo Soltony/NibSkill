@@ -130,6 +130,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 name,
                 email: email || null,
                 password: hashedPassword,
+                passwordChangeRequired: true,
                 roles: {
                     create: {
                         roleId: roleId
@@ -360,5 +361,3 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
-
-    

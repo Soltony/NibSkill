@@ -2,7 +2,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
-import { getSession, logout } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       data: {
         password: newHashedPassword,
         activeSessionId: newSessionId, // Invalidate other sessions by creating a new active session ID
+        passwordChangeRequired: false,
       },
     });
 

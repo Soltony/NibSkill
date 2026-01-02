@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
         phoneNumber: phoneNumber,
         avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
         trainingProviderId: trainingProviderId,
+        passwordChangeRequired: false, // Self-registered users set their own password
         roles: {
             create: {
                 roleId: staffRole.id

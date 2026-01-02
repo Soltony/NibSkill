@@ -1,6 +1,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify, type JWTPayload } from 'jose';
+import { getSession } from './lib/auth';
 
 interface CustomJwtPayload extends JWTPayload {
   userId: string;
@@ -8,6 +9,7 @@ interface CustomJwtPayload extends JWTPayload {
     name: string;
     permissions?: Record<string, any>;
   };
+  passwordChangeRequired?: boolean;
 }
 
 // --- Helper: get JWT secret ---
@@ -38,6 +40,8 @@ export async function middleware(request: NextRequest) {
   
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
   const isConnectPath = pathname === '/api/connect';
+  const isChangePasswordPath = pathname === '/change-password';
+  const isApiChangePasswordPath = pathname === '/api/auth/change-password';
 
   if (isConnectPath) {
     return NextResponse.next();
@@ -45,15 +49,10 @@ export async function middleware(request: NextRequest) {
 
   // If user has a full session, they are logged in.
   if (sessionCookie) {
+    let payload: CustomJwtPayload;
     try {
-      await jwtVerify(sessionCookie, getJwtSecret());
-      
-      // Redirect logged-in users away from public pages
-      if (isPublicPath) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
-      
-      return NextResponse.next();
+      const verified = await jwtVerify(sessionCookie, getJwtSecret());
+      payload = verified.payload as CustomJwtPayload;
     } catch (err) {
       // Invalid session, delete cookies and redirect to login
       const response = NextResponse.redirect(new URL('/login', request.url));
@@ -61,6 +60,22 @@ export async function middleware(request: NextRequest) {
       response.cookies.delete('miniapp_guest_session');
       return response;
     }
+    
+    // Check for mandatory password change
+    if (payload.passwordChangeRequired && !isChangePasswordPath && !isApiChangePasswordPath) {
+        return NextResponse.redirect(new URL('/change-password', request.url));
+    }
+    
+    if (!payload.passwordChangeRequired && isChangePasswordPath) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // Redirect logged-in users away from public pages
+    if (isPublicPath) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    
+    return NextResponse.next();
   }
 
   // If user has a guest session (from the mini-app)
