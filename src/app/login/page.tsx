@@ -17,39 +17,59 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
 
   const handleLogin = async (e: React.FormEvent, role: 'admin' | 'staff') => {
     e.preventDefault();
+    setIsLoading(true);
+
     const form = e.target as HTMLFormElement;
     const phoneNumber = (form.elements.namedItem('phoneNumber') as HTMLInputElement).value;
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
 
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumber, password, loginAs: role }),
-    });
-
-    const data = await response.json();
-
-    if (data.isSuccess) {
-      toast({
-        title: 'Login Successful',
-        description: `Welcome back, ${role.charAt(0).toUpperCase() + role.slice(1)}!`,
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, password, loginAs: role }),
       });
-      router.push(data.redirectTo || (role === 'admin' ? '/admin/analytics' : '/dashboard'));
-    } else {
+
+      const data = await response.json();
+
+      if (data.isSuccess) {
+        toast({
+          title: 'Login Successful',
+          description: `Welcome back, ${role.charAt(0).toUpperCase() + role.slice(1)}!`,
+        });
+
+        if (data.passwordChangeRequired) {
+          // Force a full page reload to ensure middleware catches the state
+          window.location.href = data.redirectTo;
+        } else {
+          router.push(data.redirectTo || (role === 'admin' ? '/admin/analytics' : '/dashboard'));
+        }
+      } else {
+        toast({
+          title: 'Login Failed',
+          description: data.errors?.[0] || 'Invalid credentials.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+      }
+    } catch (error) {
       toast({
-        title: 'Login Failed',
-        description: data.errors?.[0] || 'Invalid credentials.',
-        variant: 'destructive',
-      });
+          title: 'Login Failed',
+          description: 'An error occurred during login. Please try again.',
+          variant: 'destructive',
+        });
+      setIsLoading(false);
     }
   };
 
@@ -91,8 +111,9 @@ export default function LoginPage() {
             </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full">
-            Sign In as {role.charAt(0).toUpperCase() + role.slice(1)}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isLoading ? 'Signing In...' : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
             </Button>
         </CardFooter>
         </form>
@@ -112,8 +133,8 @@ export default function LoginPage() {
         
         <Tabs defaultValue="staff" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="staff">Staff</TabsTrigger>
-            <TabsTrigger value="admin">Admin</TabsTrigger>
+            <TabsTrigger value="staff" disabled={isLoading}>Staff</TabsTrigger>
+            <TabsTrigger value="admin" disabled={isLoading}>Admin</TabsTrigger>
           </TabsList>
           <TabsContent value="staff">
             <LoginForm role="staff" />

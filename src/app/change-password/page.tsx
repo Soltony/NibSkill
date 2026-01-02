@@ -63,11 +63,10 @@ export default function ChangePasswordPage() {
         if (response.ok) {
             toast({
                 title: 'Password Changed Successfully',
-                description: 'Your password has been updated. Please log in again.',
+                description: 'Your password has been updated. Redirecting to dashboard...',
             });
-            setTimeout(() => {
-                router.push('/login');
-            }, 2000);
+            // Use window.location.href to force a full reload, ensuring middleware has the new cookie
+            window.location.href = '/dashboard';
         } else {
             toast({
                 title: 'Error Changing Password',

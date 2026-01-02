@@ -166,9 +166,10 @@ export async function POST(request: NextRequest) {
 
     const { password: _, ...userWithoutPassword } = user;
     
-    let redirectTo = user.passwordChangeRequired ? '/change-password' : '/dashboard';
-    
-    if (!user.passwordChangeRequired) {
+    let redirectTo = '/dashboard';
+    if (user.passwordChangeRequired) {
+        redirectTo = '/change-password';
+    } else {
         if (selectedRole.name === 'Super Admin') {
             redirectTo = '/super-admin/dashboard';
         } else if (loginAs === 'admin') {
@@ -181,6 +182,7 @@ export async function POST(request: NextRequest) {
       isSuccess: true,
       user: userWithoutPassword,
       redirectTo,
+      passwordChangeRequired: user.passwordChangeRequired,
       errors: null,
     });
   } catch (error) {

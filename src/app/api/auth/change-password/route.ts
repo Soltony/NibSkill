@@ -3,6 +3,13 @@ import { NextResponse, type NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { getSession } from '@/lib/auth';
+import { SignJWT } from 'jose';
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
+  return new TextEncoder().encode(secret);
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,10 +54,31 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Create a new JWT with the updated passwordChangeRequired status
+     const jwt = await new SignJWT({
+      userId: user.id,
+      role: session.role,
+      name: user.name,
+      email: user.email,
+      sessionId: newSessionId,
+      trainingProviderId: user.trainingProviderId,
+      passwordChangeRequired: false, // Explicitly set to false
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h') // Set a new expiration
+      .sign(getJwtSecret());
+
     const response = NextResponse.json({ success: true, message: 'Password updated successfully. Please log in again.' }, { status: 200 });
     
-    // Clear the session cookie
-    response.cookies.set('session', '', { httpOnly: true, path: '/', maxAge: -1 });
+    // Set the new, updated cookie
+    response.cookies.set('session', jwt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24, // 24 hours
+    });
 
     return response;
 
