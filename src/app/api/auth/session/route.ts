@@ -8,7 +8,7 @@ import { jwtVerify, type JWTPayload } from 'jose';
 // This API route gets the current logged-in user from the session cookie.
 export async function GET(request: NextRequest) {
   try {
-    const userSession = await getSession(request);
+    const userSession = await getSession();
 
     if (userSession) {
         // Fetch full user details to ensure data is fresh
