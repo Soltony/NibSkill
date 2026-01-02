@@ -7,6 +7,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
 import type { Prisma, User, TrainingProvider, UserRole, Role, JWTPayload } from '@prisma/client';
+import { subSeconds } from 'date-fns';
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
@@ -52,6 +53,27 @@ const userHasRole = (user: UserWithFullRoles, loginAs: 'admin' | 'staff' | 'supe
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.ip ?? '127.0.0.1';
+    const LOCKOUT_PERIOD_SECONDS = 30;
+    const MAX_ATTEMPTS = 5;
+
+    // Check for IP-based lockout
+    const recentFailedAttempts = await prisma.failedLoginAttempt.findMany({
+      where: {
+        ipAddress: ip,
+        createdAt: {
+          gte: subSeconds(new Date(), LOCKOUT_PERIOD_SECONDS),
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (recentFailedAttempts.length >= MAX_ATTEMPTS) {
+        return NextResponse.json({ isSuccess: false, errors: [`Too many failed attempts from this IP. Please try again in ${LOCKOUT_PERIOD_SECONDS} seconds.`] }, { status: 429 });
+    }
+
     const cookieStore = cookies();
     let user: UserWithFullRoles | null | undefined;
     let selectedRole: Role | undefined;
@@ -74,22 +96,29 @@ export async function POST(request: NextRequest) {
     });
 
     if (usersWithPhoneNumber.length === 0) {
+      await prisma.failedLoginAttempt.create({ data: { ipAddress: ip } });
       return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
     }
     
     let candidateUser: UserWithFullRoles | undefined;
-
-    // Find a user that matches the phone number AND the intended role
+    let passwordMatch = false;
+    
+    // Find a user that matches the phone number AND the intended role and has a correct password
     for (const u of usersWithPhoneNumber) {
-        const passwordMatch = await bcrypt.compare(password, u.password || '');
-        if (passwordMatch && userHasRole(u, loginAs)) {
-            candidateUser = u;
-            break;
+        const isMatch = await bcrypt.compare(password, u.password || '');
+        if (isMatch) {
+            passwordMatch = true;
+            if (userHasRole(u, loginAs)) {
+                candidateUser = u;
+                break;
+            }
         }
     }
 
     if (!candidateUser) {
-        return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+        await prisma.failedLoginAttempt.create({ data: { ipAddress: ip } });
+        const errorMsg = passwordMatch ? `This user is not configured as a '${loginAs}'.` : 'Invalid credentials.';
+        return NextResponse.json({ isSuccess: false, errors: [errorMsg] }, { status: 401 });
     }
 
     // Now that we have a valid user for the role, find the specific role to use for the session
@@ -106,6 +135,9 @@ export async function POST(request: NextRequest) {
     }
     
     user = candidateUser;
+    
+    // On successful login, clear failed attempts for this IP
+    await prisma.failedLoginAttempt.deleteMany({ where: { ipAddress: ip } });
 
     if (user.trainingProvider && !user.trainingProvider.isActive) {
       return NextResponse.json({ isSuccess: false, errors: ["Your organization's account has been deactivated. Please contact support."] }, { status: 403 });
@@ -126,7 +158,7 @@ export async function POST(request: NextRequest) {
     await prisma.loginHistory.create({
         data: {
             userId: user.id,
-            ipAddress: request.ip,
+            ipAddress: ip,
             userAgent: request.headers.get('user-agent'),
             superAppToken: superAppToken,
         }
