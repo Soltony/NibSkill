@@ -11,6 +11,7 @@ import { BookCopy, Building, Radio, Users } from "lucide-react"
 import { SuperAdminCharts } from "./super-admin-charts"
 import { subDays, format } from "date-fns";
 
+export const dynamic = "force-dynamic";
 
 async function getSuperAdminData() {
     const totalProviders = await prisma.trainingProvider.count();
