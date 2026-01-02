@@ -1,134 +1,113 @@
+'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify, SignJWT } from 'jose';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
-import crypto from 'crypto';
-import { randomUUID } from 'crypto';
-import { addSeconds, differenceInSeconds } from 'date-fns';
+import jwt from 'jsonwebtoken';
 
-const ACCESS_TOKEN_EXPIRATION = '15m'; // 15 minutes
-const REFRESH_TOKEN_EXPIRATION_DAYS = 7;
-const LOCKOUT_PERIOD_SECONDS = 30;
-const MAX_ATTEMPTS = 5;
+const JWT_SECRET = process.env.JWT_SECRET;
+const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 60 * 15; // 15 minutes
+const REFRESH_TOKEN_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
+export async function POST(req: NextRequest) {
+  if (!JWT_SECRET) {
+    console.error('JWT_SECRET environment variable is not set.');
+    return NextResponse.json({ message: 'Server configuration error.' }, { status: 500 });
+  }
 
-const getJwtSecret = (type: 'access' | 'refresh') => {
-  const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
-  if (!secret) throw new Error(`JWT secret for ${type} token is not set.`);
-  return new TextEncoder().encode(secret);
-};
+  const cookieStore = cookies();
+  const refreshTokenFromCookie = cookieStore.get('refresh_token')?.value;
 
+  if (!refreshTokenFromCookie) {
+    return NextResponse.json({ message: 'No refresh token provided.' }, { status: 401 });
+  }
 
-export async function POST(request: NextRequest) {
-    const refreshToken = request.cookies.get('refresh_token')?.value;
-    const ip = request.ip ?? '127.0.0.1';
-    
-    // IP-based lockout check
-    const recentFailedAttempts = await prisma.failedLoginAttempt.findMany({
-      where: {
-        ipAddress: ip,
-        createdAt: {
-          gte: addSeconds(new Date(), -LOCKOUT_PERIOD_SECONDS),
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+  try {
+    const decoded = jwt.verify(refreshTokenFromCookie, JWT_SECRET) as {
+      userId: string;
+      tokenVersion?: number;
+      type: 'access' | 'refresh';
+    };
+
+    if (decoded.type !== 'refresh') {
+      return NextResponse.json({ message: 'Invalid token type.' }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+       include: {
+        roles: {
+          include: {
+            role: true
+          }
+        }
+      }
     });
 
-    if (recentFailedAttempts.length >= MAX_ATTEMPTS) {
-        const oldestAttempt = recentFailedAttempts[MAX_ATTEMPTS - 1];
-        const lockoutEndsAt = addSeconds(oldestAttempt.createdAt, LOCKOUT_PERIOD_SECONDS);
-        const secondsRemaining = differenceInSeconds(lockoutEndsAt, new Date());
-        
-        return NextResponse.json({ 
-            error: `Too many attempts. Please try again in ${secondsRemaining > 0 ? secondsRemaining : 1} seconds.`
-        }, { status: 429 });
+    if (!user) {
+      return NextResponse.json({ message: 'User not found.' }, { status: 401 });
+    }
+
+    if (user.tokenVersion !== decoded.tokenVersion) {
+      const response = NextResponse.json({ message: 'Session has been invalidated.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
     }
     
-    if (!refreshToken) {
-        return NextResponse.json({ error: 'Refresh token not found.' }, { status: 401 });
+    const sessionRole = user.roles[0]?.role;
+    if (!sessionRole) {
+        return NextResponse.json({ message: 'User role not configured.' }, { status: 500 });
     }
 
-    try {
-        const hashedToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
-        
-        const dbToken = await prisma.refreshToken.findFirst({
-            where: {
-                hashedToken: hashedToken,
-                revoked: false,
-            },
-            include: {
-                user: {
-                    include: {
-                        roles: {
-                            include: {
-                                role: true
-                            }
-                        }
-                    }
-                }
-            }
-        });
+    // --- Issue new access token ---
+    const newAccessToken = jwt.sign(
+      {
+        userId: user.id,
+        role: sessionRole,
+        tokenVersion: user.tokenVersion,
+        type: 'access',
+      },
+      JWT_SECRET,
+      { expiresIn: `${ACCESS_TOKEN_EXPIRES_IN_SECONDS}s` }
+    );
 
-        if (!dbToken || !dbToken.user) {
-            throw new Error("Refresh token not found or revoked.");
-        }
-        
-        await prisma.failedLoginAttempt.deleteMany({ where: { ipAddress: ip } });
+    // --- Rotate refresh token ---
+    const newRefreshToken = jwt.sign(
+      {
+        userId: user.id,
+        tokenVersion: user.tokenVersion,
+        type: 'refresh',
+      },
+      JWT_SECRET,
+      { expiresIn: `${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s` }
+    );
 
-        // --- Refresh Token Rotation ---
-        await prisma.refreshToken.update({
-            where: { id: dbToken.id },
-            data: { revoked: true }
-        });
+    const response = NextResponse.json({ success: true, message: 'Token refreshed' });
 
-        const sessionRole = dbToken.user.roles[0]?.role;
-        if (!sessionRole) {
-            throw new Error("User has no assigned role.");
-        }
-        
-        const newAccessToken = await new SignJWT({
-            userId: dbToken.user.id,
-            role: sessionRole,
-            name: dbToken.user.name,
-            email: dbToken.user.email,
-            trainingProviderId: dbToken.user.trainingProviderId,
-            passwordChangeRequired: dbToken.user.passwordChangeRequired,
-        })
-        .setProtectedHeader({ alg: 'HS256' })
-        .setIssuedAt()
-        .setExpirationTime(ACCESS_TOKEN_EXPIRATION)
-        .sign(getJwtSecret('access'));
-        
-        const newRefreshToken = randomUUID();
-        const newHashedRefreshToken = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+    response.cookies.set('auth_token', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
+    });
 
-        await prisma.refreshToken.create({
-            data: {
-                userId: dbToken.user.id,
-                hashedToken: newHashedRefreshToken
-            }
-        });
+    response.cookies.set('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
+    });
 
-        const response = NextResponse.json({ accessToken: newAccessToken });
-        
-        response.cookies.set('refresh_token', newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            path: '/',
-            maxAge: 60 * 60 * 24 * REFRESH_TOKEN_EXPIRATION_DAYS,
-        });
+    return response;
+  } catch (error) {
+    console.error('[REFRESH_TOKEN_ERROR]', error);
 
-        return response;
-
-    } catch (error) {
-        console.error("Refresh token error:", error);
-        
-        // Log failed attempt for rate limiting
-        await prisma.failedLoginAttempt.create({ data: { ipAddress: ip } });
-
-        const response = NextResponse.json({ error: 'Invalid refresh token.' }, { status: 401 });
-        response.cookies.delete('refresh_token');
-        return response;
-    }
+    const response = NextResponse.json({ message: 'Invalid refresh token.' }, { status: 401 });
+    response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+    response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+    return response;
+  }
 }
