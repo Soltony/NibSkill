@@ -7,7 +7,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
 import type { Prisma, User, TrainingProvider, UserRole, Role, JWTPayload } from '@prisma/client';
-import { subSeconds } from 'date-fns';
+import { addSeconds, differenceInSeconds } from 'date-fns';
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
@@ -56,13 +56,14 @@ export async function POST(request: NextRequest) {
     const ip = request.ip ?? '127.0.0.1';
     const LOCKOUT_PERIOD_SECONDS = 30;
     const MAX_ATTEMPTS = 5;
+    const lockoutUntil = addSeconds(new Date(), LOCKOUT_PERIOD_SECONDS);
 
     // Check for IP-based lockout
     const recentFailedAttempts = await prisma.failedLoginAttempt.findMany({
       where: {
         ipAddress: ip,
         createdAt: {
-          gte: subSeconds(new Date(), LOCKOUT_PERIOD_SECONDS),
+          gte: addSeconds(new Date(), -LOCKOUT_PERIOD_SECONDS),
         },
       },
       orderBy: {
@@ -71,7 +72,19 @@ export async function POST(request: NextRequest) {
     });
 
     if (recentFailedAttempts.length >= MAX_ATTEMPTS) {
-        return NextResponse.json({ isSuccess: false, errors: [`Too many failed attempts from this IP. Please try again in ${LOCKOUT_PERIOD_SECONDS} seconds.`] }, { status: 429 });
+        const oldestAttempt = recentFailedAttempts[MAX_ATTEMPTS - 1];
+        const lockoutEndsAt = addSeconds(oldestAttempt.createdAt, LOCKOUT_PERIOD_SECONDS);
+        const secondsRemaining = differenceInSeconds(lockoutEndsAt, new Date());
+        
+        return NextResponse.json({ 
+            isSuccess: false, 
+            errors: [`Too many failed attempts. Please try again in ${secondsRemaining > 0 ? secondsRemaining : 1} seconds.`],
+            lockoutInfo: {
+                isLockedOut: true,
+                lockoutEndsAt,
+                remainingAttempts: 0,
+            }
+        }, { status: 429 });
     }
 
     const cookieStore = cookies();
@@ -97,7 +110,12 @@ export async function POST(request: NextRequest) {
 
     if (usersWithPhoneNumber.length === 0) {
       await prisma.failedLoginAttempt.create({ data: { ipAddress: ip } });
-      return NextResponse.json({ isSuccess: false, errors: ['Invalid credentials.'] }, { status: 401 });
+      const remaining = MAX_ATTEMPTS - (recentFailedAttempts.length + 1);
+      return NextResponse.json({ 
+          isSuccess: false, 
+          errors: ['Invalid credentials.'],
+          lockoutInfo: { remainingAttempts: remaining > 0 ? remaining : 0, isLockedOut: remaining <= 0, lockoutEndsAt: remaining <= 0 ? lockoutUntil : null }
+      }, { status: 401 });
     }
     
     let candidateUser: UserWithFullRoles | undefined;
@@ -117,8 +135,13 @@ export async function POST(request: NextRequest) {
 
     if (!candidateUser) {
         await prisma.failedLoginAttempt.create({ data: { ipAddress: ip } });
+        const remaining = MAX_ATTEMPTS - (recentFailedAttempts.length + 1);
         const errorMsg = passwordMatch ? `This user is not configured as a '${loginAs}'.` : 'Invalid credentials.';
-        return NextResponse.json({ isSuccess: false, errors: [errorMsg] }, { status: 401 });
+        return NextResponse.json({ 
+            isSuccess: false, 
+            errors: [errorMsg],
+            lockoutInfo: { remainingAttempts: remaining > 0 ? remaining : 0, isLockedOut: remaining <= 0, lockoutEndsAt: remaining <= 0 ? lockoutUntil : null }
+        }, { status: 401 });
     }
 
     // Now that we have a valid user for the role, find the specific role to use for the session

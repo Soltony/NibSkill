@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,11 +19,46 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { differenceInSeconds } from 'date-fns';
+
+type LockoutInfo = {
+    isLockedOut: boolean;
+    lockoutEndsAt: string | null;
+    remainingAttempts: number;
+} | null;
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [lockoutInfo, setLockoutInfo] = useState<LockoutInfo>(null);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (lockoutInfo?.isLockedOut && lockoutInfo.lockoutEndsAt) {
+      const endsAt = new Date(lockoutInfo.lockoutEndsAt);
+      const now = new Date();
+      const secondsRemaining = differenceInSeconds(endsAt, now);
+
+      if (secondsRemaining > 0) {
+        setCountdown(secondsRemaining);
+        timer = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              setLockoutInfo(null); // Reset lockout
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        setLockoutInfo(null);
+      }
+    }
+    return () => clearInterval(timer);
+  }, [lockoutInfo]);
 
 
   const handleLogin = async (e: React.FormEvent, role: 'admin' | 'staff') => {
@@ -42,6 +77,7 @@ export default function LoginPage() {
       });
 
       const data = await response.json();
+      setLockoutInfo(data.lockoutInfo || null);
 
       if (data.isSuccess) {
         toast({
@@ -50,15 +86,21 @@ export default function LoginPage() {
         });
 
         if (data.passwordChangeRequired) {
-          // Force a full page reload to ensure middleware catches the state
           window.location.href = data.redirectTo;
         } else {
           router.push(data.redirectTo || (role === 'admin' ? '/admin/analytics' : '/dashboard'));
         }
       } else {
+        let description = data.errors?.[0] || 'Invalid credentials.';
+        if (data.lockoutInfo?.isLockedOut) {
+             description = `Too many failed attempts. Please try again in ${countdown} seconds.`;
+        } else if (data.lockoutInfo?.remainingAttempts !== undefined) {
+             description += ` ${data.lockoutInfo.remainingAttempts} attempts remaining.`;
+        }
+        
         toast({
           title: 'Login Failed',
-          description: data.errors?.[0] || 'Invalid credentials.',
+          description,
           variant: 'destructive',
         });
         setIsLoading(false);
@@ -75,6 +117,8 @@ export default function LoginPage() {
 
   const LoginForm = ({ role }: { role: 'admin' | 'staff' }) => {
     const [showPassword, setShowPassword] = useState(false);
+    const isFormDisabled = isLoading || !!lockoutInfo?.isLockedOut;
+
     return (
         <form onSubmit={(e) => handleLogin(e, role)}>
         <CardContent className="space-y-4 pt-6">
@@ -86,6 +130,7 @@ export default function LoginPage() {
                 type="tel" 
                 placeholder="e.g. 2519..." 
                 required 
+                disabled={isFormDisabled}
             />
             </div>
             <div className="space-y-2">
@@ -97,6 +142,7 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'} 
                 required 
                 className="pr-10"
+                disabled={isFormDisabled}
                 />
                 <Button
                 type="button"
@@ -104,6 +150,7 @@ export default function LoginPage() {
                 size="sm"
                 className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                 onClick={() => setShowPassword(!showPassword)}
+                disabled={isFormDisabled}
                 >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -111,9 +158,11 @@ export default function LoginPage() {
             </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isFormDisabled}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {isLoading ? 'Signing In...' : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
+              {lockoutInfo?.isLockedOut ? `Try again in ${countdown}s` :
+               isLoading ? 'Signing In...' : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`
+              }
             </Button>
         </CardFooter>
         </form>
@@ -133,8 +182,8 @@ export default function LoginPage() {
         
         <Tabs defaultValue="staff" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="staff" disabled={isLoading}>Staff</TabsTrigger>
-            <TabsTrigger value="admin" disabled={isLoading}>Admin</TabsTrigger>
+            <TabsTrigger value="staff" disabled={isLoading || !!lockoutInfo?.isLockedOut}>Staff</TabsTrigger>
+            <TabsTrigger value="admin" disabled={isLoading || !!lockoutInfo?.isLockedOut}>Admin</TabsTrigger>
           </TabsList>
           <TabsContent value="staff">
             <LoginForm role="staff" />
