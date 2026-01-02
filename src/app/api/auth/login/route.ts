@@ -1,13 +1,19 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { SignJWT } from 'jose';
 import { serialize } from 'cookie';
 import { headers } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const getJwtSecret = (type: 'access' | 'refresh') => {
+    const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
+    if (!secret) throw new Error(`JWT secret for ${type} token is not set.`);
+    return new TextEncoder().encode(secret);
+};
+
 const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 60 * 15; // 15 minutes
 const REFRESH_TOKEN_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
@@ -15,33 +21,32 @@ const MAX_LOGIN_ATTEMPTS = parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5', 10);
 const LOCKOUT_DURATION_SECONDS = parseInt(process.env.LOCKOUT_DURATION_SECONDS || '30', 10);
 
 // In-memory store for login attempts. In a multi-server setup, a persistent store like Redis would be better.
-const loginAttempts: Record<string, { count: number; lockoutUntil: number }> = {};
+const loginAttempts: Record<string, { count: number; lockoutUntil: number; lockoutEndsAt?: Date }> = {};
 
 export async function POST(req: NextRequest) {
   try {
-    if (!JWT_SECRET) {
-      throw new Error('JWT_SECRET environment variable is not set.');
-    }
-
-    const headersList = headers();
-    const ip = req.ip ?? headersList.get('x-forwarded-for') ?? '127.0.0.1';
+    const ip = req.ip ?? headers().get('x-forwarded-for') ?? '127.0.0.1';
 
     // --- Rate Limiting Logic ---
-    const attempt = loginAttempts[ip] || { count: 0, lockoutUntil: 0 };
-    if (attempt.lockoutUntil > Date.now()) {
+    const attempt = loginAttempts[ip];
+    if (attempt && attempt.lockoutUntil > Date.now()) {
       const timeLeft = Math.ceil((attempt.lockoutUntil - Date.now()) / 1000);
-      return NextResponse.json({ message: `Too many failed attempts. Please try again in ${timeLeft} seconds.` }, { status: 429 });
+      return NextResponse.json({ 
+        isSuccess: false, 
+        errors: [`Too many failed attempts. Please try again in ${timeLeft} seconds.`],
+        lockoutInfo: { isLockedOut: true, lockoutEndsAt: attempt.lockoutEndsAt, remainingAttempts: 0 }
+      }, { status: 429 });
     }
 
-    const { phoneNumber, password } = await req.json();
+    const { phoneNumber, password, loginAs } = await req.json();
 
-    if (!phoneNumber || !password) {
-      return NextResponse.json({ message: 'Phone number and password are required.' }, { status: 400 });
+    if (!phoneNumber || !password || !loginAs) {
+      return NextResponse.json({ isSuccess: false, errors: ['Phone number, password, and role are required.'] }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({
       where: { phoneNumber },
-       include: {
+      include: {
         roles: {
           include: {
             role: true
@@ -50,59 +55,71 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    const checkAndHandleFailedAttempt = () => {
+        const currentAttempt = loginAttempts[ip] || { count: 0, lockoutUntil: 0 };
+        currentAttempt.count++;
+
+        if (currentAttempt.count >= MAX_LOGIN_ATTEMPTS) {
+            const lockoutEndsAt = new Date(Date.now() + LOCKOUT_DURATION_SECONDS * 1000);
+            currentAttempt.lockoutUntil = lockoutEndsAt.getTime();
+            currentAttempt.lockoutEndsAt = lockoutEndsAt;
+            currentAttempt.count = 0; // Reset count after lockout
+        }
+        loginAttempts[ip] = currentAttempt;
+
+        const remainingAttempts = MAX_LOGIN_ATTEMPTS - currentAttempt.count;
+        return NextResponse.json({ 
+            isSuccess: false, 
+            errors: ['Invalid credentials.'],
+            lockoutInfo: { isLockedOut: false, lockoutEndsAt: null, remainingAttempts }
+        }, { status: 401 });
+    };
+
     if (!user || !user.password) {
-      // Increment attempt count for invalid user
-      attempt.count++;
-      if (attempt.count >= MAX_LOGIN_ATTEMPTS) {
-        attempt.lockoutUntil = Date.now() + LOCKOUT_DURATION_SECONDS * 1000;
-        attempt.count = 0; // Reset count after lockout
-      }
-      loginAttempts[ip] = attempt;
-      return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
+      return checkAndHandleFailedAttempt();
+    }
+    
+    const userRole = user.roles.find(r => r.role.name.toLowerCase() === loginAs.toLowerCase());
+
+    if (!userRole) {
+       return checkAndHandleFailedAttempt();
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      // Increment attempt count for invalid password
-      attempt.count++;
-      if (attempt.count >= MAX_LOGIN_ATTEMPTS) {
-        attempt.lockoutUntil = Date.now() + LOCKOUT_DURATION_SECONDS * 1000;
-        attempt.count = 0;
-      }
-      loginAttempts[ip] = attempt;
-      return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
+       return checkAndHandleFailedAttempt();
     }
-
+    
     // Reset attempts on successful login
     delete loginAttempts[ip];
-    
-    // Assuming the first role is the one we want for the session
-    const sessionRole = user.roles[0]?.role;
-    if (!sessionRole) {
-        return NextResponse.json({ message: 'User role not configured.' }, { status: 500 });
-    }
 
     // --- Create Access Token ---
     const accessTokenPayload = {
       userId: user.id,
-      role: sessionRole,
+      role: userRole.role,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      trainingProviderId: user.trainingProviderId,
       tokenVersion: user.tokenVersion,
-      type: 'access' as 'access',
     };
-    const accessToken = jwt.sign(accessTokenPayload, JWT_SECRET, {
-      expiresIn: `${ACCESS_TOKEN_EXPIRES_IN_SECONDS}s`,
-    });
+    const accessToken = await new SignJWT(accessTokenPayload)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(`${ACCESS_TOKEN_EXPIRES_IN_SECONDS}s`)
+      .sign(getJwtSecret('access'));
 
     // --- Create Refresh Token ---
     const refreshTokenPayload = {
       userId: user.id,
       tokenVersion: user.tokenVersion,
-      type: 'refresh' as 'refresh',
     };
-    const refreshToken = jwt.sign(refreshTokenPayload, JWT_SECRET, {
-      expiresIn: `${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s`,
-    });
+    const refreshToken = await new SignJWT(refreshTokenPayload)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(`${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s`)
+      .sign(getJwtSecret('refresh'));
 
     const accessTokenCookie = serialize('auth_token', accessToken, {
         httpOnly: true,
@@ -112,7 +129,6 @@ export async function POST(req: NextRequest) {
         maxAge: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
     });
 
-
     const refreshTokenCookie = serialize('refresh_token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -120,12 +136,16 @@ export async function POST(req: NextRequest) {
       path: '/',
       maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
     });
-
-    const { password: _, ...userWithoutPassword } = user;
+    
+    let redirectTo = userRole.role.name === 'Admin' || userRole.role.name === 'Super Admin' ? '/admin/analytics' : '/dashboard';
+    if (user.passwordChangeRequired) {
+      redirectTo = '/change-password';
+    }
 
     const response = NextResponse.json({
-      message: 'Login successful.',
-      user: userWithoutPassword,
+      isSuccess: true,
+      redirectTo: redirectTo,
+      passwordChangeRequired: user.passwordChangeRequired,
     }, { status: 200 });
 
     response.headers.append('Set-Cookie', accessTokenCookie);
@@ -135,6 +155,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[LOGIN_ERROR]', error);
-    return new NextResponse(error.message || 'Internal Server Error', { status: 500 });
+    return NextResponse.json({ isSuccess: false, errors: [error.message || 'Internal Server Error'] }, { status: 500 });
   }
 }
