@@ -14,31 +14,32 @@ The NIB Training Platform is built on a modern, serverless web architecture that
 ```
 [User's Browser / NIBtera Mini-App]
        |
-       | HTTPS / API Calls
+       | HTTPS / API Calls (with Access Token)
        v
 [Next.js Application on a Serverless Platform]
   |    /      \
   |   /        \
-[Middleware] [API Routes] [Server/Client Components]
-  |      |         |
-  |      |         |
+[Middleware] [API Routes (e.g., /api/auth/*)] [Server/Client Components]
+  |      |         |                            |
+  |      |         |                            | (Client-side Idle Timer)
   |      |---------+-----------> [Prisma ORM] -> [PostgreSQL Database]
-  |      |
+  |      |                                        (Users, RefreshTokens, etc.)
   |      +----------------------> [NIB Payment Gateway API]
   |
   +-----------------------------> [NIBtera Super App (for Auth)]
+
 ```
 
 ### 2.2 Technology Stack
 
-| Component         | Technology/Service                                | Rationale                                                                      |
-|-------------------|---------------------------------------------------|--------------------------------------------------------------------------------|
-| **Frontend**      | Next.js (React), TypeScript, Tailwind CSS, ShadCN | Modern, performant UI with server-side rendering and a robust component library. |
-| **Backend/API**   | Next.js API Routes                                | Integrated serverless functions for backend logic, collocated with the frontend. |
-| **Database**      | PostgreSQL                                        | A powerful, open-source relational database.                                   |
-| **ORM**           | Prisma                                            | Provides type-safe database access and simplifies data modeling.               |
-| **Authentication**| JWT (Jose), bcrypt                                | Secure, stateless session management using JSON Web Tokens.                    |
-| **Deployment**    | Serverless Web Hosting (e.g., Vercel)             | A managed, serverless platform for deploying modern web apps.                  |
+| Component         | Technology/Service                                       | Rationale                                                                                                       |
+|-------------------|----------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| **Frontend**      | Next.js (React), TypeScript, Tailwind CSS, ShadCN        | Modern, performant UI with server-side rendering and a robust component library.                                |
+| **Backend/API**   | Next.js API Routes                                       | Integrated serverless functions for backend logic, collocated with the frontend.                                |
+| **Database**      | PostgreSQL                                               | A powerful, open-source relational database.                                                                    |
+| **ORM**           | Prisma                                                   | Provides type-safe database access and simplifies data modeling.                                                |
+| **Authentication**| JWT (Access/Refresh Tokens), bcrypt, `HttpOnly` cookies    | Secure, robust session management using short-lived access tokens and rotating, long-lived refresh tokens.        |
+| **Deployment**    | Serverless Web Hosting (e.g., Vercel)                    | A managed, serverless platform for deploying modern web apps.                                                   |
 
 ---
 
@@ -46,7 +47,13 @@ The NIB Training Platform is built on a modern, serverless web architecture that
 
 The application is broken down into several logical modules:
 
-1.  **Authentication & Session Management**: Handles user login, registration, and session validation using JWTs stored in secure cookies. Middleware intercepts requests to protect routes.
+1.  **Authentication & Session Management**: Handles user login, registration, and session validation. It uses a sophisticated token-based strategy:
+    -   **Access Tokens**: Short-lived JWTs (15 minutes) sent in the `Authorization` header for API requests. Stored in client-side memory.
+    -   **Refresh Tokens**: Long-lived, single-use tokens stored in a secure, `HttpOnly` cookie. They are persisted in the database and used only to obtain new access/refresh token pairs.
+    -   **Token Rotation**: Each time a refresh token is used, it is invalidated and a new one is issued, enhancing security.
+    -   **Server-Side Logout**: On logout, the refresh token is revoked in the database, ensuring immediate and complete session invalidation.
+    -   **Rate Limiting**: Authentication endpoints (`/login`, `/refresh`) are rate-limited by IP to prevent brute-force attacks.
+    -   **Inactivity Timeout**: A client-side timer monitors user activity. After 15 minutes of inactivity, a warning appears, and if there is no response, the user is automatically logged out.
 2.  **User & Admin Dashboards**: Separate UI modules for Staff and Admin users, providing role-specific views and functionalities.
 3.  **Content Management Module**: A set of components and API routes for Admins to create, update, and manage products, courses, modules, and learning paths.
 4.  **Learning & Progress Module**: Components for Staff to consume course content, take quizzes, and track their progress. Server actions handle state changes.
@@ -78,16 +85,26 @@ The application is broken down into several logical modules:
 ## 5. Data Flow
 
 ### 5.1 User Login Data Flow
-1.  **User** submits phone number/password to the Login Page.
+1.  **User** submits credentials on the Login Page.
 2.  **Client** sends a POST request to `/api/auth/login`.
-3.  **API Route** validates credentials against the `User` table in the database.
-4.  If valid, a **JWT** is generated and set as a secure, HTTP-only cookie.
-5.  **Client** is redirected to their respective dashboard (`/dashboard` or `/admin/analytics`).
+3.  **API Route** validates credentials and checks for rate-limiting.
+4.  If valid, it generates:
+    -   A short-lived **Access Token** (JWT), returned in the response body.
+    -   A long-lived **Refresh Token**, stored hashed in the database and sent to the client as a secure, `HttpOnly` cookie.
+5.  **Client** stores the access token in memory and is redirected to their dashboard.
 
-### 5.2 Course Creation Data Flow
+### 5.2 Access Token Refresh Flow
+1.  **Client** makes an API request with an expired Access Token.
+2.  The API responds with a `401 Unauthorized` error.
+3.  A client-side interceptor catches the 401 error and sends a POST request to `/api/auth/refresh`. This request automatically includes the `HttpOnly` refresh token cookie.
+4.  The **Refresh API Route** validates the refresh token against the database, revokes it, and generates a new access token and a new refresh token.
+5.  The new access token is returned in the response body, and the new refresh token is set as a new `HttpOnly` cookie.
+6.  The **Client** updates its in-memory access token and automatically retries the original failed API request.
+
+### 5.3 Course Creation Data Flow
 1.  **Admin** submits the "Add Course" form.
-2.  **Client** calls the `addCourse` server action with the form data.
-3.  **Server Action** validates the data and creates a new `Course` record in the database.
+2.  **Client** calls the `addCourse` server action with the form data and a valid Access Token.
+3.  **Server Action** validates the data and token, then creates a new `Course` record in the database.
 4.  The action calls `revalidatePath` to update the server-rendered course list page.
 5.  **Client** sees a success toast notification.
 

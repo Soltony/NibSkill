@@ -7,7 +7,7 @@ This document provides a detailed, low-level design for the key modules of the N
 
 ## 2. Database Schema (Prisma)
 
-Below is a simplified representation of the Prisma schema, focusing on key relationships.
+Below is a simplified representation of the Prisma schema, focusing on key relationships. The addition of `RefreshToken` and `FailedLoginAttempt` models supports the enhanced security architecture.
 
 ```prisma
 // User and Authentication
@@ -21,7 +21,26 @@ model User {
   roleId             String
   role               Role     @relation(fields: [roleId], references: [id])
   trainingProviderId String?
+  refreshTokens      RefreshToken[]
+  failedLoginAttempts FailedLoginAttempt[]
   // ... other relations
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  hashedToken String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  revoked     Boolean  @default(false)
+}
+
+model FailedLoginAttempt {
+  id        String   @id @default(cuid())
+  ipAddress String
+  userId    String?  // Can be null if the user doesn't exist
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 model Role {
@@ -93,82 +112,54 @@ model Option {
 
 ---
 
-## 3. Module Design: Payment Flow
+## 3. Module Design: User Authentication
 
-### 3.1 Components
-- **`CourseDetailClient` (`/courses/[courseId]/course-detail-client.tsx`)**:
-  - Displays the "Buy Course" button for paid courses.
-  - Contains the `handleBuyCourse` function.
-  - **Logic**: On button click, sets a loading state (`isPaying`) and makes a POST request to `/api/payment/initiate`. On success, it uses the `window.myJsChannel` to pass the `paymentToken` to the native mini-app shell. It displays error toasts on failure.
+### 3.1 Components & Hooks
+- **`LoginPage` (`/login/page.tsx`)**: Collects credentials and calls the `/api/auth/login` endpoint.
+- **`RootLayout` (`/app/layout.tsx`)**:
+  - Contains the master session state for the client.
+  - Fetches the user session on initial load.
+  - Integrates the `useIdleTimeout` hook to monitor for inactivity.
+- **`useIdleTimeout` (`/hooks/use-idle-timeout.ts`)**: Custom hook to track user activity (mouse, keyboard). After 15 minutes of inactivity, it triggers an `onIdle` callback.
+- **`SessionTimeoutDialog` (`/components/session-timeout-dialog.tsx`)**: A modal dialog that appears on idle, warning the user of impending logout and providing an option to continue their session.
 
 ### 3.2 API Specifications
 
-#### `POST /api/payment/initiate`
-- **Purpose**: To start a payment transaction with the NIB Gateway.
-- **Request Body**: `{ "amount": number }`
-- **Authentication**: Requires a valid `miniapp-auth-token` cookie.
+#### `POST /api/auth/login`
+- **Purpose**: Authenticate a user and create a new session.
+- **Request Body**: `{ "phoneNumber": string, "password": string, "loginAs": "staff" | "admin" }`
 - **Process**:
-  1. Reads the `miniapp-auth-token` from cookies.
-  2. Validates that `amount` and the token are present.
-  3. Retrieves payment gateway credentials (`ACCOUNT_NO`, `CALLBACK_URL`, etc.) from environment variables.
-  4. Generates a unique `transactionId` and a formatted `transactionTime`.
-  5. Constructs the `signatureString` by concatenating all required parameters and the `NIB_PAYMENT_KEY`.
-  6. Hashes the string using SHA-256 to create the `signature`.
-  7. Sends the complete payload to the `NIB_PAYMENT_URL`.
-- **Success Response (200)**: `{ "success": true, "paymentToken": string, "transactionId": string }`
-- **Error Response (401/500)**: `{ "success": false, "message": string }`
+  1.  Validates credentials against the `User` table.
+  2.  Checks for and enforces IP-based rate limiting to prevent brute-force attacks.
+  3.  On success, generates a short-lived **Access Token** (JWT, ~15 mins).
+  4.  Generates a long-lived **Refresh Token**, hashes it, and stores it in the `RefreshToken` table.
+- **Success Response (200)**: `{ "isSuccess": true, "accessToken": string, "redirectTo": string }` and sets a `refresh_token` cookie.
+- **Cookie Details**: The `refresh_token` cookie is set with `HttpOnly`, `Secure`, and `SameSite=Strict` attributes.
 
-#### `POST /api/payment/callback`
-- **Purpose**: Secure endpoint for the NIB Gateway to confirm transaction status.
-- **Authentication**: Validates a `Bearer` token in the `Authorization` header.
+#### `POST /api/auth/refresh`
+- **Purpose**: To issue a new access token using a valid refresh token.
+- **Authentication**: Requires a valid `refresh_token` cookie.
 - **Process**:
-  1. Validates the bearer token via an external API call.
-  2. Verifies the cryptographic signature of the incoming payload to ensure data integrity.
-  3. **(Future Logic)**: Finds the transaction in the local database using `transactionId`.
-  4. **(Future Logic)**: If valid, updates the transaction status and grants the user access to the course.
-- **Success Response (200)**: `{ "message": "Payment confirmed and updated." }`
-- **Error Response (400/401)**: `{ "message": "Invalid signature." / "Invalid token." }`
+  1.  Reads and hashes the `refresh_token` from the cookie.
+  2.  Finds the token in the `RefreshToken` database table. If not found or revoked, returns 401.
+  3.  **Token Rotation**: Marks the used refresh token as `revoked`.
+  4.  Generates a *new* access token and a *new* refresh token.
+  5.  Stores the new hashed refresh token in the database.
+- **Success Response (200)**: `{ "accessToken": string }` and sets a new `refresh_token` cookie.
 
-### 3.3 Error Handling
-- **Client-Side**: `handleBuyCourse` uses a `try...catch` block. Any failure in the API call results in a user-facing toast notification from `useToast`.
-- **API-Side**:
-  - Missing environment variables result in a `500 Server Configuration Error`.
-  - Missing `miniapp-auth-token` results in a `401 Unauthorized` error.
-  - Failures from the NIB Gateway are logged to the console, and a generic error is returned to the client to avoid leaking sensitive information.
+#### `POST /api/auth/logout`
+- **Purpose**: To securely terminate a user session.
+- **Authentication**: Requires a valid `refresh_token` cookie.
+- **Process**:
+  1.  Reads and hashes the `refresh_token` from the cookie.
+  2.  Finds the corresponding token in the database and marks it as `revoked`.
+  3.  Deletes the `refresh_token` cookie from the client's browser.
+- **Success Response (200)**: `{ "success": true }`.
 
----
-
-## 4. Module Design: User Authentication
-
-### 4.1 Component Diagram (Text-Based)
-```
-[LoginPage] --submits form--> [handleLogin] --POST--> [/api/auth/login]
-                                                            |
-                                                            v
-                                            [Prisma] -> [Database]
-                                                            | (verifies user)
-                                                            v
-                                            [Jose] ----> (Generates JWT)
-                                                            | (Sets cookie)
-                                                            v
-                                            <--redirect-- [Dashboard]
-```
-
-### 4.2 Middleware (`middleware.ts`)
-- **Purpose**: To protect routes and handle session validation for every request.
+### 3.3 Middleware (`middleware.ts`)
+- **Purpose**: To protect routes and handle initial session validation.
 - **Logic**:
-  1. Checks if the requested path is public (e.g., `/login`). If so, allows access.
-  2. If a `session` cookie exists, it verifies the JWT using `jose.jwtVerify`.
-     - If valid, the request proceeds.
-     - If invalid (expired/tampered), it deletes the cookie and redirects to `/login`.
-  3. If no session cookie exists and the path is not public, it redirects to `/login`.
-  4. **Mini-App Flow**: It checks for an `Authorization` header on initial load. If found, it triggers the `autoLoginFromMiniApp` function to create a session.
-
-### 4.3 `getSession()` Utility (`/lib/auth.ts`)
-- **Purpose**: A server-side utility to securely retrieve the current user's session data from the JWT cookie.
-- **Logic**:
-  1. Reads the `session` cookie.
-  2. Verifies the token using `jwtVerify`.
-  3. Fetches the `activeSessionId` from the database for the user ID in the token.
-  4. **Crucial Security Check**: Compares the `sessionId` from the token with the `activeSessionId` from the database. If they don't match, it means the session has been invalidated (e.g., by a new login on another device), and it returns `null`.
-  5. If valid, it returns the user's essential data.
+  1.  Checks if the requested path is public (e.g., `/login`). If so, allows access.
+  2.  If a `refresh_token` cookie exists, the request is allowed to proceed. The client is responsible for handling access token lifecycle.
+  3.  If no `refresh_token` exists and the path is not public, it redirects to `/login`.
+  4.  **Mini-App Flow**: It checks for an `Authorization` header on initial load. If found, it triggers the `autoLoginFromMiniApp` function to create a session.
