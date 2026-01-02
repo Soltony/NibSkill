@@ -1,42 +1,48 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
-import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const getJwtSecret = () => {
+    const secret = process.env.JWT_REFRESH_SECRET;
+    if (!secret) throw new Error('JWT_REFRESH_SECRET environment variable is not set.');
+    return new TextEncoder().encode(secret);
+};
 
 interface DecodedToken {
     userId: string;
 }
 
 export async function POST(req: NextRequest) {
-    if (!JWT_SECRET) {
-      console.error('JWT_SECRET environment variable is not set.');
-      return NextResponse.json({ message: 'Server configuration error.' }, { status: 500 });
-    }
-    
-    const cookieStore = cookies();
-    const refreshToken = cookieStore.get('refresh_token')?.value;
+    try {
+        const cookieStore = cookies();
+        const refreshToken = cookieStore.get('refresh_token')?.value;
 
-    if (refreshToken) {
-        try {
-            const decoded = jwt.verify(refreshToken, JWT_SECRET) as DecodedToken;
-            const userId = decoded.userId;
+        if (refreshToken) {
+            try {
+                const { payload } = await jwtVerify<DecodedToken>(refreshToken, getJwtSecret());
+                const userId = payload.userId;
 
-            if (userId) {
-                // Increment the tokenVersion to invalidate all existing tokens for this user
-                await prisma.user.update({
-                    where: { id: userId },
-                    data: { tokenVersion: { increment: 1 } },
-                });
+                if (userId) {
+                    // Increment the tokenVersion to invalidate all existing tokens for this user
+                    await prisma.user.update({
+                        where: { id: userId },
+                        data: { tokenVersion: { increment: 1 } },
+                    });
+                }
+            } catch (error) {
+                // If token is invalid, we can't do much server-side, but we still clear the cookies.
+                console.warn("Could not decode refresh token on logout:", error);
             }
-        } catch (error) {
-            // If token is invalid, we can't do much server-side, but we still clear the cookies.
-            console.warn("Could not decode refresh token on logout:", error);
         }
+    } catch (error) {
+        console.error("Error during logout token invalidation:", error);
+        // Do not block the user from logging out, just log the error.
     }
+
 
     const response = NextResponse.json({ success: true, message: "Logged out successfully" });
     

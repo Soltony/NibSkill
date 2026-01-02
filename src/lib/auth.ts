@@ -4,7 +4,6 @@ import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 import prisma from './db';
 import type { Role } from '@prisma/client';
-import type { NextRequest } from 'next/server';
 
 const getJwtSecret = (type: 'access' | 'refresh') => {
     const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;

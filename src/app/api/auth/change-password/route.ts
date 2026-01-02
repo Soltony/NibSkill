@@ -6,7 +6,7 @@ import { getSession } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession(req);
+    const session = await getSession();
     if (!session?.id) {
       return NextResponse.json({ errors: ['Unauthorized'] }, { status: 401 });
     }
@@ -37,24 +37,20 @@ export async function POST(req: NextRequest) {
 
     const newHashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Invalidate all existing refresh tokens for this user
-    await prisma.refreshToken.updateMany({
-        where: { userId: user.id },
-        data: { revoked: true }
-    });
-
     await prisma.user.update({
       where: { id: user.id },
       data: {
         password: newHashedPassword,
         passwordChangeRequired: false,
+        // Incrementing tokenVersion here would also work, but logout is the more conventional place.
       },
     });
 
     const response = NextResponse.json({ success: true, message: 'Password updated successfully. Please log in again.' }, { status: 200 });
     
-    // Clear the refresh token cookie, forcing a new login
+    // Clear the authentication cookies, forcing a new login
     response.cookies.delete('refresh_token');
+    response.cookies.delete('auth_token');
 
     return response;
 
