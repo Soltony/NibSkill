@@ -92,20 +92,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             if (user) {
                 setCurrentUser(user);
             } else {
-                 if (!isPublicPage) router.replace('/login');
+                 if (!isPublicPage) window.location.href = '/login';
             }
         }
         else {
-             if (!isPublicPage) router.replace('/login');
+             if (!isPublicPage) window.location.href = '/login';
         }
       } catch {
-         if (!isPublicPage) router.replace('/login');
+         if (!isPublicPage) window.location.href = '/login';
       } finally {
         setIsLoading(false);
       }
     }
     fetchUser();
-  }, [pathname, router, isPublicPage]);
+  }, [pathname, isPublicPage]);
 
   const userRole = currentUser?.role;
   const permissions = userRole?.permissions as any;
@@ -167,7 +167,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (isLoading) {
+  if (isLoading || !currentUser) {
     return (
       <html lang="en" suppressHydrationWarning>
         <head><title>NIB Training</title></head>

@@ -11,7 +11,7 @@ import { SessionCard } from "./session-card-client";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
-async function getLiveSessionsData(userId: string) {
+async function getLiveSessionsData(userId?: string) {
   const sessions = await prisma.liveSession.findMany({
     include: {
       attendedBy: {
@@ -84,7 +84,7 @@ export default async function LiveSessionsPage() {
                             <SessionCard 
                                 key={session.id} 
                                 session={session} 
-                                userId={userId}
+                                userId={userId!}
                                 hasAttended={session.attendedBy.length > 0}
                                 isAllowed={isAllowed}
                             />
@@ -108,7 +108,7 @@ export default async function LiveSessionsPage() {
                             <SessionCard 
                                 key={session.id} 
                                 session={session} 
-                                userId={userId}
+                                userId={userId!}
                                 hasAttended={session.attendedBy.length > 0}
                                 isAllowed={isAllowed}
                             />

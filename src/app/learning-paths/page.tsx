@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { LearningPathsClient, type LearningPathWithProgress } from "./learning-paths-client"
 
-async function getLearningPathsData(userId: string) {
+async function getLearningPathsData(userId?: string) {
 
   const learningPaths = await prisma.learningPath.findMany({
     include: {
@@ -20,6 +20,10 @@ async function getLearningPathsData(userId: string) {
   
   if (!learningPaths.length) {
     return [];
+  }
+  
+  if (!userId) {
+    return learningPaths.map(path => ({ ...path, progress: 0 }));
   }
 
   const allCourseIdsInPaths = learningPaths.flatMap(path => path.courses.map(c => c.course.id));
