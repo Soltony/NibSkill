@@ -1,21 +1,10 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify, type JWTPayload } from 'jose';
-import { getSession } from './lib/auth';
 
-interface CustomJwtPayload extends JWTPayload {
-  userId: string;
-  role: {
-    name: string;
-    permissions?: Record<string, any>;
-  };
-  passwordChangeRequired?: boolean;
-}
-
-// --- Helper: get JWT secret ---
-const getJwtSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
+const getAccessJwtSecret = () => {
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (!secret) throw new Error('JWT_ACCESS_SECRET is not set.');
   return new TextEncoder().encode(secret);
 };
 
@@ -27,82 +16,48 @@ const publicPaths = [
   '/login/super-admin',
   '/api/auth/login',
   '/api/auth/register',
+  '/api/auth/refresh',
+  '/api/auth/logout',
   '/api/connect',
   '/api/registration-data',
-  '/auto-login'
 ];
 
 // --- Middleware ---
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get('session')?.value;
-  const guestSessionCookie = request.cookies.get('miniapp_guest_session')?.value;
-  
+  const accessToken = request.headers.get('Authorization')?.split(' ')[1];
+  const refreshToken = request.cookies.get('refresh_token')?.value;
+
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
-  const isConnectPath = pathname === '/api/connect';
   const isChangePasswordPath = pathname === '/change-password';
-  const isApiChangePasswordPath = pathname === '/api/auth/change-password';
 
-  if (isConnectPath) {
+  if (isPublicPath) {
     return NextResponse.next();
   }
 
-  // If user has a full session, they are logged in.
-  if (sessionCookie) {
-    let payload: CustomJwtPayload;
-    try {
-      const verified = await jwtVerify(sessionCookie, getJwtSecret());
-      payload = verified.payload as CustomJwtPayload;
-    } catch (err) {
-      // Invalid session, delete cookies and redirect to login
-      const response = NextResponse.redirect(new URL('/login', request.url));
-      response.cookies.delete('session');
-      response.cookies.delete('miniapp_guest_session');
-      return response;
-    }
-    
-    // Check for mandatory password change
-    if (payload.passwordChangeRequired && !isChangePasswordPath && !isApiChangePasswordPath) {
-        return NextResponse.redirect(new URL('/change-password', request.url));
-    }
-    
-    if (!payload.passwordChangeRequired && isChangePasswordPath) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-
-    // Redirect logged-in users away from public pages
-    if (isPublicPath) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-    
-    return NextResponse.next();
-  }
-
-  // If user has a guest session (from the mini-app)
-  if (guestSessionCookie) {
-    try {
-      await jwtVerify(guestSessionCookie, getJwtSecret());
-      // Guest is valid. Allow access to non-API routes.
-      // Redirect logged-in guests away from public pages
-      if (isPublicPath) {
-         return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
-      return NextResponse.next();
-    } catch (err) {
-       // Invalid guest session, delete cookies and redirect to login
-      const response = NextResponse.redirect(new URL('/login', request.url));
-      response.cookies.delete('session');
-      response.cookies.delete('miniapp_guest_session');
-      return response;
-    }
-  }
-
-  // Handle unauthenticated users trying to access protected pages
-  if (!isPublicPath) {
+  if (!refreshToken) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Allow access to public paths for unauthenticated users
+  // For accessing protected pages (not API routes), we rely on the refresh token's existence.
+  // The client-side will handle access token refreshing.
+  // We just need to make sure an unauthenticated user can't access protected HTML pages.
+  if (accessToken) {
+      try {
+        const { payload } = await jwtVerify(accessToken, getAccessJwtSecret());
+        if (payload.passwordChangeRequired && !isChangePasswordPath) {
+            return NextResponse.redirect(new URL('/change-password', request.url));
+        }
+        if (!payload.passwordChangeRequired && isChangePasswordPath) {
+            return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
+      } catch (error) {
+        // Access token might be expired, which is fine for page loads.
+        // The client will refresh it.
+      }
+  }
+
+
   return NextResponse.next();
 }
 

@@ -6,8 +6,23 @@ import { z } from 'zod';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { randomUUID } from 'crypto';
-import type { Prisma, User, TrainingProvider, UserRole, Role, JWTPayload } from '@prisma/client';
+import type { Prisma, User, TrainingProvider, UserRole, Role, JWTPayload as JoseJWTPayload } from '@prisma/client';
 import { addSeconds, differenceInSeconds } from 'date-fns';
+import crypto from 'crypto';
+
+interface GuestJwtPayload extends JoseJWTPayload {
+  phoneNumber: string;
+  authToken: string;
+}
+
+const ACCESS_TOKEN_EXPIRATION = '15m'; // 15 minutes
+const REFRESH_TOKEN_EXPIRATION_DAYS = 7;
+
+const getJwtSecret = (type: 'access' | 'refresh') => {
+  const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
+  if (!secret) throw new Error(`JWT secret for ${type} token is not set.`);
+  return new TextEncoder().encode(secret);
+};
 
 const loginSchema = z.object({
   email: z.string().email().optional(),
@@ -15,17 +30,6 @@ const loginSchema = z.object({
   password: z.string().optional(),
   loginAs: z.enum(['admin', 'staff', 'super-admin']).optional(),
 });
-
-interface GuestJwtPayload extends JWTPayload {
-  phoneNumber: string;
-  authToken: string;
-}
-
-const getJwtSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET environment variable is not set.');
-  return new TextEncoder().encode(secret);
-};
 
 type UserWithFullRoles = User & { 
   roles: (UserRole & { role: Role })[];
@@ -159,65 +163,34 @@ export async function POST(request: NextRequest) {
     
     user = candidateUser;
     
-    // On successful login, clear failed attempts for this IP
     await prisma.failedLoginAttempt.deleteMany({ where: { ipAddress: ip } });
 
     if (user.trainingProvider && !user.trainingProvider.isActive) {
       return NextResponse.json({ isSuccess: false, errors: ["Your organization's account has been deactivated. Please contact support."] }, { status: 403 });
     }
-    
-    const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
-    let superAppToken: string | undefined;
 
-    if (guestSessionToken) {
-        try {
-            const { payload } = await jwtVerify<GuestJwtPayload>(guestSessionToken, getJwtSecret());
-            superAppToken = payload.authToken;
-        } catch (e) {
-            // Invalid guest token, ignore
-        }
-    }
+    const accessToken = await new SignJWT({
+        userId: user.id,
+        role: selectedRole,
+        name: user.name,
+        email: user.email,
+        trainingProviderId: user.trainingProviderId,
+        passwordChangeRequired: user.passwordChangeRequired,
+    })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(ACCESS_TOKEN_EXPIRATION)
+    .sign(getJwtSecret('access'));
 
-    await prisma.loginHistory.create({
+    const refreshToken = randomUUID();
+    const hashedRefreshToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+    await prisma.refreshToken.create({
         data: {
             userId: user.id,
-            ipAddress: ip,
-            userAgent: request.headers.get('user-agent'),
-            superAppToken: superAppToken,
+            hashedToken: hashedRefreshToken,
         }
     });
-
-    const sessionId = randomUUID();
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { activeSessionId: sessionId },
-    });
-
-    const jwt = await new SignJWT({
-      userId: user.id,
-      role: selectedRole,
-      name: user.name,
-      email: user.email,
-      sessionId,
-      trainingProviderId: user.trainingProviderId,
-      passwordChangeRequired: user.passwordChangeRequired,
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('24h')
-      .sign(getJwtSecret());
-
-    cookieStore.set('session', jwt, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24,
-    });
-    
-    if (guestSessionToken) {
-      cookieStore.delete('miniapp_guest_session');
-    }
 
     const { password: _, ...userWithoutPassword } = user;
     
@@ -232,14 +205,25 @@ export async function POST(request: NextRequest) {
         }
     }
 
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       isSuccess: true,
       user: userWithoutPassword,
+      accessToken,
       redirectTo,
       passwordChangeRequired: user.passwordChangeRequired,
       errors: null,
     });
+
+    response.cookies.set('refresh_token', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 60 * 60 * 24 * REFRESH_TOKEN_EXPIRATION_DAYS,
+    });
+
+    return response;
+
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ isSuccess: false, errors: ['Unexpected server error.'] }, { status: 500 });

@@ -46,7 +46,7 @@ export async function resendCredentialsEmail(userId: string) {
 
         await prisma.user.update({
             where: { id: userId },
-            data: { password: hashedPassword }
+            data: { password: hashedPassword, passwordChangeRequired: true }
         });
         
         const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/login` : 'http://localhost:3000/login';
@@ -160,7 +160,10 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
 
 
 export async function logout() {
-  cookies().set('session', '', { expires: new Date(0) })
+  const cookieStore = cookies();
+  cookieStore.delete('refresh_token');
+  // You might also want to explicitly revoke the token in the database
+  // by calling a new API endpoint like /api/auth/logout
 }
 
 const profileFormSchema = z.object({
