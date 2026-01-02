@@ -4,9 +4,13 @@ import { jwtVerify, SignJWT } from 'jose';
 import prisma from '@/lib/db';
 import crypto from 'crypto';
 import { randomUUID } from 'crypto';
+import { addSeconds, differenceInSeconds } from 'date-fns';
 
 const ACCESS_TOKEN_EXPIRATION = '15m'; // 15 minutes
 const REFRESH_TOKEN_EXPIRATION_DAYS = 7;
+const LOCKOUT_PERIOD_SECONDS = 30;
+const MAX_ATTEMPTS = 5;
+
 
 const getJwtSecret = (type: 'access' | 'refresh') => {
   const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
@@ -17,6 +21,28 @@ const getJwtSecret = (type: 'access' | 'refresh') => {
 
 export async function POST(request: NextRequest) {
     const refreshToken = request.cookies.get('refresh_token')?.value;
+    const ip = request.ip ?? '127.0.0.1';
+    
+    // IP-based lockout check
+    const recentFailedAttempts = await prisma.failedLoginAttempt.findMany({
+      where: {
+        ipAddress: ip,
+        createdAt: {
+          gte: addSeconds(new Date(), -LOCKOUT_PERIOD_SECONDS),
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (recentFailedAttempts.length >= MAX_ATTEMPTS) {
+        const oldestAttempt = recentFailedAttempts[MAX_ATTEMPTS - 1];
+        const lockoutEndsAt = addSeconds(oldestAttempt.createdAt, LOCKOUT_PERIOD_SECONDS);
+        const secondsRemaining = differenceInSeconds(lockoutEndsAt, new Date());
+        
+        return NextResponse.json({ 
+            error: `Too many attempts. Please try again in ${secondsRemaining > 0 ? secondsRemaining : 1} seconds.`
+        }, { status: 429 });
+    }
     
     if (!refreshToken) {
         return NextResponse.json({ error: 'Refresh token not found.' }, { status: 401 });
@@ -47,15 +73,14 @@ export async function POST(request: NextRequest) {
             throw new Error("Refresh token not found or revoked.");
         }
         
+        await prisma.failedLoginAttempt.deleteMany({ where: { ipAddress: ip } });
+
         // --- Refresh Token Rotation ---
-        // Invalidate the used token
         await prisma.refreshToken.update({
             where: { id: dbToken.id },
             data: { revoked: true }
         });
 
-        // The role used in the previous session should be carried over.
-        // This logic assumes the primary role is the first one, adjust if needed.
         const sessionRole = dbToken.user.roles[0]?.role;
         if (!sessionRole) {
             throw new Error("User has no assigned role.");
@@ -98,7 +123,10 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         console.error("Refresh token error:", error);
-        // Clear the cookie on the client if it's invalid
+        
+        // Log failed attempt for rate limiting
+        await prisma.failedLoginAttempt.create({ data: { ipAddress: ip } });
+
         const response = NextResponse.json({ error: 'Invalid refresh token.' }, { status: 401 });
         response.cookies.delete('refresh_token');
         return response;

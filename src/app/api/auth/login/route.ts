@@ -17,6 +17,8 @@ interface GuestJwtPayload extends JoseJWTPayload {
 
 const ACCESS_TOKEN_EXPIRATION = '15m'; // 15 minutes
 const REFRESH_TOKEN_EXPIRATION_DAYS = 7;
+const LOCKOUT_PERIOD_SECONDS = 30;
+const MAX_ATTEMPTS = 5;
 
 const getJwtSecret = (type: 'access' | 'refresh') => {
   const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
@@ -58,10 +60,7 @@ const userHasRole = (user: UserWithFullRoles, loginAs: 'admin' | 'staff' | 'supe
 export async function POST(request: NextRequest) {
   try {
     const ip = request.ip ?? '127.0.0.1';
-    const LOCKOUT_PERIOD_SECONDS = 30;
-    const MAX_ATTEMPTS = 5;
-    const lockoutUntil = addSeconds(new Date(), LOCKOUT_PERIOD_SECONDS);
-
+    
     // Check for IP-based lockout
     const recentFailedAttempts = await prisma.failedLoginAttempt.findMany({
       where: {
@@ -85,15 +84,11 @@ export async function POST(request: NextRequest) {
             errors: [`Too many failed attempts. Please try again in ${secondsRemaining > 0 ? secondsRemaining : 1} seconds.`],
             lockoutInfo: {
                 isLockedOut: true,
-                lockoutEndsAt,
+                lockoutEndsAt: lockoutEndsAt.toISOString(),
                 remainingAttempts: 0,
             }
         }, { status: 429 });
     }
-
-    const cookieStore = cookies();
-    let user: UserWithFullRoles | null | undefined;
-    let selectedRole: Role | undefined;
 
     const body = await request.json();
     const validation = loginSchema.safeParse(body);
@@ -112,20 +107,20 @@ export async function POST(request: NextRequest) {
       include: { roles: { include: { role: true } }, trainingProvider: true },
     });
 
+    const remainingAttempts = MAX_ATTEMPTS - (recentFailedAttempts.length + 1);
+
     if (usersWithPhoneNumber.length === 0) {
       await prisma.failedLoginAttempt.create({ data: { ipAddress: ip } });
-      const remaining = MAX_ATTEMPTS - (recentFailedAttempts.length + 1);
       return NextResponse.json({ 
           isSuccess: false, 
           errors: ['Invalid credentials.'],
-          lockoutInfo: { remainingAttempts: remaining > 0 ? remaining : 0, isLockedOut: remaining <= 0, lockoutEndsAt: remaining <= 0 ? lockoutUntil : null }
+          lockoutInfo: { remainingAttempts, isLockedOut: remainingAttempts <= 0, lockoutEndsAt: remainingAttempts <= 0 ? addSeconds(new Date(), LOCKOUT_PERIOD_SECONDS).toISOString() : null }
       }, { status: 401 });
     }
     
     let candidateUser: UserWithFullRoles | undefined;
     let passwordMatch = false;
     
-    // Find a user that matches the phone number AND the intended role and has a correct password
     for (const u of usersWithPhoneNumber) {
         const isMatch = await bcrypt.compare(password, u.password || '');
         if (isMatch) {
@@ -139,17 +134,15 @@ export async function POST(request: NextRequest) {
 
     if (!candidateUser) {
         await prisma.failedLoginAttempt.create({ data: { ipAddress: ip } });
-        const remaining = MAX_ATTEMPTS - (recentFailedAttempts.length + 1);
         const errorMsg = passwordMatch ? `This user is not configured as a '${loginAs}'.` : 'Invalid credentials.';
         return NextResponse.json({ 
             isSuccess: false, 
             errors: [errorMsg],
-            lockoutInfo: { remainingAttempts: remaining > 0 ? remaining : 0, isLockedOut: remaining <= 0, lockoutEndsAt: remaining <= 0 ? lockoutUntil : null }
+            lockoutInfo: { remainingAttempts, isLockedOut: remainingAttempts <= 0, lockoutEndsAt: remainingAttempts <= 0 ? addSeconds(new Date(), LOCKOUT_PERIOD_SECONDS).toISOString() : null }
         }, { status: 401 });
     }
 
-    // Now that we have a valid user for the role, find the specific role to use for the session
-    selectedRole = candidateUser.roles.find(userRole => {
+    const selectedRole = candidateUser.roles.find(userRole => {
         const roleName = userRole.role.name.toLowerCase();
         if (loginAs === 'super-admin') return roleName === 'super admin';
         if (loginAs === 'admin') return roleName !== 'staff' && roleName !== 'super admin';
@@ -161,7 +154,7 @@ export async function POST(request: NextRequest) {
          return NextResponse.json({ isSuccess: false, errors: ['Could not determine user role for session.'] }, { status: 500 });
     }
     
-    user = candidateUser;
+    const user = candidateUser;
     
     await prisma.failedLoginAttempt.deleteMany({ where: { ipAddress: ip } });
 
