@@ -139,9 +139,9 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 phoneNumber: phoneNumber,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
                 trainingProviderId: session.trainingProviderId,
-                departmentId: departmentId || null,
-                districtId: districtId || null,
-                branchId: branchId || null,
+                department: departmentId ? { connect: { id: departmentId } } : undefined,
+                district: districtId ? { connect: { id: districtId } } : undefined,
+                branch: branchId ? { connect: { id: branchId } } : undefined,
             }
         });
         
