@@ -23,9 +23,9 @@ const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email().optional().or(z.literal('')),
   password: z.string().min(6),
-  department: z.string().optional(),
-  district: z.string().optional(),
-  branch: z.string().optional(),
+  departmentId: z.string().optional(),
+  districtId: z.string().optional(),
+  branchId: z.string().optional(),
   phoneNumber: z.string().min(1, "Phone number is required"),
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
 });
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ isSuccess: false, errors: validation.error.issues.map(i => i.message) }, { status: 400 });
     }
 
-    const { name, email, password, department, district, branch, phoneNumber, trainingProviderId } = validation.data;
+    const { name, email, password, departmentId, districtId, branchId, phoneNumber, trainingProviderId } = validation.data;
 
     const staffRole = await prisma.role.findFirst({
         where: { 
@@ -87,9 +87,9 @@ export async function POST(request: NextRequest) {
         name,
         email: email || null,
         password: hashedPassword,
-        department: department ? { connect: { id: department } } : undefined,
-        district: district ? { connect: { id: district } } : undefined,
-        branch: branch ? { connect: { id: branch } } : undefined,
+        department: departmentId ? { connect: { id: departmentId } } : undefined,
+        district: districtId ? { connect: { id: districtId } } : undefined,
+        branch: branchId ? { connect: { id: branchId } } : undefined,
         phoneNumber: phoneNumber,
         avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
         trainingProviderId: trainingProviderId,
