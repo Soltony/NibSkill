@@ -69,9 +69,9 @@ export async function POST(req: NextRequest) {
         if (currentAttempt.count >= MAX_LOGIN_ATTEMPTS) {
             lockoutEndsAt = new Date(Date.now() + LOCKOUT_DURATION_SECONDS * 1000);
             currentAttempt.lockoutUntil = lockoutEndsAt.getTime();
+            currentAttempt.count = 0; // Reset count after setting lockout
             isLockedOut = true;
             remainingAttempts = 0;
-            // Don't reset count here, let it be reset after lockout expires
         }
         
         loginAttempts[ip] = currentAttempt;
@@ -87,7 +87,12 @@ export async function POST(req: NextRequest) {
       return checkAndHandleFailedAttempt();
     }
     
-    const userRole = user.roles.find(r => r.role.name.toLowerCase().replace(' ', '-') === loginAs.toLowerCase());
+    let userRole;
+    if (loginAs === 'super-admin') {
+        userRole = user.roles.find(r => r.role.id === 'super-admin')?.role;
+    } else {
+        userRole = user.roles.find(r => r.role.name.toLowerCase() === loginAs.toLowerCase() && r.role.trainingProviderId === user.trainingProviderId)?.role;
+    }
 
     if (!userRole) {
        return checkAndHandleFailedAttempt();
@@ -105,7 +110,7 @@ export async function POST(req: NextRequest) {
     // --- Create Access Token ---
     const accessTokenPayload = {
       userId: user.id,
-      role: userRole.role,
+      role: userRole,
       name: user.name,
       email: user.email,
       avatarUrl: user.avatarUrl,
@@ -145,7 +150,7 @@ export async function POST(req: NextRequest) {
       maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
     });
     
-    let redirectTo = userRole.role.name === 'Admin' ? '/admin/analytics' : (userRole.role.name === 'Super Admin' ? '/super-admin/dashboard' : '/dashboard');
+    let redirectTo = userRole.name === 'Admin' ? '/admin/analytics' : (userRole.name === 'Super Admin' ? '/super-admin/dashboard' : '/dashboard');
     if (user.passwordChangeRequired) {
       redirectTo = '/change-password';
     }
@@ -159,6 +164,15 @@ export async function POST(req: NextRequest) {
     response.headers.append('Set-Cookie', accessTokenCookie);
     response.headers.append('Set-Cookie', refreshTokenCookie);
 
+    // Record successful login
+    await prisma.loginHistory.create({
+      data: {
+        userId: user.id,
+        ipAddress: ip,
+        userAgent: req.headers.get('user-agent'),
+      }
+    });
+
     return response;
 
   } catch (error: any) {
@@ -166,3 +180,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ isSuccess: false, errors: [error.message || 'Internal Server Error'] }, { status: 500 });
   }
 }
+
+    

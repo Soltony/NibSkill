@@ -87,7 +87,9 @@ export default function LoginPage() {
         });
 
         if (data.passwordChangeRequired) {
-          window.location.href = data.redirectTo;
+          // Reset loading state before navigating away
+          setIsLoading(false);
+          router.push(data.redirectTo);
         } else {
           router.push(data.redirectTo || (activeTab === 'admin' ? '/admin/analytics' : '/dashboard'));
         }
@@ -210,3 +212,5 @@ export default function LoginPage() {
     </main>
   );
 }
+
+    
