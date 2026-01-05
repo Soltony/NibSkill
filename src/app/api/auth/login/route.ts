@@ -7,6 +7,8 @@ import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { serialize } from 'cookie';
 import { headers } from 'next/headers';
+import { differenceInSeconds } from 'date-fns';
+
 
 const getJwtSecret = (type: 'access' | 'refresh') => {
     const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
@@ -20,22 +22,23 @@ const REFRESH_TOKEN_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const MAX_LOGIN_ATTEMPTS = parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5', 10);
 const LOCKOUT_DURATION_SECONDS = parseInt(process.env.LOCKOUT_DURATION_SECONDS || '30', 10);
 
-// In-memory store for login attempts. In a multi-server setup, a persistent store like Redis would be better.
 const loginAttempts: Record<string, { count: number; lockoutUntil: number; lockoutEndsAt?: Date }> = {};
 
 export async function POST(req: NextRequest) {
   try {
     const ip = req.ip ?? headers().get('x-forwarded-for') ?? '127.0.0.1';
-
-    // --- Rate Limiting Logic ---
-    const attempt = loginAttempts[ip];
-    if (attempt && attempt.lockoutUntil > Date.now()) {
-      const timeLeft = Math.ceil((attempt.lockoutUntil - Date.now()) / 1000);
-      return NextResponse.json({ 
-        isSuccess: false, 
-        errors: [`Too many failed attempts. Please try again in ${timeLeft} seconds.`],
-        lockoutInfo: { isLockedOut: true, lockoutEndsAt: attempt.lockoutEndsAt, remainingAttempts: 0 }
-      }, { status: 429 });
+    
+    if (loginAttempts[ip] && loginAttempts[ip].lockoutUntil > Date.now()) {
+        const timeLeft = Math.ceil((loginAttempts[ip].lockoutUntil - Date.now()) / 1000);
+        return NextResponse.json({ 
+            isSuccess: false, 
+            errors: [`Too many failed attempts. Please try again in ${timeLeft} seconds.`],
+            lockoutInfo: { 
+                isLockedOut: true, 
+                lockoutEndsAt: loginAttempts[ip].lockoutEndsAt, 
+                remainingAttempts: 0 
+            }
+        }, { status: 429 });
     }
 
     const { phoneNumber, password, loginAs } = await req.json();
@@ -61,17 +64,18 @@ export async function POST(req: NextRequest) {
 
         let isLockedOut = false;
         let lockoutEndsAt: Date | undefined = undefined;
+        let remainingAttempts = MAX_LOGIN_ATTEMPTS - currentAttempt.count;
 
         if (currentAttempt.count >= MAX_LOGIN_ATTEMPTS) {
             lockoutEndsAt = new Date(Date.now() + LOCKOUT_DURATION_SECONDS * 1000);
             currentAttempt.lockoutUntil = lockoutEndsAt.getTime();
-            currentAttempt.count = 0; // Reset count after lockout is set
             isLockedOut = true;
+            remainingAttempts = 0;
+            // Don't reset count here, let it be reset after lockout expires
         }
+        
         loginAttempts[ip] = currentAttempt;
 
-        const remainingAttempts = isLockedOut ? 0 : MAX_LOGIN_ATTEMPTS - currentAttempt.count;
-        
         return NextResponse.json({ 
             isSuccess: false, 
             errors: ['Invalid credentials.'],
@@ -83,7 +87,7 @@ export async function POST(req: NextRequest) {
       return checkAndHandleFailedAttempt();
     }
     
-    const userRole = user.roles.find(r => r.role.name.toLowerCase() === loginAs.toLowerCase());
+    const userRole = user.roles.find(r => r.role.name.toLowerCase().replace(' ', '-') === loginAs.toLowerCase());
 
     if (!userRole) {
        return checkAndHandleFailedAttempt();
@@ -141,7 +145,7 @@ export async function POST(req: NextRequest) {
       maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
     });
     
-    let redirectTo = userRole.role.name === 'Admin' || userRole.role.name === 'Super Admin' ? '/admin/analytics' : '/dashboard';
+    let redirectTo = userRole.role.name === 'Admin' ? '/admin/analytics' : (userRole.role.name === 'Super Admin' ? '/super-admin/dashboard' : '/dashboard');
     if (user.passwordChangeRequired) {
       redirectTo = '/change-password';
     }

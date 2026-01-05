@@ -66,13 +66,10 @@ async function main() {
   
   // Seed Roles and Permissions
   for (const role of initialRoles) {
-    const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
-    const whereClause = isGlobal
-      ? { id: role.id }
-      : { unique_role_name_for_provider: { name: role.name, trainingProviderId: provider.id } };
-      
+    const isGlobal = role.name === 'Super Admin' || role.name === 'Training Provider';
+    
     await prisma.role.upsert({
-      where: whereClause as any, // Use `as any` to handle the conditional where clause type
+      where: { id: role.id },
       update: {
         permissions: role.permissions as any,
       },
@@ -116,10 +113,10 @@ async function main() {
         phoneNumber: user.phoneNumber,
         avatarUrl: user.avatarUrl,
         password: hashedPassword,
-        department: departmentRecord ? { connect: { id: departmentRecord.id } } : undefined,
-        district: districtRecord ? { connect: { id: districtRecord.id } } : undefined,
-        branch: branchRecord ? { connect: { id: branchRecord.id } } : undefined,
-        trainingProvider: isSuperAdmin ? undefined : { connect: { id: provider.id } },
+        departmentId: departmentRecord?.id,
+        districtId: districtRecord?.id,
+        branchId: branchRecord?.id,
+        trainingProviderId: isSuperAdmin ? null : provider.id,
       },
     });
 
