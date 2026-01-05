@@ -1,5 +1,5 @@
 
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getSession } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { cookies } from 'next/headers';
