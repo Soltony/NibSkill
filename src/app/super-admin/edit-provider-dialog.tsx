@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -31,6 +30,7 @@ import { updateTrainingProvider } from "@/app/actions/super-admin-actions"
 import type { TrainingProvider, User } from "@prisma/client"
 import { Eye, EyeOff } from "lucide-react"
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
 const formSchema = z.object({
   providerId: z.string(),
   name: z.string().min(2, "Provider name is required."),
@@ -40,7 +40,9 @@ const formSchema = z.object({
   adminName: z.string().min(2, "Admin name is required."),
   adminEmail: z.string().email("A valid email is required."),
   adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
-  adminPassword: z.string().min(6, "Password must be at least 6 characters.").optional().or(z.literal('')),
+  adminPassword: z.string().min(8, "Password must be at least 8 characters long.").refine((val) => passwordRegex.test(val), {
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, and one special character.',
+    }).optional().or(z.literal('')),
 })
 
 type EditProviderDialogProps = {

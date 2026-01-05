@@ -3,7 +3,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText, BadgeCheck, BadgeX, KeyRound } from "lucide-react"
+import { Award, BookOpenCheck, CheckCircle, Footprints, Target, Trophy, FileText, BadgeCheck, BadgeX, KeyRound, Eye, EyeOff } from "lucide-react"
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import type { User, Badge, UserBadge, UserCompletedCourse, Course, Department, Q
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 
 type CompletedCourse = UserCompletedCourse & { course: Course & { quiz: Quiz | null } }
@@ -31,9 +32,12 @@ const profileFormSchema = z.object({
     phoneNumber: z.string().optional(),
 })
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
 const passwordFormSchema = z.object({
     currentPassword: z.string().min(1, "Current password is required."),
-    newPassword: z.string().min(8, "New password must be at least 8 characters long."),
+    newPassword: z.string().min(8, "New password must be at least 8 characters long.").refine((val) => passwordRegex.test(val), {
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, and one special character.',
+    }),
     confirmPassword: z.string()
 }).refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match.",
@@ -79,6 +83,10 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
     const router = useRouter();
     const coursesCompletedCount = completedCourses.filter(c => c.course.quiz && c.score >= c.course.quiz.passingScore).length;
     
+    const [showCurrent, setShowCurrent] = useState(false);
+    const [showNew, setShowNew] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
+
     const attempts = completedCourses.length;
     const avgScore = attempts > 0
         ? Math.round(
@@ -137,7 +145,7 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
             });
             // Wait for toast to show then redirect
             setTimeout(() => {
-                router.push('/login');
+                window.location.href = '/login';
             }, 2000);
         } else {
             toast({
@@ -361,9 +369,14 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Current Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" {...field} />
-                                            </FormControl>
+                                            <div className="relative">
+                                              <FormControl>
+                                                  <Input type={showCurrent ? "text" : "password"} {...field} />
+                                              </FormControl>
+                                               <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrent(p => !p)}>
+                                                    {showCurrent ? <EyeOff /> : <Eye />}
+                                               </Button>
+                                            </div>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -374,9 +387,14 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>New Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" {...field} />
-                                            </FormControl>
+                                             <div className="relative">
+                                              <FormControl>
+                                                  <Input type={showNew ? "text" : "password"} {...field} />
+                                              </FormControl>
+                                               <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNew(p => !p)}>
+                                                    {showNew ? <EyeOff /> : <Eye />}
+                                               </Button>
+                                            </div>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -387,9 +405,14 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Confirm New Password</FormLabel>
-                                            <FormControl>
-                                                <Input type="password" {...field} />
-                                            </FormControl>
+                                             <div className="relative">
+                                              <FormControl>
+                                                  <Input type={showConfirm ? "text" : "password"} {...field} />
+                                              </FormControl>
+                                               <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowConfirm(p => !p)}>
+                                                    {showConfirm ? <EyeOff /> : <Eye />}
+                                               </Button>
+                                            </div>
                                             <FormMessage />
                                         </FormItem>
                                     )}

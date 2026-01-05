@@ -103,6 +103,7 @@ export default function ChangePasswordPage() {
                                             </FormControl>
                                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrent(p => !p)}>
                                                 {showCurrent ? <EyeOff /> : <Eye />}
+                                                <span className="sr-only">{showCurrent ? "Hide password" : "Show password"}</span>
                                             </Button>
                                         </div>
                                         <FormMessage />
@@ -121,6 +122,7 @@ export default function ChangePasswordPage() {
                                             </FormControl>
                                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNew(p => !p)}>
                                                 {showNew ? <EyeOff /> : <Eye />}
+                                                <span className="sr-only">{showNew ? "Hide password" : "Show password"}</span>
                                             </Button>
                                         </div>
                                         <FormMessage />
@@ -139,6 +141,7 @@ export default function ChangePasswordPage() {
                                             </FormControl>
                                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowConfirm(p => !p)}>
                                                 {showConfirm ? <EyeOff /> : <Eye />}
+                                                <span className="sr-only">{showConfirm ? "Hide password" : "Show password"}</span>
                                             </Button>
                                         </div>
                                         <FormMessage />

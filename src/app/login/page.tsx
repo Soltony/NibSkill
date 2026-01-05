@@ -94,8 +94,10 @@ export default function LoginPage() {
         let description = data.errors?.[0] || 'Invalid credentials.';
         if (response.status === 429) {
           description = data.errors[0];
-        } else if (data.lockoutInfo?.isLockedOut) {
-          description = `Too many failed attempts. Please try again in ${countdown} seconds.`;
+        } else if (data.lockoutInfo?.isLockedOut && data.lockoutInfo?.lockoutEndsAt) {
+            const endsAt = new Date(data.lockoutInfo.lockoutEndsAt);
+            const secondsRemaining = differenceInSeconds(endsAt, new Date());
+            description = `Too many failed attempts. Please try again in ${secondsRemaining} seconds.`;
         } else if (data.lockoutInfo?.remainingAttempts !== undefined) {
              description += ` ${data.lockoutInfo.remainingAttempts} attempts remaining.`;
         }
@@ -154,7 +156,8 @@ export default function LoginPage() {
                 onClick={() => setShowPassword(!showPassword)}
                 disabled={isFormDisabled}
                 >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
                 </Button>
             </div>
             </div>

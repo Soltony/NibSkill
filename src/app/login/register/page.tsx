@@ -28,7 +28,7 @@ import { Logo } from "@/components/logo";
 import { useToast } from "@/hooks/use-toast";
 import type { RegistrationField as TRegistrationField, District, Branch, Department, TrainingProvider } from "@prisma/client";
 import Link from "next/link";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Eye, EyeOff } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initialRegistrationFields } from "@/lib/data";
@@ -67,6 +67,7 @@ export default function RegisterPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [trainingProviders, setTrainingProviders] = useState<TrainingProvider[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [dynamicSchema, setDynamicSchema] = useState(baseSchema);
 
@@ -286,9 +287,21 @@ export default function RegisterPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
+                    <div className="relative">
+                      <FormControl>
+                        <Input type={showPassword ? "text" : "password"} {...field} />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                      >
+                        {showPassword ? <EyeOff /> : <Eye />}
+                        <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
