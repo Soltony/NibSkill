@@ -33,6 +33,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [lockoutInfo, setLockoutInfo] = useState<LockoutInfo>(null);
   const [countdown, setCountdown] = useState(0);
+  const [activeTab, setActiveTab] = useState("staff");
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -61,7 +62,7 @@ export default function LoginPage() {
   }, [lockoutInfo]);
 
 
-  const handleLogin = async (e: React.FormEvent, role: 'admin' | 'staff') => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -73,7 +74,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phoneNumber, password, loginAs: role }),
+        body: JSON.stringify({ phoneNumber, password, loginAs: activeTab }),
       });
 
       const data = await response.json();
@@ -82,13 +83,13 @@ export default function LoginPage() {
       if (data.isSuccess) {
         toast({
           title: 'Login Successful',
-          description: `Welcome back, ${role.charAt(0).toUpperCase() + role.slice(1)}!`,
+          description: `Welcome back!`,
         });
 
         if (data.passwordChangeRequired) {
           window.location.href = data.redirectTo;
         } else {
-          router.push(data.redirectTo || (role === 'admin' ? '/admin/analytics' : '/dashboard'));
+          router.push(data.redirectTo || (activeTab === 'admin' ? '/admin/analytics' : '/dashboard'));
         }
       } else {
         let description = data.errors?.[0] || 'Invalid credentials.';
@@ -119,12 +120,13 @@ export default function LoginPage() {
     }
   };
 
-  const LoginForm = ({ role }: { role: 'admin' | 'staff' }) => {
+  const LoginForm = () => {
     const [showPassword, setShowPassword] = useState(false);
     const isFormDisabled = isLoading || !!lockoutInfo?.isLockedOut;
+    const role = activeTab;
 
     return (
-        <form onSubmit={(e) => handleLogin(e, role)}>
+        <form onSubmit={handleLogin}>
         <CardContent className="space-y-4 pt-6">
             <div className="space-y-2">
             <Label htmlFor={`${role}-phoneNumber`}>Phone Number</Label>
@@ -166,7 +168,7 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={isFormDisabled}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {lockoutInfo?.isLockedOut ? `Try again in ${countdown}s` :
-               isLoading ? 'Signing In...' : `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`
+               isLoading ? 'Signing In...' : `Sign In`
               }
             </Button>
         </CardFooter>
@@ -185,16 +187,16 @@ export default function LoginPage() {
           <CardDescription>Please select your role and sign in.</CardDescription>
         </CardHeader>
         
-        <Tabs defaultValue="staff" className="w-full">
+        <Tabs defaultValue="staff" className="w-full" onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="staff" disabled={isLoading || !!lockoutInfo?.isLockedOut}>Staff</TabsTrigger>
             <TabsTrigger value="admin" disabled={isLoading || !!lockoutInfo?.isLockedOut}>Admin</TabsTrigger>
           </TabsList>
           <TabsContent value="staff">
-            <LoginForm role="staff" />
+            <LoginForm />
           </TabsContent>
           <TabsContent value="admin">
-            <LoginForm role="admin" />
+            <LoginForm />
           </TabsContent>
         </Tabs>
         

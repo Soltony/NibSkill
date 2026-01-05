@@ -38,12 +38,12 @@ export default function SuperAdminLoginPage() {
 
     const data = await response.json();
 
-    if (data.isSuccess && data.user.roles.some((r: any) => r.role.name === 'Super Admin')) {
+    if (data.isSuccess) {
       toast({
         title: 'Login Successful',
         description: 'Welcome Super Admin!',
       });
-      router.push('/super-admin/dashboard');
+      router.push(data.redirectTo || '/super-admin/dashboard');
     } else {
       toast({
         title: 'Login Failed',
