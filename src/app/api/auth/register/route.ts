@@ -19,10 +19,14 @@ const getJwtSecret = () => {
 };
 
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+
 const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email().optional().or(z.literal('')),
-  password: z.string().min(6),
+  password: z.string().min(8, 'Password must be at least 8 characters long.').refine((val) => passwordRegex.test(val), {
+    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one special character.',
+  }),
   departmentId: z.string().optional(),
   districtId: z.string().optional(),
   branchId: z.string().optional(),

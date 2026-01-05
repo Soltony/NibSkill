@@ -26,9 +26,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+
 const passwordFormSchema = z.object({
     currentPassword: z.string().min(1, "Current password is required."),
-    newPassword: z.string().min(8, "New password must be at least 8 characters long."),
+    newPassword: z.string().min(8, "New password must be at least 8 characters long.").refine((val) => passwordRegex.test(val), {
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, and one special character.',
+    }),
     confirmPassword: z.string()
 }).refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match.",
@@ -63,10 +67,10 @@ export default function ChangePasswordPage() {
         if (response.ok) {
             toast({
                 title: 'Password Changed Successfully',
-                description: 'Your password has been updated. Redirecting to dashboard...',
+                description: 'Your password has been updated. Redirecting to login...',
             });
-            // Use window.location.href to force a full reload, ensuring middleware has the new cookie
-            window.location.href = '/dashboard';
+            // Use window.location.href to force a full reload and clear session state
+            window.location.href = '/login';
         } else {
             toast({
                 title: 'Error Changing Password',

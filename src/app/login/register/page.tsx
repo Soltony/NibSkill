@@ -31,13 +31,16 @@ import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { initialRegistrationFields, FieldType } from "@/lib/data";
+import { initialRegistrationFields } from "@/lib/data";
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
 
 const baseSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters long.").refine((val) => passwordRegex.test(val), {
+    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one special character.',
+  }),
   phoneNumber: z.string().min(1, "Phone number is required"),
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
 });

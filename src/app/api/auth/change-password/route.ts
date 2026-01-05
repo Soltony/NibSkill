@@ -4,6 +4,8 @@ import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { getSession } from '@/lib/auth';
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
@@ -31,8 +33,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ errors: ['Incorrect current password.'] }, { status: 400 });
     }
 
-    if (newPassword.length < 8) {
-      return NextResponse.json({ errors: ['New password must be at least 8 characters long.'] }, { status: 400 });
+    if (newPassword.length < 8 || !passwordRegex.test(newPassword)) {
+      return NextResponse.json({ errors: ['Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a special character.'] }, { status: 400 });
     }
 
     const newHashedPassword = await bcrypt.hash(newPassword, 10);
@@ -42,7 +44,6 @@ export async function POST(req: NextRequest) {
       data: {
         password: newHashedPassword,
         passwordChangeRequired: false,
-        // Incrementing tokenVersion here would also work, but logout is the more conventional place.
       },
     });
 
