@@ -59,19 +59,23 @@ export async function POST(req: NextRequest) {
         const currentAttempt = loginAttempts[ip] || { count: 0, lockoutUntil: 0 };
         currentAttempt.count++;
 
+        let isLockedOut = false;
+        let lockoutEndsAt: Date | undefined = undefined;
+
         if (currentAttempt.count >= MAX_LOGIN_ATTEMPTS) {
-            const lockoutEndsAt = new Date(Date.now() + LOCKOUT_DURATION_SECONDS * 1000);
+            lockoutEndsAt = new Date(Date.now() + LOCKOUT_DURATION_SECONDS * 1000);
             currentAttempt.lockoutUntil = lockoutEndsAt.getTime();
-            currentAttempt.lockoutEndsAt = lockoutEndsAt;
-            currentAttempt.count = 0; // Reset count after lockout
+            currentAttempt.count = 0; // Reset count after lockout is set
+            isLockedOut = true;
         }
         loginAttempts[ip] = currentAttempt;
 
-        const remainingAttempts = MAX_LOGIN_ATTEMPTS - currentAttempt.count;
+        const remainingAttempts = isLockedOut ? 0 : MAX_LOGIN_ATTEMPTS - currentAttempt.count;
+        
         return NextResponse.json({ 
             isSuccess: false, 
             errors: ['Invalid credentials.'],
-            lockoutInfo: { isLockedOut: currentAttempt.count >= MAX_LOGIN_ATTEMPTS, lockoutEndsAt: currentAttempt.lockoutEndsAt, remainingAttempts }
+            lockoutInfo: { isLockedOut, lockoutEndsAt, remainingAttempts }
         }, { status: 401 });
     };
 
