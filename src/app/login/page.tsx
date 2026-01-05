@@ -92,8 +92,10 @@ export default function LoginPage() {
         }
       } else {
         let description = data.errors?.[0] || 'Invalid credentials.';
-        if (data.lockoutInfo?.isLockedOut) {
-             description = `Too many failed attempts. Please try again in ${countdown} seconds.`;
+        if (response.status === 429) {
+          description = data.errors[0];
+        } else if (data.lockoutInfo?.isLockedOut) {
+          description = `Too many failed attempts. Please try again in ${countdown} seconds.`;
         } else if (data.lockoutInfo?.remainingAttempts !== undefined) {
              description += ` ${data.lockoutInfo.remainingAttempts} attempts remaining.`;
         }

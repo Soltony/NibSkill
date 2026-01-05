@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ 
             isSuccess: false, 
             errors: ['Invalid credentials.'],
-            lockoutInfo: { isLockedOut: false, lockoutEndsAt: null, remainingAttempts }
+            lockoutInfo: { isLockedOut: currentAttempt.count >= MAX_LOGIN_ATTEMPTS, lockoutEndsAt: currentAttempt.lockoutEndsAt, remainingAttempts }
         }, { status: 401 });
     };
 
