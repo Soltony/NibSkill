@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { serialize } from 'cookie';
 import { createHash } from 'crypto';
+import { securityLog } from '@/lib/logger';
 import { headers } from 'next/headers';
 import { differenceInSeconds } from 'date-fns';
 
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
     
     if (loginAttempts[ip] && loginAttempts[ip].lockoutUntil > Date.now()) {
         const timeLeft = Math.ceil((loginAttempts[ip].lockoutUntil - Date.now()) / 1000);
+      securityLog('warn', 'login_locked_out_attempt', { ip, path: '/api/auth/login', remainingLockSeconds: timeLeft });
         return NextResponse.json({ 
             isSuccess: false, 
             errors: [`Too many failed attempts. Please try again in ${timeLeft} seconds.`],
@@ -85,6 +87,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (!user || !user.password) {
+      securityLog('warn', 'login_failed', { ip, phoneNumber });
       return checkAndHandleFailedAttempt();
     }
     
@@ -95,13 +98,15 @@ export async function POST(req: NextRequest) {
         userRole = user.roles.find(r => r.role.name.toLowerCase() === loginAs.toLowerCase() && r.role.trainingProviderId === user.trainingProviderId)?.role;
     }
 
-    if (!userRole) {
+     if (!userRole) {
+       securityLog('warn', 'login_failed_no_role', { ip, userId: user?.id, loginAs });
        return checkAndHandleFailedAttempt();
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if (!isPasswordValid) {
+     if (!isPasswordValid) {
+       securityLog('warn', 'login_failed_invalid_password', { ip, userId: user.id });
        return checkAndHandleFailedAttempt();
     }
     
@@ -170,8 +175,10 @@ export async function POST(req: NextRequest) {
       const hashed = createHash('sha256').update(refreshToken).digest('hex');
       await prisma.refreshToken.create({ data: { hashedToken: hashed, userId: user.id } });
     } catch (e) {
-      console.error('Failed to persist refresh token:', e);
+      securityLog('error', 'refresh_token_persist_failed', { userId: user.id, error: String(e) });
     }
+
+    securityLog('audit', 'login_success', { userId: user.id, ip, path: '/api/auth/login' });
 
     // Record successful login
     await prisma.loginHistory.create({
