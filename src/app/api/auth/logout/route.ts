@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
-import { jwtVerify } from 'jose';
+import { jwtVerify, type JWTPayload } from 'jose';
 import { createHash } from 'crypto';
 import { serialize } from 'cookie';
 import { securityLog } from '@/lib/logger';
@@ -21,7 +21,7 @@ const getJwtAccessSecret = () => {
     return new TextEncoder().encode(secret);
 };
 
-interface DecodedToken {
+interface DecodedToken extends JWTPayload {
     userId: string;
     sessionId?: string;
 }
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
         if (refreshToken) {
             try {
-                const { payload } = await jwtVerify<DecodedToken>(refreshToken, getJwtSecret());
+                const { payload } = await jwtVerify<DecodedToken>(refreshToken, getJwtRefreshSecret());
                 const userId = payload.userId;
                 const sessionId = (payload as any).sessionId;
 
@@ -92,36 +92,10 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({ success: true, message: "Logged out successfully" });
 
-    // Build cookie strings that match the attributes used when setting them at login
-    const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict' as const,
-        path: '/',
-    };
-
-    const expiredAccess = serialize('auth_token', '', { ...cookieOptions, expires: new Date(0) });
-    const expiredRefresh = serialize('refresh_token', '', { ...cookieOptions, maxAge: 0 });
-    const expiredRefreshSid = serialize('refresh_sid', '', { ...cookieOptions, maxAge: 0 });
-
-    // Use Set-Cookie headers to ensure client's cookies are cleared regardless of cookie API
-    response.headers.append('Set-Cookie', expiredAccess);
-    response.headers.append('Set-Cookie', expiredRefresh);
-    response.headers.append('Set-Cookie', expiredRefreshSid);
-
-        // Also use NextResponse cookie API to delete cookies (some runtimes prefer this)
-        try {
-            response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: 0 });
-            response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: 0 });
-            response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: 0 });
-            // Some parts of app may set cookies with SameSite=Lax; expire those too as a fallback
-            const expiredAccessLax = serialize('auth_token', '', { ...cookieOptions, sameSite: 'lax', expires: new Date(0) });
-            const expiredRefreshLax = serialize('refresh_token', '', { ...cookieOptions, sameSite: 'lax', maxAge: 0 });
-            response.headers.append('Set-Cookie', expiredAccessLax);
-            response.headers.append('Set-Cookie', expiredRefreshLax);
-        } catch (e) {
-            // ignore
-        }
+    // Explicitly set cookies to expire in the past to ensure they are cleared
+    response.cookies.set('auth_token', '', { expires: new Date(0), path: '/' });
+    response.cookies.set('refresh_token', '', { expires: new Date(0), path: '/' });
+    response.cookies.set('refresh_sid', '', { expires: new Date(0), path: '/' });
 
     return response;
 }
