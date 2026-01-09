@@ -10,6 +10,7 @@ import { FieldType } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
+import { recordPasswordHistory } from '@/lib/password'
 
 const phoneValidation = z.string().min(1, "Phone number is required.")
     .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
@@ -153,6 +154,8 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 html: getLoginCredentialsEmailTemplate(newUser.phoneNumber || newUser.email, password, loginUrl),
             });
         }
+
+        try { await recordPasswordHistory(newUser.id, hashedPassword); } catch (e) { }
 
 
         revalidatePath('/admin/settings');

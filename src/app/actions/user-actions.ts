@@ -10,6 +10,7 @@ import { getSession } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
+import { recordPasswordHistory } from '@/lib/password'
 
 const completeCourseSchema = z.object({
   courseId: z.string(),
@@ -40,6 +41,7 @@ export async function resendCredentialsEmail(userId: string) {
             where: { id: userId },
             data: { password: hashedPassword, passwordChangeRequired: true }
         });
+        try { await recordPasswordHistory(userId, hashedPassword); } catch (e) { }
         
         const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/login` : 'http://localhost:3000/login';
 

@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { getSession } from '@/lib/auth';
+import { validatePasswordBasic, isBreachedPassword, isPasswordInHistory, recordPasswordHistory } from '@/lib/password';
+import { securityLog } from '@/lib/logger';
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
 
@@ -33,9 +35,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ errors: ['Incorrect current password.'] }, { status: 400 });
     }
 
-    if (newPassword.length < 8 || !passwordRegex.test(newPassword)) {
-      return NextResponse.json({ errors: ['Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a special character.'] }, { status: 400 });
-    }
+    // validate password policy
+    const { ok, errors } = validatePasswordBasic(newPassword);
+    if (!ok) return NextResponse.json({ errors }, { status: 400 });
+
+    // check breached passwords
+    const breached = await isBreachedPassword(newPassword);
+    if (breached) return NextResponse.json({ errors: ['This password has appeared in data breaches. Choose a different password.'] }, { status: 400 });
+
+    // check password history
+    const inHistory = await isPasswordInHistory(user.id, newPassword);
+    if (inHistory) return NextResponse.json({ errors: ['You cannot reuse a recent password. Choose a different password.'] }, { status: 400 });
 
     const newHashedPassword = await bcrypt.hash(newPassword, 10);
 
@@ -46,6 +56,18 @@ export async function POST(req: NextRequest) {
         passwordChangeRequired: false,
       },
     });
+
+    // Bump tokenVersion and revoke all refresh tokens for this user to terminate sessions
+    try {
+      await prisma.user.update({ where: { id: user.id }, data: { tokenVersion: { increment: 1 } } });
+      await prisma.refreshToken.updateMany({ where: { userId: user.id }, data: { revoked: true } });
+      securityLog('audit', 'password_change_invalidate_sessions', { userId: user.id });
+    } catch (e) {
+      console.error('Failed to invalidate sessions after password change', e);
+    }
+
+    // record password history
+    await recordPasswordHistory(user.id, newHashedPassword);
 
     const response = NextResponse.json({ success: true, message: 'Password updated successfully. Please log in again.' }, { status: 200 });
     

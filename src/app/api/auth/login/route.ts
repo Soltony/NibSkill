@@ -6,7 +6,7 @@ import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { serialize } from 'cookie';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { securityLog } from '@/lib/logger';
 import { headers } from 'next/headers';
 import { differenceInSeconds } from 'date-fns';
@@ -113,6 +113,9 @@ export async function POST(req: NextRequest) {
     // Reset attempts on successful login
     delete loginAttempts[ip];
 
+    // generate a session id to bind access+refresh tokens to this server-side session
+    const sessionId = randomUUID();
+
     // --- Create Access Token ---
     const accessTokenPayload = {
       userId: user.id,
@@ -122,6 +125,7 @@ export async function POST(req: NextRequest) {
       avatarUrl: user.avatarUrl,
       trainingProviderId: user.trainingProviderId,
       tokenVersion: user.tokenVersion,
+      sessionId,
     };
     const accessToken = await new SignJWT(accessTokenPayload)
       .setProtectedHeader({ alg: 'HS256' })
@@ -133,6 +137,7 @@ export async function POST(req: NextRequest) {
     const refreshTokenPayload = {
       userId: user.id,
       tokenVersion: user.tokenVersion,
+      sessionId,
     };
     const refreshToken = await new SignJWT(refreshTokenPayload)
       .setProtectedHeader({ alg: 'HS256' })
@@ -170,10 +175,10 @@ export async function POST(req: NextRequest) {
     response.headers.append('Set-Cookie', accessTokenCookie);
     response.headers.append('Set-Cookie', refreshTokenCookie);
 
-    // Persist hashed refresh token for server-side session management
+    // Persist hashed refresh token for server-side session management and bind sessionId
     try {
       const hashed = createHash('sha256').update(refreshToken).digest('hex');
-      await prisma.refreshToken.create({ data: { hashedToken: hashed, userId: user.id } });
+      await prisma.refreshToken.create({ data: { hashedToken: hashed, userId: user.id, sessionId } });
     } catch (e) {
       securityLog('error', 'refresh_token_persist_failed', { userId: user.id, error: String(e) });
     }

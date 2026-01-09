@@ -33,6 +33,7 @@ const publicPaths = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const refreshToken = request.cookies.get('refresh_token')?.value;
+  const accessToken = request.cookies.get('auth_token')?.value;
 
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
   
@@ -52,6 +53,22 @@ export async function middleware(request: NextRequest) {
   // Decode the refresh token payload and enforce approximate idle/absolute timeouts
   if (refreshToken) {
     const payload: any = decodeJwtPayload(refreshToken as string);
+    // Also decode access token (if present) and ensure session binding matches between tokens
+    if (accessToken) {
+      const accessPayload: any = decodeJwtPayload(accessToken as string);
+      if (payload?.sessionId && accessPayload?.sessionId && payload.sessionId !== accessPayload.sessionId) {
+        const loginUrl = new URL('/login', request.url);
+        const response = NextResponse.redirect(loginUrl);
+        response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        try {
+          const { securityLog } = await import('@/lib/logger');
+          const ip = request.ip || request.headers.get('x-forwarded-for') || null;
+          securityLog('warn', 'middleware_session_mismatch', { path: pathname, ip });
+        } catch (e) {}
+        return response;
+      }
+    }
     if (payload && payload.iat) {
       const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30;
       const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30;

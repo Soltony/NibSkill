@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
+import { validatePasswordBasic, isBreachedPassword, recordPasswordHistory } from '@/lib/password';
 import { jwtVerify, type JWTPayload, SignJWT } from 'jose';
 
 interface GuestJwtPayload extends JWTPayload {
@@ -19,7 +20,7 @@ const getJwtSecret = () => {
 };
 
 
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?])/;
 
 const phoneValidation = z.string().min(1, "Phone number is required.")
     .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
@@ -78,6 +79,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
     }
 
+    // validate password policy (server-side)
+    const { ok, errors } = validatePasswordBasic(password);
+    if (!ok) {
+      return NextResponse.json({ isSuccess: false, errors }, { status: 400 });
+    }
+
+    const breached = await isBreachedPassword(password);
+    if (breached) {
+      return NextResponse.json({ isSuccess: false, errors: ['This password has appeared in known breaches. Choose a different password.'] }, { status: 400 });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const guestSessionToken = cookieStore.get('miniapp_guest_session')?.value;
@@ -119,6 +131,13 @@ export async function POST(request: NextRequest) {
         } : undefined,
       },
     });
+
+    // record initial password history
+    try {
+      await recordPasswordHistory(newUser.id, hashedPassword);
+    } catch (e) {
+      // best-effort
+    }
 
     return NextResponse.json({
       isSuccess: true,

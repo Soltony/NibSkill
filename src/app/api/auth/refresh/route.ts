@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
     const { payload: decoded } = await jwtVerify<{
       userId: string;
       tokenVersion?: number;
+      sessionId?: string;
     }>(refreshTokenFromCookie, getJwtSecret('refresh'));
     // Validate the presented refresh token exists in DB and is not revoked
     const incomingHash = createHash('sha256').update(refreshTokenFromCookie).digest('hex');
@@ -42,12 +43,34 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
+    // Ensure the stored token belongs to the same user claimed in the JWT
+    if (stored.userId !== decoded.userId) {
+      // Revoke the stored token as it's mismatched
+      try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (e) { }
+      securityLog('warn', 'refresh_token_user_mismatch', { storedUserId: stored.userId, tokenUserId: decoded.userId });
+      const response = NextResponse.json({ message: 'Invalid refresh token.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
+
     // Enforce server-side idle & absolute timeouts
     const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30; // 30m
     const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30; // 30d
     const now = Date.now();
-    const lastActivity = new Date(stored.updatedAt).getTime();
+    const lastActivity = new Date(stored.lastActivityAt ?? stored.updatedAt).getTime();
     const createdAt = new Date(stored.createdAt).getTime();
+
+    // Ensure session binding between presented refresh token and stored sessionId
+    if (decoded.sessionId && stored.sessionId && decoded.sessionId !== stored.sessionId) {
+      // mismatch - revoke the stored token defensively
+      try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (e) { }
+      securityLog('warn', 'refresh_token_session_mismatch', { storedSessionId: stored.sessionId, tokenSessionId: decoded.sessionId });
+      const response = NextResponse.json({ message: 'Invalid refresh token.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
 
     if ((now - lastActivity) / 1000 > IDLE_TIMEOUT_SECONDS) {
       await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
@@ -96,7 +119,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ message: 'User role not configured.' }, { status: 500 });
     }
 
-    // --- Issue new access token ---
+    // --- Issue new access token (bound to same sessionId) ---
     const newAccessToken = await new SignJWT({
         userId: user.id,
         role: sessionRole,
@@ -105,6 +128,7 @@ export async function POST(req: NextRequest) {
         avatarUrl: user.avatarUrl,
         trainingProviderId: user.trainingProviderId,
         tokenVersion: user.tokenVersion,
+        sessionId: stored.sessionId,
       })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -115,6 +139,7 @@ export async function POST(req: NextRequest) {
     const newRefreshToken = await new SignJWT({
         userId: user.id,
         tokenVersion: user.tokenVersion,
+        sessionId: stored.sessionId,
       })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -125,7 +150,7 @@ export async function POST(req: NextRequest) {
     securityLog('info', 'refresh_rotate', { previousTokenId: stored.id, userId: stored.userId });
 
     const newHash = createHash('sha256').update(newRefreshToken).digest('hex');
-    await prisma.refreshToken.create({ data: { hashedToken: newHash, userId: user.id } });
+    await prisma.refreshToken.create({ data: { hashedToken: newHash, userId: user.id, sessionId: stored.sessionId } });
     securityLog('audit', 'refresh_rotated', { userId: user.id });
 
     const response = NextResponse.json({ success: true, message: 'Token refreshed' });

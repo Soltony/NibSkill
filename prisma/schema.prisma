@@ -70,6 +70,17 @@ model User {
   purchasedCourses   UserPurchasedCourse[]
   pendingTransactions PendingTransaction[]
   refreshTokens      RefreshToken[]
+  passwordHistories  PasswordHistory[]
+}
+
+model PasswordHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hashedPassword String
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Role {
@@ -452,11 +463,13 @@ model Notification {
 model RefreshToken {
   id        String   @id @default(cuid())
   hashedToken String @unique
+  sessionId String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   revoked   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  lastActivityAt DateTime @default(now())
 }
 
 enum CourseStatus {

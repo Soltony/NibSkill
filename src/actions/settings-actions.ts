@@ -33,12 +33,14 @@ export async function updateUserRole(values: z.infer<typeof updateUserRoleSchema
     }
 }
 
+import { validatePasswordBasic, isBreachedPassword, recordPasswordHistory } from '@/lib/password';
+
 const registerUserSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().optional(),
+    name: z.string().min(2, "Name is required"),
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters long."),
+    roleId: z.string({ required_error: "A role is required." }),
+    phoneNumber: z.string().optional(),
 })
 
 export async function registerUser(values: z.infer<typeof registerUserSchema>) {
@@ -53,9 +55,15 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
             return { success: false, message: 'Invalid data provided.' };
         }
 
+        const { ok, errors } = validatePasswordBasic(validatedFields.data.password);
+        if (!ok) return { success: false, message: errors.join('; ') };
+
+        const breached = await isBreachedPassword(validatedFields.data.password);
+        if (breached) return { success: false, message: 'Provided password appears in known breaches. Choose a different password.' };
+
         const hashedPassword = await bcrypt.hash(validatedFields.data.password, 10);
-        
-        await prisma.user.create({
+
+        const created = await prisma.user.create({
             data: {
                 name: validatedFields.data.name,
                 email: validatedFields.data.email,
@@ -66,6 +74,9 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 trainingProviderId: session.trainingProviderId,
             }
         });
+
+        // record password history
+        try { await recordPasswordHistory(created.id, hashedPassword); } catch (e) { }
 
         revalidatePath('/admin/settings');
         return { success: true, message: 'User registered successfully.' };

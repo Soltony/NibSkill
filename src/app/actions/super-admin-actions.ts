@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs'
 import { roles } from '@/lib/data'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
+import { validatePasswordBasic, isBreachedPassword, recordPasswordHistory } from '@/lib/password';
 
 const phoneValidation = z.string().min(1, "Phone number is required.")
     .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
@@ -102,6 +103,9 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
             });
         }
 
+        // record initial password history for the created admin
+        try { await recordPasswordHistory(newAdmin.id, hashedPassword); } catch (e) { }
+
 
         revalidatePath('/super-admin/providers');
         revalidatePath('/super-admin/dashboard');
@@ -129,7 +133,7 @@ const updateProviderSchema = z.object({
   adminName: z.string().min(2, "Admin name is required."),
   adminEmail: z.string().email("A valid email is required."),
   adminPhoneNumber: phoneValidation,
-  adminPassword: z.string().min(6, "Password must be at least 6 characters.").optional().or(z.literal('')),
+    adminPassword: z.string().min(8, "Password must be at least 8 characters long.").optional().or(z.literal('')),
 })
 
 export async function updateTrainingProvider(values: z.infer<typeof updateProviderSchema>) {
@@ -154,9 +158,14 @@ export async function updateTrainingProvider(values: z.infer<typeof updateProvid
             };
             
             if (adminPassword) {
+                const { ok, errors } = validatePasswordBasic(adminPassword);
+                if (!ok) throw new Error(`Invalid admin password: ${errors.join('; ')}`);
+                const breached = await isBreachedPassword(adminPassword);
+                if (breached) throw new Error('Admin password appears in known breaches.');
                 const hashedPassword = await bcrypt.hash(adminPassword, 10);
                 userUpdateData.password = hashedPassword;
                 userUpdateData.passwordChangeRequired = true;
+                await recordPasswordHistory(adminId, hashedPassword);
             }
 
             await tx.user.update({

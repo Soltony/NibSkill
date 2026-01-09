@@ -39,6 +39,12 @@ export async function getSession() {
                 return null; // Token is revoked
             }
 
+            // Ensure the access token is bound to an active server-side session
+            if (payload.sessionId) {
+                const storedSession = await prisma.refreshToken.findFirst({ where: { userId: payload.userId, sessionId: payload.sessionId, revoked: false } });
+                if (!storedSession) return null; // session not found or revoked
+            }
+
              return {
                 id: payload.userId,
                 role: payload.role,
@@ -72,12 +78,20 @@ export async function getSession() {
             return null; // token not found or revoked
         }
 
+        // If the refresh token payload contains a sessionId, ensure it matches the stored session
+        if ((decoded as any).sessionId && stored.sessionId && (decoded as any).sessionId !== stored.sessionId) {
+            // defensive revoke
+            await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+            securityLog('warn', 'getSession_refresh_session_mismatch', { storedSessionId: stored.sessionId, tokenSessionId: (decoded as any).sessionId });
+            return null;
+        }
+
         // Idle timeout and absolute session lifetime enforcement
         const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30; // 30m default
         const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30; // 30d default
 
         const now = Date.now();
-        const lastActivity = new Date(stored.updatedAt).getTime();
+        const lastActivity = new Date(stored.lastActivityAt ?? stored.updatedAt).getTime();
         const createdAt = new Date(stored.createdAt).getTime();
 
         if ((now - lastActivity) / 1000 > IDLE_TIMEOUT_SECONDS) {
@@ -106,7 +120,7 @@ export async function getSession() {
         if (!sessionRole) return null;
 
         // update last activity timestamp (touch)
-        await prisma.refreshToken.update({ where: { id: stored.id }, data: {} });
+        await prisma.refreshToken.update({ where: { id: stored.id }, data: { lastActivityAt: new Date() } });
 
         return {
             id: user.id,
