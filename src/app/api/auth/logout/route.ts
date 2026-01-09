@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
             }
         }
     } catch (error) {
-        console.error("Error during logout token invalidation:", error);
+        securityLog('error', 'logout_invalidation_exception', { error: error instanceof Error ? error.message : String(error) });
         // Do not block the user from logging out, just log the error.
     }
 

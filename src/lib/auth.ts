@@ -23,6 +23,7 @@ interface CustomJwtPayload extends JWTPayload {
     trainingProviderId?: string;
     passwordChangeRequired?: boolean;
     tokenVersion?: number;
+    sessionId?: string;
 }
 
 // This function now reads from the cookies directly

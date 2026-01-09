@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'unsafe-eval' 'unsafe-inline';
-      style-src 'self' 'unsafe-inline';
+      style-src 'self';
       img-src 'self' blob: data: https://picsum.photos;
       font-src 'self';
       object-src 'none';

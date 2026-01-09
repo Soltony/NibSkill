@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('[REFRESH_TOKEN_ERROR]', error);
+    securityLog('error', 'refresh_token_exception', { error: error instanceof Error ? error.message : String(error) });
 
     const response = NextResponse.json({ message: 'Invalid refresh token.' }, { status: 401 });
     response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
