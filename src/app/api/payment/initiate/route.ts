@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, message: 'Payment service timed out.' }, { status: 504 });
       }
       securityLog('error', 'payment_init_fetch_failed', { userId, error: err?.message ?? String(err) });
-      return NextResponse.json({ success: false, message: 'Could not connect to NIB payment service.', details: err?.message ?? String(err) }, { status: 502 });
+      return NextResponse.json({ success: false, message: 'Could not connect to NIB payment service.' }, { status: 502 });
     } finally {
       clearTimeout(timeoutId);
     }
