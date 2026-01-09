@@ -57,9 +57,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Bump tokenVersion and revoke all refresh tokens for this user to terminate sessions
+    // Revoke all refresh tokens for this user to terminate other sessions
     try {
-      await prisma.user.update({ where: { id: user.id }, data: { tokenVersion: { increment: 1 } } });
       await prisma.refreshToken.updateMany({ where: { userId: user.id }, data: { revoked: true } });
       securityLog('audit', 'password_change_invalidate_sessions', { userId: user.id });
     } catch (e) {
