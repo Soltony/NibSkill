@@ -150,7 +150,7 @@ export function DeleteDistrictButton({ district }: { district: District }) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the district <span className="font-semibold">"{district.name}"</span>.
+                            This action cannot be undone. This will permanently delete the district <span className="font-semibold">"{district.name}"</span> and any associated branches or user assignments.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

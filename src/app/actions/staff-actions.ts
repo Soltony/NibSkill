@@ -39,9 +39,19 @@ export async function addDistrict(values: z.infer<typeof districtSchema>) {
 
 export async function updateDistrict(id: string, values: z.infer<typeof districtSchema>) {
   try {
+    const session = await getSession();
+    if (!session || !session.trainingProviderId) {
+        return { success: false, message: "Unauthorized" };
+    }
+
     const validatedFields = districtSchema.safeParse(values)
     if (!validatedFields.success) {
       return { success: false, message: "Invalid data provided." }
+    }
+
+    const district = await prisma.district.findUnique({ where: { id } });
+    if (!district || district.trainingProviderId !== session.trainingProviderId) {
+      return { success: false, message: "Unauthorized to update this district." };
     }
 
     await prisma.district.update({
@@ -59,11 +69,24 @@ export async function updateDistrict(id: string, values: z.infer<typeof district
 
 export async function deleteDistrict(id: string) {
   try {
+    const session = await getSession();
+    if (!session || !session.trainingProviderId) {
+        return { success: false, message: "Unauthorized" };
+    }
+
+    const district = await prisma.district.findUnique({ where: { id } });
+    if (!district || district.trainingProviderId !== session.trainingProviderId) {
+      return { success: false, message: "Unauthorized to delete this district." };
+    }
+
     await prisma.district.delete({ where: { id } })
     revalidatePath('/admin/staff')
     return { success: true, message: 'District deleted successfully.' }
   } catch (error) {
     console.error("Error deleting district:", error);
+    if ((error as any).code === 'P2003') {
+        return { success: false, message: 'Cannot delete district as it is still associated with branches or users.' };
+    }
     return { success: false, message: 'Failed to delete district.' }
   }
 }
@@ -99,10 +122,21 @@ export async function addBranch(values: z.infer<typeof branchSchema>) {
 
 export async function updateBranch(id: string, values: z.infer<typeof branchSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized" };
+        }
+
         const validatedFields = branchSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data." };
         }
+        
+        const branch = await prisma.branch.findUnique({ where: { id } });
+        if (!branch || branch.trainingProviderId !== session.trainingProviderId) {
+          return { success: false, message: "Unauthorized to update this branch." };
+        }
+
         await prisma.branch.update({
             where: { id },
             data: validatedFields.data,
@@ -116,10 +150,23 @@ export async function updateBranch(id: string, values: z.infer<typeof branchSche
 
 export async function deleteBranch(id: string) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized" };
+        }
+
+        const branch = await prisma.branch.findUnique({ where: { id } });
+        if (!branch || branch.trainingProviderId !== session.trainingProviderId) {
+          return { success: false, message: "Unauthorized to delete this branch." };
+        }
+
         await prisma.branch.delete({ where: { id } });
         revalidatePath('/admin/staff');
         return { success: true, message: 'Branch deleted.' };
     } catch (error) {
+        if ((error as any).code === 'P2003') {
+            return { success: false, message: 'Cannot delete branch as it is still associated with users.' };
+        }
         return { success: false, message: 'Failed to delete branch.' };
     }
 }
@@ -155,10 +202,21 @@ export async function addDepartment(values: z.infer<typeof departmentSchema>) {
 
 export async function updateDepartment(id: string, values: z.infer<typeof departmentSchema>) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized" };
+        }
+        
         const validatedFields = departmentSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data." };
         }
+
+        const department = await prisma.department.findUnique({ where: { id } });
+        if (!department || department.trainingProviderId !== session.trainingProviderId) {
+          return { success: false, message: "Unauthorized to update this department." };
+        }
+
         await prisma.department.update({
             where: { id },
             data: validatedFields.data,
@@ -172,10 +230,23 @@ export async function updateDepartment(id: string, values: z.infer<typeof depart
 
 export async function deleteDepartment(id: string) {
     try {
+        const session = await getSession();
+        if (!session || !session.trainingProviderId) {
+            return { success: false, message: "Unauthorized" };
+        }
+
+        const department = await prisma.department.findUnique({ where: { id } });
+        if (!department || department.trainingProviderId !== session.trainingProviderId) {
+          return { success: false, message: "Unauthorized to delete this department." };
+        }
+
         await prisma.department.delete({ where: { id } });
         revalidatePath('/admin/staff');
         return { success: true, message: 'Department deleted.' };
     } catch (error) {
+        if ((error as any).code === 'P2003') {
+            return { success: false, message: 'Cannot delete department as it is still associated with users.' };
+        }
         return { success: false, message: 'Failed to delete department.' };
     }
 }

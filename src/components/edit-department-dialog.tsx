@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -150,7 +151,7 @@ export function DeleteDepartmentButton({ department }: { department: Department 
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the department <span className="font-semibold">"{department.name}"</span>.
+                            This action cannot be undone. This will permanently delete the department <span className="font-semibold">"{department.name}"</span> and remove it from any user profiles.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

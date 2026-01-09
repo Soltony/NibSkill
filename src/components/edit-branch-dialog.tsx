@@ -179,7 +179,7 @@ export function DeleteBranchButton({ branch }: { branch: Branch }) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the branch <span className="font-semibold">"{branch.name}"</span>.
+                            This action cannot be undone. This will permanently delete the branch <span className="font-semibold">"{branch.name}"</span> and remove it from any user profiles.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
