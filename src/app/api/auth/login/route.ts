@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     const accessTokenCookie = serialize('auth_token', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
     });
 
@@ -186,6 +186,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[LOGIN_ERROR]', error);
-    return NextResponse.json({ isSuccess: false, errors: [error.message || 'Internal Server Error'] }, { status: 500 });
+    return NextResponse.json({ isSuccess: false, errors: ['An internal server error occurred.'] }, { status: 500 });
   }
 }
