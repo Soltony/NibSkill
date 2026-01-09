@@ -9,20 +9,12 @@ import { cookies } from 'next/headers'
 import { getSession } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
+import { generateSecurePassword } from '@/lib/crypto'
 
 const completeCourseSchema = z.object({
   courseId: z.string(),
   score: z.number().min(0).max(100),
 })
-
-function generateRandomPassword(length = 10) {
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-}
 
 export async function resendCredentialsEmail(userId: string) {
     try {
@@ -41,7 +33,7 @@ export async function resendCredentialsEmail(userId: string) {
              return { success: false, message: "You do not have permission to manage this user." };
         }
 
-        const newPassword = generateRandomPassword();
+        const newPassword = generateSecurePassword();
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         await prisma.user.update({
