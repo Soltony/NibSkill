@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs'
 import { FieldType } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
+import { generateSecurePassword } from '@/lib/crypto'
 
 const phoneValidation = z.string().min(1, "Phone number is required.")
     .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
@@ -22,14 +23,6 @@ const updateUserSchema = z.object({
   phoneNumber: phoneValidation,
 })
 
-function generateRandomPassword(length = 12) {
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-}
 
 export async function updateUser(userId: string, values: z.infer<typeof updateUserSchema>) {
     try {
@@ -127,7 +120,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
              }
         }
         
-        const password = generateRandomPassword();
+        const password = generateSecurePassword();
         const hashedPassword = await bcrypt.hash(password, 10);
         
         const newUser = await prisma.user.create({

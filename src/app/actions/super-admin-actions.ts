@@ -8,15 +8,7 @@ import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { roles } from '@/lib/data'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
-
-function generateRandomPassword(length = 12) {
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
-  }
-  return password;
-}
+import { generateSecurePassword } from '@/lib/crypto'
 
 const phoneValidation = z.string().min(1, "Phone number is required.")
     .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
@@ -42,7 +34,7 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
 
         const { name, address, accountNumber, adminFirstName, adminLastName, adminEmail, adminPhoneNumber } = validatedFields.data;
         
-        const generatedPassword = generateRandomPassword();
+        const generatedPassword = generateSecurePassword();
 
         const providerAdminRole = await prisma.role.findFirst({
             where: { name: 'Training Provider' }
