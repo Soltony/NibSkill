@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -166,10 +167,14 @@ export async function logout() {
   // by calling a new API endpoint like /api/auth/logout
 }
 
+const phoneValidation = z.string().optional().refine(val => !val || (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
+    message: "Phone number must be 10 digits starting with 09, or 12 digits starting with 251."
+});
+
 const profileFormSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters."),
     email: z.string().email("Invalid email address.").optional().or(z.literal('')),
-    phoneNumber: z.string().optional(),
+    phoneNumber: phoneValidation,
 })
 
 export async function updateUserProfile(values: z.infer<typeof profileFormSchema>) {

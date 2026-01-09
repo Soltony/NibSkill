@@ -21,6 +21,11 @@ const getJwtSecret = () => {
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
 
+const phoneValidation = z.string().min(1, "Phone number is required.")
+    .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
+        message: "Phone number must be 10 digits starting with 09, or 12 digits starting with 251."
+    });
+
 const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email().optional().or(z.literal('')),
@@ -30,7 +35,7 @@ const registerSchema = z.object({
   departmentId: z.string().optional(),
   districtId: z.string().optional(),
   branchId: z.string().optional(),
-  phoneNumber: z.string().min(1, "Phone number is required"),
+  phoneNumber: phoneValidation,
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
 });
 

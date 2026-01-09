@@ -34,6 +34,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { initialRegistrationFields } from "@/lib/data";
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
+const phoneValidation = z.string().min(1, "Phone number is required.")
+    .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
+        message: "Phone number must be 10 digits starting with 09, or 12 digits starting with 251."
+    });
 
 const baseSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -41,7 +45,7 @@ const baseSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters long.").refine((val) => passwordRegex.test(val), {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, and one special character.',
   }),
-  phoneNumber: z.string().min(1, "Phone number is required"),
+  phoneNumber: phoneValidation,
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
 });
 
@@ -313,7 +317,7 @@ export default function RegisterPage() {
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. 2519..." {...field} />
+                      <Input placeholder="e.g. 0912345678" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

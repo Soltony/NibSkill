@@ -28,6 +28,11 @@ import { PlusCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { addTrainingProvider } from "@/app/actions/super-admin-actions"
 
+const phoneValidation = z.string().min(1, "Phone number is required.")
+    .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
+        message: "Phone number must be 10 digits starting with 09, or 12 digits starting with 251."
+    });
+
 const formSchema = z.object({
   name: z.string().min(2, "Provider name is required."),
   address: z.string().min(5, "Address is required."),
@@ -35,7 +40,7 @@ const formSchema = z.object({
   adminFirstName: z.string().min(2, "Admin first name is required."),
   adminLastName: z.string().min(2, "Admin last name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPhoneNumber: z.string().min(1, "Phone number is required."),
+  adminPhoneNumber: phoneValidation,
 })
 
 export function AddProviderDialog() {
@@ -153,7 +158,7 @@ export function AddProviderDialog() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Admin Phone Number</FormLabel>
-                  <FormControl><Input type="tel" placeholder="e.g. 2519..." {...field} /></FormControl>
+                  <FormControl><Input type="tel" placeholder="e.g. 0912345678" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}

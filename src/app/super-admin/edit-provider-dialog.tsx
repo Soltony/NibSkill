@@ -30,6 +30,11 @@ import { updateTrainingProvider } from "@/app/actions/super-admin-actions"
 import type { TrainingProvider, User } from "@prisma/client"
 import { Eye, EyeOff } from "lucide-react"
 
+const phoneValidation = z.string().min(1, "Phone number is required.")
+    .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
+        message: "Phone number must be 10 digits starting with 09, or 12 digits starting with 251."
+    });
+
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
 const formSchema = z.object({
   providerId: z.string(),
@@ -39,7 +44,7 @@ const formSchema = z.object({
   adminId: z.string(),
   adminName: z.string().min(2, "Admin name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
+  adminPhoneNumber: phoneValidation,
   adminPassword: z.string().min(8, "Password must be at least 8 characters long.").refine((val) => passwordRegex.test(val), {
         message: 'Password must contain at least one uppercase letter, one lowercase letter, and one special character.',
     }).optional().or(z.literal('')),

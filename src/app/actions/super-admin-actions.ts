@@ -18,6 +18,10 @@ function generateRandomPassword(length = 12) {
   return password;
 }
 
+const phoneValidation = z.string().min(1, "Phone number is required.")
+    .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
+        message: "Phone number must be 10 digits starting with 09, or 12 digits starting with 251."
+    });
 
 const formSchema = z.object({
   name: z.string().min(2, "Provider name is required."),
@@ -26,7 +30,7 @@ const formSchema = z.object({
   adminFirstName: z.string().min(2, "Admin first name is required."),
   adminLastName: z.string().min(2, "Admin last name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPhoneNumber: z.string().min(1, "Phone number is required."),
+  adminPhoneNumber: phoneValidation,
 })
 
 export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
@@ -132,7 +136,7 @@ const updateProviderSchema = z.object({
   adminId: z.string(),
   adminName: z.string().min(2, "Admin name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPhoneNumber: z.string().min(1, "Phone number is required."),
+  adminPhoneNumber: phoneValidation,
   adminPassword: z.string().min(6, "Password must be at least 6 characters.").optional().or(z.literal('')),
 })
 

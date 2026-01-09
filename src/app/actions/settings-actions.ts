@@ -1,4 +1,5 @@
 
+
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -9,11 +10,16 @@ import { FieldType } from '@prisma/client'
 import { getSession } from '@/lib/auth'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 
+const phoneValidation = z.string().min(1, "Phone number is required.")
+    .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
+        message: "Phone number must be 10 digits starting with 09, or 12 digits starting with 251."
+    });
+
 const updateUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().min(1, "Phone number is required"),
+  phoneNumber: phoneValidation,
 })
 
 function generateRandomPassword(length = 12) {
@@ -83,7 +89,7 @@ const registerUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
   roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().min(1, "Phone number is required"),
+  phoneNumber: phoneValidation,
   departmentId: z.string().optional(),
   districtId: z.string().optional(),
   branchId: z.string().optional(),

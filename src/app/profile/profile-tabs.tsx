@@ -26,10 +26,14 @@ type CompletedCourse = UserCompletedCourse & { course: Course & { quiz: Quiz | n
 type UserWithDepartment = User & { department: Department | null }
 type EarnedBadge = UserBadge & { badge: Badge }
 
+const phoneValidation = z.string().optional().refine(val => !val || (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
+    message: "Phone number must be 10 digits starting with 09, or 12 digits starting with 251."
+});
+
 const profileFormSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters."),
     email: z.string().email("Invalid email address.").optional().or(z.literal('')),
-    phoneNumber: z.string().optional(),
+    phoneNumber: phoneValidation,
 })
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
@@ -336,7 +340,7 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                                     name="phoneNumber"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Phone Number (Optional)</FormLabel>
+                                            <FormLabel>Phone Number</FormLabel>
                                             <FormControl>
                                                 <Input {...field} value={field.value ?? ""} />
                                             </FormControl>
