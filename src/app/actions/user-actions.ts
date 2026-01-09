@@ -11,7 +11,6 @@ import bcrypt from 'bcryptjs'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 
 const completeCourseSchema = z.object({
-  userId: z.string(),
   courseId: z.string(),
   score: z.number().min(0).max(100),
 })
@@ -69,12 +68,18 @@ export async function resendCredentialsEmail(userId: string) {
 
 export async function completeCourse(values: z.infer<typeof completeCourseSchema>) {
     try {
+        const session = await getSession();
+        if (!session?.id) {
+          return { success: false, message: "User not authenticated." };
+        }
+
         const validatedFields = completeCourseSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
         }
 
-        const { userId, courseId, score } = validatedFields.data;
+        const { courseId, score } = validatedFields.data;
+        const userId = session.id;
 
         const course = await prisma.course.findUnique({
             where: { id: courseId },
