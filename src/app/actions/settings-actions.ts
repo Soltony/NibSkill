@@ -13,7 +13,7 @@ const updateUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal('')),
   roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().min(1, "Phone number is required"),
 })
 
 function generateRandomPassword(length = 12) {
@@ -83,7 +83,7 @@ const registerUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
   roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().min(1, "Phone number is required"),
   departmentId: z.string().optional(),
   districtId: z.string().optional(),
   branchId: z.string().optional(),

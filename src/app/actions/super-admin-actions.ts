@@ -26,7 +26,7 @@ const formSchema = z.object({
   adminFirstName: z.string().min(2, "Admin first name is required."),
   adminLastName: z.string().min(2, "Admin last name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
+  adminPhoneNumber: z.string().min(1, "Phone number is required."),
 })
 
 export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
@@ -132,7 +132,7 @@ const updateProviderSchema = z.object({
   adminId: z.string(),
   adminName: z.string().min(2, "Admin name is required."),
   adminEmail: z.string().email("A valid email is required."),
-  adminPhoneNumber: z.string().min(5, "A valid phone number is required."),
+  adminPhoneNumber: z.string().min(1, "Phone number is required."),
   adminPassword: z.string().min(6, "Password must be at least 6 characters.").optional().or(z.literal('')),
 })
 

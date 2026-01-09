@@ -75,7 +75,7 @@ const registrationSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address"),
   roleId: z.string({ required_error: "A role is required." }),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().min(1, "Phone number is required"),
   departmentId: z.string().optional(),
   districtId: z.string().optional(),
   branchId: z.string().optional(),
@@ -458,7 +458,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                     name="phoneNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number (Optional)</FormLabel>
+                        <FormLabel>Phone Number</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g. 2519..." {...field} />
                         </FormControl>
