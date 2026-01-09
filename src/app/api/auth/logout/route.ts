@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { jwtVerify } from 'jose';
+import { createHash } from 'crypto';
 
 const getJwtSecret = () => {
     const secret = process.env.JWT_REFRESH_SECRET;
@@ -32,6 +33,13 @@ export async function POST(req: NextRequest) {
                         where: { id: userId },
                         data: { tokenVersion: { increment: 1 } },
                     });
+                    // Revoke the specific refresh token presented on logout
+                    try {
+                      const hashed = createHash('sha256').update(refreshToken).digest('hex');
+                      await prisma.refreshToken.updateMany({ where: { hashedToken: hashed }, data: { revoked: true } });
+                    } catch (e) {
+                      console.warn('Failed to revoke refresh token on logout:', e);
+                    }
                 }
             } catch (error) {
                 // If token is invalid, we can't do much server-side, but we still clear the cookies.

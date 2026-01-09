@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { jwtVerify, SignJWT } from 'jose';
+import { createHash } from 'crypto';
 
 const getJwtSecret = (type: 'access' | 'refresh') => {
     const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
@@ -28,7 +29,40 @@ export async function POST(req: NextRequest) {
       userId: string;
       tokenVersion?: number;
     }>(refreshTokenFromCookie, getJwtSecret('refresh'));
-    
+    // Validate the presented refresh token exists in DB and is not revoked
+    const incomingHash = createHash('sha256').update(refreshTokenFromCookie).digest('hex');
+    const stored = await prisma.refreshToken.findUnique({ where: { hashedToken: incomingHash } });
+
+    if (!stored || stored.revoked) {
+      const response = NextResponse.json({ message: 'Invalid or revoked refresh token.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
+
+    // Enforce server-side idle & absolute timeouts
+    const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30; // 30m
+    const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30; // 30d
+    const now = Date.now();
+    const lastActivity = new Date(stored.updatedAt).getTime();
+    const createdAt = new Date(stored.createdAt).getTime();
+
+    if ((now - lastActivity) / 1000 > IDLE_TIMEOUT_SECONDS) {
+      await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+      const response = NextResponse.json({ message: 'Session expired due to inactivity.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
+
+    if ((now - createdAt) / 1000 > MAX_SESSION_AGE_SECONDS) {
+      await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+      const response = NextResponse.json({ message: 'Session exceeded maximum lifetime.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
        include: {
@@ -82,6 +116,11 @@ export async function POST(req: NextRequest) {
       .setIssuedAt()
       .setExpirationTime(`${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s`)
       .sign(getJwtSecret('refresh'));
+    // mark the presented token revoked and persist the rotated token
+    await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+
+    const newHash = createHash('sha256').update(newRefreshToken).digest('hex');
+    await prisma.refreshToken.create({ data: { hashedToken: newHash, userId: user.id } });
 
     const response = NextResponse.json({ success: true, message: 'Token refreshed' });
     

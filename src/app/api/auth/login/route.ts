@@ -6,6 +6,7 @@ import prisma from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 import { serialize } from 'cookie';
+import { createHash } from 'crypto';
 import { headers } from 'next/headers';
 import { differenceInSeconds } from 'date-fns';
 
@@ -163,6 +164,14 @@ export async function POST(req: NextRequest) {
 
     response.headers.append('Set-Cookie', accessTokenCookie);
     response.headers.append('Set-Cookie', refreshTokenCookie);
+
+    // Persist hashed refresh token for server-side session management
+    try {
+      const hashed = createHash('sha256').update(refreshToken).digest('hex');
+      await prisma.refreshToken.create({ data: { hashedToken: hashed, userId: user.id } });
+    } catch (e) {
+      console.error('Failed to persist refresh token:', e);
+    }
 
     // Record successful login
     await prisma.loginHistory.create({
