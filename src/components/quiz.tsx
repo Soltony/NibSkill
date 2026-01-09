@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useTransition, Fragment } from 'react';
@@ -115,7 +116,6 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
     setCompletionSaved(false);
     startTransition(async () => {
         const result = await completeCourse({
-            userId,
             courseId: quiz.courseId,
             score: finalScore,
         });
@@ -185,7 +185,7 @@ export function Quiz({ quiz, userId, onComplete }: { quiz: QuizType, userId: str
 
   const goToPrevious = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+      setCurrentQuestionIndex(prev => prev + 1);
     }
   };
 
