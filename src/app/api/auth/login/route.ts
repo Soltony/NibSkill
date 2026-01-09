@@ -197,7 +197,7 @@ export async function POST(req: NextRequest) {
     return response;
 
   } catch (error: any) {
-    console.error('[LOGIN_ERROR]', error);
+    securityLog('error', 'login_exception', { error: error.message, stack: error.stack });
     return NextResponse.json({ isSuccess: false, errors: ['An internal server error occurred.'] }, { status: 500 });
   }
 }

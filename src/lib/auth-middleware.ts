@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextRequest } from 'next/server';
@@ -5,6 +6,7 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import jwt from 'jsonwebtoken';
 import type { Role, User, UserRole } from '@prisma/client';
+import { securityLog } from './logger';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -24,7 +26,7 @@ interface DecodedToken {
 
 export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null> {
   if (!JWT_SECRET) {
-    console.error('JWT_SECRET environment variable is not set.');
+    securityLog('error', 'jwt_secret_not_set');
     return null;
   }
 
@@ -40,7 +42,7 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     const decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
 
     if (decoded.type !== 'access') {
-      console.warn('Attempted to use non-access token for authentication.');
+      securityLog('warn', 'auth_verify_invalid_token_type', { type: decoded.type });
       return null;
     }
 
@@ -71,7 +73,7 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
 
     // This is the critical token revocation check
     if (user.tokenVersion !== decoded.tokenVersion) {
-      console.warn(`Token revocation check failed for user ${user.id}.`);
+      securityLog('warn', 'auth_verify_token_revoked', { userId: user.id });
       return null;
     }
     
@@ -90,9 +92,9 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
 
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      console.log('Invalid or expired JWT:', error.message);
+      securityLog('info', 'auth_verify_jwt_error', { error: error.message });
     } else {
-      console.error('An unexpected error occurred during auth verification:', error);
+      securityLog('error', 'auth_verify_exception', { error: error instanceof Error ? error.message : String(error) });
     }
     return null;
   }

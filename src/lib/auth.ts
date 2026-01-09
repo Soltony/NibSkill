@@ -136,7 +136,7 @@ export async function getSession() {
             passwordChangeRequired: user.passwordChangeRequired,
         };
     } catch (error) {
-        console.error("Error verifying refresh token in getSession:", error);
+        securityLog('error', 'getSession_refresh_exception', { error: error instanceof Error ? error.message : String(error) });
         return null;
     }
 }

@@ -6,13 +6,13 @@ import crypto from 'crypto';
 import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
+import { securityLog } from '@/lib/logger';
 
 
 // We intentionally avoid decoding/verifying SuperApp tokens here (they may be opaque).
 // MiniApp must provide phone number and a SuperApp token (cookie or Authorization header).
 
 export async function POST(request: NextRequest) {
-  console.log('[/api/payment/initiate] Received payment initiation request.');
   const cookieStore = await cookies();
 
   try {
@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     let userId: string | undefined;
 
     const body = await request.json();
-    console.log('[/api/payment/initiate] Received body:', body);
 
     // Support new MiniApp standard: { total, transactionId } OR legacy { courseId }
     const { total, transactionId: incomingTransactionId, courseId } = body as any;
@@ -51,11 +50,9 @@ export async function POST(request: NextRequest) {
       accountNo = course?.trainingProvider?.accountNumber ?? process.env.ACCOUNT_NO ?? undefined;
 
       if (!accountNo) {
-        console.error('[/api/payment/initiate] Missing account number for pending transaction or server env.');
+        securityLog('error', 'payment_init_missing_account', { transactionId: incomingTransactionId });
         return NextResponse.json({ success: false, message: 'Missing configured account for payment.' }, { status: 500 });
       }
-
-      console.log('[/api/payment/initiate] Using pending transaction:', incomingTransactionId, 'amount:', amount);
 
     } else if (courseId) {
       const found = await prisma.course.findUnique({
@@ -79,11 +76,10 @@ export async function POST(request: NextRequest) {
     // 1) Phone number must be provided by SuperApp (already verified upstream): header 'x-phone-number' or cookie 'miniapp_phone'.
     const phoneNumber = (request.headers.get('x-phone-number') || cookieStore.get('miniapp_phone')?.value)?.toString();
     if (!phoneNumber) {
-      console.error('[/api/payment/initiate] Missing SuperApp phone number (x-phone-number or miniapp_phone cookie).');
+      securityLog('error', 'payment_init_missing_phone');
       return NextResponse.json({ success: false, message: 'Missing SuperApp phone number' }, { status: 401 });
     }
-    console.log('[/api/payment/initiate] Resolved phoneNumber:', phoneNumber);
-
+    
     // 2) Check registration (Staff) for the course's training provider
     const trainingProviderId = course?.trainingProviderId ?? course?.trainingProvider?.id ?? undefined;
     const staffRole = trainingProviderId ? await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId } }) : null;
@@ -98,12 +94,11 @@ export async function POST(request: NextRequest) {
       : null;
 
     if (!existingUser) {
-      console.log('[/api/payment/initiate] Phone not registered as staff, redirecting to register');
+      securityLog('info', 'payment_init_user_not_found', { phoneNumberHash: createHash('sha256').update(phoneNumber).digest('hex') });
       return NextResponse.json({ success: false, message: 'Please register to purchase this course.', redirectTo: '/login/register' }, { status: 403 });
     }
 
     userId = existingUser.id;
-    console.log('[/api/payment/initiate] Registered staff user id:', userId);
 
     // 3) Get SuperApp token to forward to NIB: cookie 'superapp_token' preferred, fallback to Authorization header
     const superAppTokenFromCookie = cookieStore.get('superapp_token')?.value;
@@ -114,15 +109,10 @@ export async function POST(request: NextRequest) {
     superAppToken = superAppToken?.trim();
 
     if (!superAppToken) {
-      console.error('[/api/payment/initiate] Error: SuperApp token not provided (superapp_token cookie or Authorization header required)');
+      securityLog('error', 'payment_init_missing_token', { userId });
       return NextResponse.json({ success: false, message: 'SuperApp token missing. Please launch from the SuperApp.' }, { status: 401 });
     }
-
-    console.log('[/api/payment/initiate] SuperApp token present (redacted in logs).');
-    try {
-      console.log('[/api/payment/initiate] Outgoing Authorization header: Bearer ***REDACTED*** (length=' + superAppToken.length + ')');
-    } catch {}
-
+    
     // Validate SuperApp token against the token validation endpoint before calling NIB
     const validateUrl = process.env.VALIDATE_TOKEN_URL ?? process.env.TOKEN_VALIDATION_API_URL;
     if (validateUrl) {
@@ -135,26 +125,24 @@ export async function POST(request: NextRequest) {
 
         if (!validateRes.ok) {
           const errText = await validateRes.text().catch(() => '');
-          console.error('[/api/payment/initiate] SuperApp token validation failed:', validateRes.status, errText);
+          securityLog('warn', 'payment_init_token_validation_failed', { userId, status: validateRes.status });
           return NextResponse.json({ success: false, message: 'SuperApp token validation failed.' }, { status: 401 });
         }
 
         const validateData = await validateRes.json().catch(() => null);
         const validatedPhone = validateData?.phone;
-        console.log('[/api/payment/initiate] Token validation returned phone:', validatedPhone ?? 'none');
-
+        
         if (!validatedPhone || validatedPhone !== phoneNumber) {
-          console.error('[/api/payment/initiate] Token validation phone mismatch:', validatedPhone, 'expected:', phoneNumber);
+          securityLog('error', 'payment_init_phone_mismatch', { userId });
           return NextResponse.json({ success: false, message: 'Token phone mismatch. Please re-authenticate from the SuperApp.' }, { status: 401 });
         }
 
-        console.log('[/api/payment/initiate] SuperApp token validated successfully for phone:', validatedPhone);
       } catch (err) {
-        console.error('[/api/payment/initiate] Error validating SuperApp token:', err);
+        securityLog('error', 'payment_init_token_validation_exception', { userId, error: err instanceof Error ? err.message : String(err) });
         return NextResponse.json({ success: false, message: 'Could not validate SuperApp token.' }, { status: 502 });
       }
     } else {
-      console.warn('[/api/payment/initiate] VALIDATE_TOKEN_URL not set; skipping SuperApp token validation.');
+      securityLog('warn', 'payment_init_skip_token_validation', { userId });
     }
 
     // Normalize environment values to avoid trailing-space/signature issues
@@ -165,7 +153,7 @@ export async function POST(request: NextRequest) {
     const NIB_PAYMENT_URL = (process.env.NIB_PAYMENT_URL || '').trim();
 
     if (!ACCOUNT_NO || !COMPANY_NAME || !NIB_PAYMENT_KEY || !NIB_PAYMENT_URL || !CALLBACK_URL) {
-      console.error('[/api/payment/initiate] Server configuration error: Missing payment gateway environment variables.');
+      securityLog('error', 'payment_init_missing_env_vars');
       return NextResponse.json({ success: false, message: 'Server configuration error.' }, { status: 500 });
     }
     
@@ -183,18 +171,6 @@ export async function POST(request: NextRequest) {
         `transactionId=${transactionId}`,
         `transactionTime=${transactionTime}`
     ].join('&');
-
-    // Diagnostic: log a redacted preview of the signature string and related lengths to debug 401s
-    try {
-      const redactedSigString = signatureString.replace(`token=${superAppToken}`, 'token=***REDACTED***');
-      console.log('[/api/payment/initiate] Signature string preview (redacted):', redactedSigString);
-      console.log('[/api/payment/initiate] token length:', superAppToken?.length, 'NIB key length:', (NIB_PAYMENT_KEY || '').length);
-      console.log('[/api/payment/initiate] callback:', CALLBACK_URL);
-      console.log('[/api/payment/initiate] companyName:', COMPANY_NAME);
-      console.log('[/api/payment/initiate] accountNo:', ACCOUNT_NO);
-    } catch (diagErr) {
-      console.warn('[/api/payment/initiate] Could not print signature diagnostics', diagErr);
-    }
     
     const signature = crypto.createHash('sha256').update(signatureString, 'utf8').digest('hex');
 
@@ -209,18 +185,6 @@ export async function POST(request: NextRequest) {
       signature: signature
     };
 
-    // Debug: show a masked preview of the payload we will send to NIB (do not log raw token)
-    console.log('[/api/payment/initiate] NIB payload preview:', {
-      accountNo: paymentPayload.accountNo,
-      amount: paymentPayload.amount,
-      callBackURL: paymentPayload.callBackURL,
-      companyName: paymentPayload.companyName,
-      token: paymentPayload.token ? '***REDACTED***' : undefined,
-      transactionId: paymentPayload.transactionId,
-      transactionTime: paymentPayload.transactionTime,
-      signature: paymentPayload.signature,
-    });
-
     // Create a PendingTransaction only if we don't already have one (new standard passes an existing transactionId)
     if (!pendingTx) {
       await prisma.pendingTransaction.create({
@@ -231,8 +195,6 @@ export async function POST(request: NextRequest) {
             amount: parseFloat(safeAmount),
         }
       });
-    } else {
-      console.log('[/api/payment/initiate] Not creating PendingTransaction; using existing pending transaction', pendingTx.transactionId);
     }
 
     let paymentResponse: Response;
@@ -254,10 +216,10 @@ export async function POST(request: NextRequest) {
       });
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        console.error('[/api/payment/initiate] Payment request to NIB timed out after', timeoutMs, 'ms');
+        securityLog('error', 'payment_init_timeout', { userId });
         return NextResponse.json({ success: false, message: 'Payment service timed out.' }, { status: 504 });
       }
-      console.error('[/api/payment/initiate] Payment request to NIB failed:', err);
+      securityLog('error', 'payment_init_fetch_failed', { userId, error: err?.message ?? String(err) });
       return NextResponse.json({ success: false, message: 'Could not connect to NIB payment service.', details: err?.message ?? String(err) }, { status: 502 });
     } finally {
       clearTimeout(timeoutId);
@@ -272,39 +234,26 @@ export async function POST(request: NextRequest) {
       }
       responseData = JSON.parse(responseText);
     } catch (e) {
-      console.error("[/api/payment/initiate] Failed to parse NIB response:", responseText);
+      securityLog('error', 'payment_init_parse_error', { userId, responseText });
       return NextResponse.json({ error: 'Failed to parse NIB payment response.', raw: responseText }, { status: 502 });
-    }
-
-    // Log NIB response for debugging (mask sensitive fields if present)
-    try {
-      const loggedResponse = { ...responseData };
-      if (loggedResponse.token) loggedResponse.token = '***REDACTED***';
-      console.log('[/api/payment/initiate] NIB response status:', paymentResponse.status, 'body:', loggedResponse);
-    } catch (logErr) {
-      console.warn('[/api/payment/initiate] Could not log NIB response safely', logErr);
     }
     
     if (!paymentResponse.ok) {
-      if (paymentResponse.status === 401) {
-        console.error('[/api/payment/initiate] NIB returned 401 — token or signature likely invalid. Response body:', responseData);
-        return NextResponse.json({ success: false, message: 'Payment gateway unauthorized. Verify the token and signature.', details: responseData }, { status: 401 });
-      }
-      console.error('[/api/payment/initiate] NIB rejected payment request:', paymentResponse.status, responseData);
+      securityLog('warn', 'payment_init_gateway_error', { userId, status: paymentResponse.status, response: responseData });
       return NextResponse.json({ success: false, message: 'Payment gateway rejected the request.', details: responseData }, { status: paymentResponse.status });
     }
     
     const paymentToken = responseData?.token;
 
     if (!paymentToken) {
-      console.error('[/api/payment/initiate] Payment gateway returned no payment token:', responseData);
+      securityLog('error', 'payment_init_missing_payment_token', { userId, response: responseData });
       return NextResponse.json({ success: false, message: 'Payment gateway did not return a payment token.' }, { status: 502 });
     }
     
     return NextResponse.json({ success: true, paymentToken, transactionId });
     
   } catch (error) {
-    console.error('[/api/payment/initiate] Error initiating payment:', error);
+    securityLog('error', 'payment_init_global_exception', { error: error instanceof Error ? error.message : String(error) });
     if (error instanceof Error && (error.name === 'JWTExpired' || error.name === 'JOSEError')) {
         return NextResponse.json({ success: false, message: 'Your session has expired. Please re-enter from the Super App.' }, { status: 401 });
     }

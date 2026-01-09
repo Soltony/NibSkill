@@ -40,17 +40,16 @@ export async function POST(req: NextRequest) {
                       const result = await prisma.refreshToken.updateMany({ where: { userId }, data: { revoked: true } });
                       securityLog('audit', 'logout_revoke_all', { userId, revokedCount: result.count });
                     } catch (e) {
-                      console.warn('Failed to revoke refresh tokens on logout:', e);
                       securityLog('error', 'logout_revoke_failed', { userId, error: String(e) });
                     }
                 }
             } catch (error) {
                 // If token is invalid, we can't do much server-side, but we still clear the cookies.
-                console.warn("Could not decode refresh token on logout:", error);
+                securityLog('info', 'logout_invalid_token', { error: error instanceof Error ? error.message : String(error) });
             }
         }
     } catch (error) {
-        console.error("Error during logout token invalidation:", error);
+        securityLog('error', 'logout_invalidation_exception', { error: error instanceof Error ? error.message : String(error) });
         // Do not block the user from logging out, just log the error.
     }
 
