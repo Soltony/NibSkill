@@ -10,6 +10,7 @@ import { roles } from '@/lib/data'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
 import { validatePasswordBasic, isBreachedPassword, recordPasswordHistory } from '@/lib/password';
+import { getSession } from '@/lib/auth'
 
 const phoneValidation = z.string().min(1, "Phone number is required.")
     .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
@@ -28,6 +29,11 @@ const formSchema = z.object({
 
 export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
     try {
+        const session = await getSession();
+        if (!session || session.role.name !== 'Super Admin') {
+            return { success: false, message: "Unauthorized: You do not have permission to perform this action." };
+        }
+
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
@@ -138,6 +144,11 @@ const updateProviderSchema = z.object({
 
 export async function updateTrainingProvider(values: z.infer<typeof updateProviderSchema>) {
     try {
+        const session = await getSession();
+        if (!session || session.role.name !== 'Super Admin') {
+            return { success: false, message: "Unauthorized: You do not have permission to perform this action." };
+        }
+
         const validatedFields = updateProviderSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." };
@@ -194,6 +205,11 @@ export async function updateTrainingProvider(values: z.infer<typeof updateProvid
 
 export async function toggleProviderStatus(providerId: string, isActive: boolean) {
     try {
+        const session = await getSession();
+        if (!session || session.role.name !== 'Super Admin') {
+            return { success: false, message: "Unauthorized: You do not have permission to perform this action." };
+        }
+
         await prisma.trainingProvider.update({
             where: { id: providerId },
             data: { isActive: isActive }
@@ -208,6 +224,11 @@ export async function toggleProviderStatus(providerId: string, isActive: boolean
 
 export async function deleteTrainingProvider(providerId: string) {
     try {
+        const session = await getSession();
+        if (!session || session.role.name !== 'Super Admin') {
+            return { success: false, message: "Unauthorized: You do not have permission to perform this action." };
+        }
+        
         await prisma.trainingProvider.delete({
             where: { id: providerId }
         });
