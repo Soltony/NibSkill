@@ -752,6 +752,13 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
                       </TableCell>
                     </TableRow>
                   ))}
+                   {loginHistory.length === 0 && (
+                    <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                            No login history to display.
+                        </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -801,3 +808,5 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     </>
   )
 }
+
+    
