@@ -20,7 +20,8 @@ async function getData(trainingProviderId: string) {
 
 export default async function AddLearningPathPage() {
     const session = await getSession();
-    if (!session || !session.trainingProviderId) {
+    const permissions = session?.role?.permissions as any;
+    if (!session || !session.trainingProviderId || !permissions?.learningPaths?.c) {
         notFound();
     }
 

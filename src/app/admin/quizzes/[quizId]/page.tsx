@@ -5,6 +5,7 @@ import { QuizEditor } from "./quiz-editor-client";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { MoveLeft } from "lucide-react";
+import { getSession } from "@/lib/auth";
 
 async function getQuizData(quizId: string) {
     const quiz = await prisma.quiz.findUnique({
@@ -27,6 +28,12 @@ async function getQuizData(quizId: string) {
 
 
 export default async function ManageQuizPage({ params }: { params: { quizId: string }}) {
+    const session = await getSession();
+    const permissions = session?.role?.permissions as any;
+    if (!session?.id || !permissions?.quizzes?.u) {
+        notFound();
+    }
+    
     const quiz = await getQuizData(params.quizId);
 
     if (!quiz) {

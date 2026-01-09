@@ -73,7 +73,8 @@ async function getAttendanceReportData(trainingProviderId: string | null | undef
 
 export default async function AttendanceReportPage() {
   const session = await getSession();
-  if (!session?.id) {
+  const permissions = session?.role?.permissions as any;
+  if (!session?.id || !permissions?.reports?.r) {
     notFound();
   }
 

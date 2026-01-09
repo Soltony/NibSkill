@@ -5,6 +5,7 @@ import { GradingClient } from "./grading-client";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { MoveLeft } from "lucide-react";
+import { getSession } from "@/lib/auth";
 
 async function getSubmissionData(submissionId: string) {
     const submission = await prisma.quizSubmission.findUnique({
@@ -32,6 +33,12 @@ async function getSubmissionData(submissionId: string) {
 }
 
 export default async function GradingSubmissionPage({ params }: { params: { submissionId: string } }) {
+    const session = await getSession();
+    const permissions = session?.role?.permissions as any;
+    if (!session?.id || !permissions?.grading?.r) {
+        notFound();
+    }
+    
     const submission = await getSubmissionData(params.submissionId);
 
     if (!submission) {

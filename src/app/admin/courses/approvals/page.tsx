@@ -42,7 +42,8 @@ async function getPendingCourses(trainingProviderId: string | null | undefined, 
 
 export default async function CourseApprovalPage() {
   const session = await getSession();
-  if (!session?.id) {
+  const permissions = session?.role?.permissions as any;
+  if (!session?.id || !permissions?.approvals?.r) {
     notFound();
   }
 

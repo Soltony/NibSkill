@@ -48,7 +48,8 @@ async function getCertificateTemplate(trainingProviderId: string | null | undefi
 
 export default async function CertificatePage() {
   const session = await getSession();
-  if (!session?.id) {
+  const permissions = session?.role?.permissions as any;
+  if (!session?.id || !permissions?.certificate?.r) {
       notFound();
   }
   

@@ -46,7 +46,8 @@ async function getPendingSubmissions(trainingProviderId: string | null | undefin
 
 export default async function GradingPage() {
     const session = await getSession();
-    if (!session?.id) {
+    const permissions = session?.role?.permissions as any;
+    if (!session?.id || !permissions?.grading?.r) {
         notFound();
     }
 

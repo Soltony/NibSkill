@@ -47,7 +47,8 @@ async function getData(trainingProviderId: string | null | undefined, userRole: 
 
 export default async function LearningPathManagementPage() {
   const session = await getSession();
-  if (!session?.id) {
+  const permissions = session?.role?.permissions as any;
+  if (!session?.id || !permissions?.learningPaths?.r) {
     notFound();
   }
   

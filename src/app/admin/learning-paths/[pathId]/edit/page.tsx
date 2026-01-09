@@ -39,7 +39,8 @@ async function getData(trainingProviderId: string, pathId: string) {
 
 export default async function EditLearningPathPage({ params }: { params: { pathId: string } }) {
     const session = await getSession();
-    if (!session || !session.trainingProviderId) {
+    const permissions = session?.role?.permissions as any;
+    if (!session || !session.trainingProviderId || !permissions?.learningPaths?.u) {
         notFound();
     }
 

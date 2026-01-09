@@ -135,7 +135,8 @@ async function getAnalyticsData(trainingProviderId: string | null | undefined, u
 
 export default async function AnalyticsPage() {
     const session = await getSession();
-    if (!session?.id) {
+    const permissions = session?.role?.permissions as any;
+    if (!session?.id || !permissions?.dashboard?.r) {
         return notFound();
     }
 

@@ -39,7 +39,8 @@ async function getProducts(trainingProviderId: string | null | undefined, userRo
 
 export default async function ProductManagementPage() {
   const session = await getSession();
-  if (!session?.id) {
+  const permissions = session?.role?.permissions as any;
+  if (!session?.id || !permissions?.products?.r) {
     notFound();
   }
 

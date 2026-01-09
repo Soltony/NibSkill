@@ -98,7 +98,8 @@ async function getProgressReportData(trainingProviderId: string | null | undefin
 
 export default async function ProgressReportPage() {
   const session = await getSession();
-  if (!session?.id) {
+  const permissions = session?.role?.permissions as any;
+  if (!session?.id || !permissions?.reports?.r) {
     notFound();
   }
 

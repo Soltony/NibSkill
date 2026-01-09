@@ -92,7 +92,8 @@ async function getSettingsData(trainingProviderId: string | null | undefined, us
 
 export default async function SettingsPage() {
   const session = await getSession();
-  if (!session?.id) {
+  const permissions = session?.role?.permissions as any;
+  if (!session?.id || !permissions?.settings?.r) {
     notFound();
   }
 

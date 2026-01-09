@@ -84,7 +84,8 @@ async function getData(trainingProviderId: string | null | undefined, userRole: 
 
 export default async function LiveSessionManagementPage() {
   const sessionData = await getSession();
-  if (!sessionData?.id) {
+  const permissions = sessionData?.role?.permissions as any;
+  if (!sessionData?.id || !permissions?.liveSessions?.r) {
     notFound();
   }
 
@@ -175,4 +176,3 @@ export default async function LiveSessionManagementPage() {
     </div>
   )
 }
-
