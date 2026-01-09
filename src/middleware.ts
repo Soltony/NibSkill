@@ -1,6 +1,20 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 
+// Helper: decode JWT payload without verifying signature (safe for middleware edge runtime)
+function decodeJwtPayload(token: string) {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1];
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = Buffer.from(base64, 'base64').toString('utf8');
+    return JSON.parse(json);
+  } catch (e) {
+    return null;
+  }
+}
+
 // --- Public routes (no auth required) ---
 const publicPaths = [
   '/login',
@@ -31,6 +45,26 @@ export async function middleware(request: NextRequest) {
     // To prevent redirect loops, check if we are already on a login page
     if (!pathname.startsWith('/login')) {
       return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // Best-effort timeout checks in middleware (edge runtime cannot access DB).
+  // Decode the refresh token payload and enforce approximate idle/absolute timeouts
+  if (refreshToken) {
+    const payload: any = decodeJwtPayload(refreshToken as string);
+    if (payload && payload.iat) {
+      const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30;
+      const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30;
+      const now = Math.floor(Date.now() / 1000);
+      const issuedAt = typeof payload.iat === 'number' ? payload.iat : parseInt(payload.iat || '0', 10);
+
+      if (now - issuedAt > MAX_SESSION_AGE_SECONDS || now - issuedAt > IDLE_TIMEOUT_SECONDS) {
+        const loginUrl = new URL('/login', request.url);
+        const response = NextResponse.redirect(loginUrl);
+        response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        return response;
+      }
     }
   }
 

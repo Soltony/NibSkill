@@ -2,6 +2,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
+import { createHash } from 'crypto';
 import prisma from './db';
 import type { Role } from '@prisma/client';
 
@@ -61,6 +62,33 @@ export async function getSession() {
      try {
         const { payload } = await jwtVerify<{ userId: string; tokenVersion: number }>(refreshToken, getJwtSecret('refresh'));
 
+        // Server-side refresh token validation: look up token by hashed value
+        const hashed = createHash('sha256').update(refreshToken).digest('hex');
+        const stored = await prisma.refreshToken.findUnique({ where: { hashedToken: hashed } });
+
+        if (!stored || stored.revoked) {
+            return null; // token not found or revoked
+        }
+
+        // Idle timeout and absolute session lifetime enforcement
+        const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30; // 30m default
+        const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30; // 30d default
+
+        const now = Date.now();
+        const lastActivity = new Date(stored.updatedAt).getTime();
+        const createdAt = new Date(stored.createdAt).getTime();
+
+        if ((now - lastActivity) / 1000 > IDLE_TIMEOUT_SECONDS) {
+            // mark revoked
+            await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+            return null;
+        }
+
+        if ((now - createdAt) / 1000 > MAX_SESSION_AGE_SECONDS) {
+            await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+            return null;
+        }
+
         const user = await prisma.user.findUnique({
             where: { id: payload.userId },
             include: { roles: { include: { role: true } } },
@@ -69,9 +97,12 @@ export async function getSession() {
         if (!user || user.tokenVersion !== payload.tokenVersion) {
             return null; // User not found or token revoked
         }
-        
+
         const sessionRole = user.roles[0]?.role; 
         if (!sessionRole) return null;
+
+        // update last activity timestamp (touch)
+        await prisma.refreshToken.update({ where: { id: stored.id }, data: {} });
 
         return {
             id: user.id,
