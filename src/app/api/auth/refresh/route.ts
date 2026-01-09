@@ -1,20 +1,21 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
-import jwt from 'jsonwebtoken';
+import { jwtVerify, SignJWT } from 'jose';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const getJwtSecret = (type: 'access' | 'refresh') => {
+    const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
+    if (!secret) throw new Error(`JWT secret for ${type} token is not set.`);
+    return new TextEncoder().encode(secret);
+};
+
 const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 60 * 15; // 15 minutes
 const REFRESH_TOKEN_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 export async function POST(req: NextRequest) {
-  if (!JWT_SECRET) {
-    console.error('JWT_SECRET environment variable is not set.');
-    return NextResponse.json({ message: 'Server configuration error.' }, { status: 500 });
-  }
-
   const cookieStore = cookies();
   const refreshTokenFromCookie = cookieStore.get('refresh_token')?.value;
 
@@ -23,16 +24,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const decoded = jwt.verify(refreshTokenFromCookie, JWT_SECRET) as {
+    const { payload: decoded } = await jwtVerify<{
       userId: string;
       tokenVersion?: number;
-      type: 'access' | 'refresh';
-    };
-
-    if (decoded.type !== 'refresh') {
-      return NextResponse.json({ message: 'Invalid token type.' }, { status: 401 });
-    }
-
+    }>(refreshTokenFromCookie, getJwtSecret('refresh'));
+    
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
        include: {
@@ -55,42 +51,46 @@ export async function POST(req: NextRequest) {
       return response;
     }
     
+    // Find the role associated with the session. This could be more complex
+    // if users can switch roles, but for now we take the first.
     const sessionRole = user.roles[0]?.role;
     if (!sessionRole) {
         return NextResponse.json({ message: 'User role not configured.' }, { status: 500 });
     }
 
     // --- Issue new access token ---
-    const newAccessToken = jwt.sign(
-      {
+    const newAccessToken = await new SignJWT({
         userId: user.id,
         role: sessionRole,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        trainingProviderId: user.trainingProviderId,
         tokenVersion: user.tokenVersion,
-        type: 'access',
-      },
-      JWT_SECRET,
-      { expiresIn: `${ACCESS_TOKEN_EXPIRES_IN_SECONDS}s` }
-    );
+      })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(`${ACCESS_TOKEN_EXPIRES_IN_SECONDS}s`)
+      .sign(getJwtSecret('access'));
 
     // --- Rotate refresh token ---
-    const newRefreshToken = jwt.sign(
-      {
+    const newRefreshToken = await new SignJWT({
         userId: user.id,
         tokenVersion: user.tokenVersion,
-        type: 'refresh',
-      },
-      JWT_SECRET,
-      { expiresIn: `${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s` }
-    );
+      })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(`${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s`)
+      .sign(getJwtSecret('refresh'));
 
     const response = NextResponse.json({ success: true, message: 'Token refreshed' });
-
+    
+    // Access token is a session cookie
     response.cookies.set('auth_token', newAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
     });
 
     response.cookies.set('refresh_token', newRefreshToken, {

@@ -134,12 +134,12 @@ export async function POST(req: NextRequest) {
       .setExpirationTime(`${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s`)
       .sign(getJwtSecret('refresh'));
 
+    // The access token is a session cookie (no maxAge), so it's cleared on browser close.
     const accessTokenCookie = serialize('auth_token', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
     });
 
     const refreshTokenCookie = serialize('refresh_token', refreshToken, {
@@ -180,5 +180,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ isSuccess: false, errors: [error.message || 'Internal Server Error'] }, { status: 500 });
   }
 }
-
-    

@@ -67,7 +67,7 @@ export default function ChangePasswordPage() {
         if (response.ok) {
             toast({
                 title: 'Password Changed Successfully',
-                description: 'Your password has been updated. Redirecting to login...',
+                description: 'Your password has been updated. Please log in again.',
             });
             // Use window.location.href to force a full reload and clear session state
             window.location.href = '/login';
@@ -102,7 +102,7 @@ export default function ChangePasswordPage() {
                                                 <Input type={showCurrent ? 'text' : 'password'} {...field} />
                                             </FormControl>
                                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrent(p => !p)}>
-                                                {showCurrent ? <EyeOff /> : <Eye />}
+                                                {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                 <span className="sr-only">{showCurrent ? "Hide password" : "Show password"}</span>
                                             </Button>
                                         </div>
@@ -121,7 +121,7 @@ export default function ChangePasswordPage() {
                                                 <Input type={showNew ? 'text' : 'password'} {...field} />
                                             </FormControl>
                                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNew(p => !p)}>
-                                                {showNew ? <EyeOff /> : <Eye />}
+                                                {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                 <span className="sr-only">{showNew ? "Hide password" : "Show password"}</span>
                                             </Button>
                                         </div>
@@ -140,7 +140,7 @@ export default function ChangePasswordPage() {
                                                 <Input type={showConfirm ? 'text' : 'password'} {...field} />
                                             </FormControl>
                                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowConfirm(p => !p)}>
-                                                {showConfirm ? <EyeOff /> : <Eye />}
+                                                {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                 <span className="sr-only">{showConfirm ? "Hide password" : "Show password"}</span>
                                             </Button>
                                         </div>
