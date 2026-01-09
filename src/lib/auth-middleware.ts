@@ -3,8 +3,9 @@
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
-import jwt from 'jsonwebtoken';
-import type { Role, User, UserRole } from '@prisma/client';
+import { jwtVerify, type JWTPayload } from 'jose';
+import { createHash } from 'crypto';
+import type { Role, User } from '@prisma/client';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -13,87 +14,61 @@ interface VerifiedUser extends User {
   isGuest?: boolean;
 }
 
-interface DecodedToken {
-    userId: string;
-    isGuest?: boolean;
-    phoneNumber?: string;
-    tokenVersion?: number;
-    type: 'access' | 'refresh';
+interface DecodedToken extends JWTPayload {
+  userId: string;
+  isGuest?: boolean;
+  phoneNumber?: string;
+  tokenVersion?: number;
+  type?: 'access' | 'refresh';
+  sessionId?: string;
+  jti?: string;
 }
 
 
 export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null> {
-  if (!JWT_SECRET) {
-    console.error('JWT_SECRET environment variable is not set.');
-    return null;
-  }
-
-  // Get token from HttpOnly cookie
+  // For normal requests, require only the short-lived access token and validate session state.
   const cookieStore = cookies();
-  const token = cookieStore.get('auth_token')?.value;
+  const accessToken = cookieStore.get('auth_token')?.value;
+  if (!accessToken) return null;
 
-  if (!token) {
-    return null;
-  }
+  const getJwtSecret = (type: 'access' | 'refresh') => {
+    const secret = type === 'access' ? process.env.JWT_ACCESS_SECRET : process.env.JWT_REFRESH_SECRET;
+    if (!secret) throw new Error(`JWT secret for ${type} token is not set.`);
+    return new TextEncoder().encode(secret);
+  };
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as DecodedToken;
+    const { payload: accessPayload } = await jwtVerify<DecodedToken>(accessToken, getJwtSecret('access'));
+    if (!accessPayload.userId) return null;
 
-    if (decoded.type !== 'access') {
-      console.warn('Attempted to use non-access token for authentication.');
-      return null;
-    }
-
-    if (!decoded.userId) {
-      return null;
-    }
-
-    // Guest users don't need DB validation, just a valid token.
-    if (decoded.isGuest) {
-        // This is a placeholder for guest logic, which is not fully implemented in this system
-        return null;
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-       include: {
-        roles: {
-          include: {
-            role: true
-          }
-        }
+    // Session binding: ensure session exists and is active
+    // Check whether this access token was revoked (blacklist)
+    if (accessPayload.jti) {
+      try {
+        const revoked = await prisma.revokedAccessToken.findUnique({ where: { jti: accessPayload.jti } });
+        if (revoked) return null;
+      } catch (e) {
+        // ignore DB errors and continue (fail-open to avoid locking out users on DB issues)
       }
-    });
-
-    if (!user) {
-      return null;
     }
+    if (!accessPayload.sessionId) return null;
+    const session = await prisma.session.findUnique({ where: { id: accessPayload.sessionId } });
+    if (!session || session.revokedAt || new Date(session.expiresAt).getTime() < Date.now()) return null;
 
-    // This is the critical token revocation check
-    if (user.tokenVersion !== decoded.tokenVersion) {
-      console.warn(`Token revocation check failed for user ${user.id}.`);
-      return null;
-    }
-    
-    // Assuming the first role is the primary role for the session
+    const user = await prisma.user.findUnique({ where: { id: accessPayload.userId }, include: { roles: { include: { role: true } } } });
+    if (!user) return null;
+    if (user.tokenVersion !== accessPayload.tokenVersion) return null;
+
+    // update session lastActivity
+    try { await prisma.session.update({ where: { id: session.id }, data: { lastActivity: new Date() } }); } catch (e) {}
+
     const sessionRole = user.roles[0]?.role;
     if (!sessionRole) return null;
 
-
-    const finalUser: VerifiedUser = {
-        ...user,
-        role: sessionRole,
-    };
-
-
+    const finalUser: VerifiedUser = { ...user, role: sessionRole };
     return finalUser;
-
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      console.log('Invalid or expired JWT:', error.message);
-    } else {
-      console.error('An unexpected error occurred during auth verification:', error);
-    }
+    console.error('Auth verification failed:', error);
     return null;
   }
 }

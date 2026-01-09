@@ -70,6 +70,7 @@ model User {
   purchasedCourses   UserPurchasedCourse[]
   pendingTransactions PendingTransaction[]
   refreshTokens      RefreshToken[]
+  sessions           Session[]
   passwordHistories  PasswordHistory[]
 }
 
@@ -470,6 +471,26 @@ model RefreshToken {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   lastActivityAt DateTime @default(now())
+}
+
+model Session {
+  id           String   @id
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedAt    DateTime?
+  expiresAt    DateTime
+  lastActivity DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([id])
+}
+
+// Store revoked access token identifiers (jti) so middleware can reject them immediately.
+model RevokedAccessToken {
+  jti       String   @id
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 enum CourseStatus {

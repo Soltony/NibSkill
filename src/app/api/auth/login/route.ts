@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
     const sessionId = randomUUID();
 
     // --- Create Access Token ---
+    const jti = randomUUID();
     const accessTokenPayload = {
       userId: user.id,
       role: userRole,
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
       avatarUrl: user.avatarUrl,
       trainingProviderId: user.trainingProviderId,
       tokenVersion: user.tokenVersion,
+      jti,
       sessionId,
     };
     const accessToken = await new SignJWT(accessTokenPayload)
@@ -160,6 +162,13 @@ export async function POST(req: NextRequest) {
       path: '/',
       maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
     });
+    const refreshSidCookie = serialize('refresh_sid', sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
+    });
     
     let redirectTo = userRole.name === 'Admin' ? '/admin/analytics' : (userRole.name === 'Super Admin' ? '/super-admin/dashboard' : '/dashboard');
     if (user.passwordChangeRequired) {
@@ -174,11 +183,19 @@ export async function POST(req: NextRequest) {
 
     response.headers.append('Set-Cookie', accessTokenCookie);
     response.headers.append('Set-Cookie', refreshTokenCookie);
+    response.headers.append('Set-Cookie', refreshSidCookie);
 
     // Persist hashed refresh token for server-side session management and bind sessionId
     try {
       const hashed = createHash('sha256').update(refreshToken).digest('hex');
       await prisma.refreshToken.create({ data: { hashedToken: hashed, userId: user.id, sessionId } });
+      // create server-side session record
+      try {
+        const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRES_IN_SECONDS * 1000);
+        await prisma.session.create({ data: { id: sessionId, userId: user.id, expiresAt } });
+      } catch (e) {
+        securityLog('error', 'session_create_failed', { userId: user.id, sessionId, error: String(e) });
+      }
     } catch (e) {
       securityLog('error', 'refresh_token_persist_failed', { userId: user.id, error: String(e) });
     }

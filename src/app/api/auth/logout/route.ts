@@ -6,16 +6,24 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { jwtVerify } from 'jose';
 import { createHash } from 'crypto';
+import { serialize } from 'cookie';
 import { securityLog } from '@/lib/logger';
 
-const getJwtSecret = () => {
+const getJwtRefreshSecret = () => {
     const secret = process.env.JWT_REFRESH_SECRET;
     if (!secret) throw new Error('JWT_REFRESH_SECRET environment variable is not set.');
     return new TextEncoder().encode(secret);
 };
 
+const getJwtAccessSecret = () => {
+    const secret = process.env.JWT_ACCESS_SECRET;
+    if (!secret) throw new Error('JWT_ACCESS_SECRET environment variable is not set.');
+    return new TextEncoder().encode(secret);
+};
+
 interface DecodedToken {
     userId: string;
+    sessionId?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -27,25 +35,29 @@ export async function POST(req: NextRequest) {
             try {
                 const { payload } = await jwtVerify<DecodedToken>(refreshToken, getJwtSecret());
                 const userId = payload.userId;
+                const sessionId = (payload as any).sessionId;
 
-                if (userId) {
-                    // Increment the tokenVersion to invalidate all existing tokens for this user
-                    await prisma.user.update({
-                        where: { id: userId },
-                        data: { tokenVersion: { increment: 1 } },
-                    });
-
-                    // Revoke all refresh tokens for this user to ensure logout terminates sessions
+                if (sessionId) {
+                    // Revoke the specific session
                     try {
-                      const result = await prisma.refreshToken.updateMany({ where: { userId }, data: { revoked: true } });
-                      securityLog('audit', 'logout_revoke_all', { userId, revokedCount: result.count });
+                        await prisma.session.update({ where: { id: sessionId }, data: { revokedAt: new Date() } });
+                        await prisma.refreshToken.updateMany({ where: { sessionId }, data: { revoked: true } });
+                        securityLog('audit', 'logout_revoke_session', { userId, sessionId });
                     } catch (e) {
-                      console.warn('Failed to revoke refresh tokens on logout:', e);
-                      securityLog('error', 'logout_revoke_failed', { userId, error: String(e) });
+                        console.warn('Failed to revoke session on logout:', e);
+                        securityLog('error', 'logout_revoke_session_failed', { userId, sessionId, error: String(e) });
+                    }
+                } else if (userId) {
+                    // Fallback: revoke all refresh tokens for user
+                    try {
+                        const result = await prisma.refreshToken.updateMany({ where: { userId }, data: { revoked: true } });
+                        securityLog('audit', 'logout_revoke_all', { userId, revokedCount: result.count });
+                    } catch (e) {
+                        console.warn('Failed to revoke refresh tokens on logout:', e);
+                        securityLog('error', 'logout_revoke_failed', { userId, error: String(e) });
                     }
                 }
             } catch (error) {
-                // If token is invalid, we can't do much server-side, but we still clear the cookies.
                 console.warn("Could not decode refresh token on logout:", error);
             }
         }
@@ -54,12 +66,62 @@ export async function POST(req: NextRequest) {
         // Do not block the user from logging out, just log the error.
     }
 
+    // Additionally revoke the currently-present access token by adding its jti to the blacklist
+    try {
+        const cookieStore = cookies();
+        const accessToken = cookieStore.get('auth_token')?.value;
+        if (accessToken) {
+            try {
+                const { payload } = await jwtVerify<any>(accessToken, getJwtAccessSecret());
+                const jti = (payload as any).jti;
+                const exp = (payload as any).exp; // seconds since epoch
+                if (jti && exp) {
+                    try {
+                        await prisma.revokedAccessToken.create({ data: { jti, expiresAt: new Date(exp * 1000) } });
+                        securityLog('audit', 'logout_revoke_access_token', { jti, userId: (payload as any).userId });
+                    } catch (e) {
+                        console.warn('Failed to persist revoked access token jti:', e);
+                    }
+                }
+            } catch (e) {
+                // ignore access token verify errors
+            }
+        }
+    } catch (e) {}
+
 
     const response = NextResponse.json({ success: true, message: "Logged out successfully" });
-    
-    // Clear both cookies
-    response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
-    response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+
+    // Build cookie strings that match the attributes used when setting them at login
+    const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict' as const,
+        path: '/',
+    };
+
+    const expiredAccess = serialize('auth_token', '', { ...cookieOptions, expires: new Date(0) });
+    const expiredRefresh = serialize('refresh_token', '', { ...cookieOptions, maxAge: 0 });
+    const expiredRefreshSid = serialize('refresh_sid', '', { ...cookieOptions, maxAge: 0 });
+
+    // Use Set-Cookie headers to ensure client's cookies are cleared regardless of cookie API
+    response.headers.append('Set-Cookie', expiredAccess);
+    response.headers.append('Set-Cookie', expiredRefresh);
+    response.headers.append('Set-Cookie', expiredRefreshSid);
+
+        // Also use NextResponse cookie API to delete cookies (some runtimes prefer this)
+        try {
+            response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: 0 });
+            response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: 0 });
+            response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: 0 });
+            // Some parts of app may set cookies with SameSite=Lax; expire those too as a fallback
+            const expiredAccessLax = serialize('auth_token', '', { ...cookieOptions, sameSite: 'lax', expires: new Date(0) });
+            const expiredRefreshLax = serialize('refresh_token', '', { ...cookieOptions, sameSite: 'lax', maxAge: 0 });
+            response.headers.append('Set-Cookie', expiredAccessLax);
+            response.headers.append('Set-Cookie', expiredRefreshLax);
+        } catch (e) {
+            // ignore
+        }
 
     return response;
 }

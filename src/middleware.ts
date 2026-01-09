@@ -32,8 +32,8 @@ const publicPaths = [
 // --- Middleware ---
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const refreshToken = request.cookies.get('refresh_token')?.value;
   const accessToken = request.cookies.get('auth_token')?.value;
+  const refreshToken = request.cookies.get('refresh_token')?.value;
 
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
   
@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!refreshToken) {
+  if (!accessToken) {
     const loginUrl = new URL('/login', request.url);
     // To prevent redirect loops, check if we are already on a login page
     if (!pathname.startsWith('/login')) {
@@ -50,13 +50,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Best-effort timeout checks in middleware (edge runtime cannot access DB).
-  // Decode the refresh token payload and enforce approximate idle/absolute timeouts
-  if (refreshToken) {
-    const payload: any = decodeJwtPayload(refreshToken as string);
-    // Also decode access token (if present) and ensure session binding matches between tokens
-    if (accessToken) {
-      const accessPayload: any = decodeJwtPayload(accessToken as string);
-      if (payload?.sessionId && accessPayload?.sessionId && payload.sessionId !== accessPayload.sessionId) {
+  // Best-effort timeout checks in middleware (edge runtime cannot access DB).
+  // Decode the access token payload and enforce approximate idle/absolute timeouts
+  if (accessToken) {
+    const payload: any = decodeJwtPayload(accessToken as string);
+    // If refresh token is present, ensure sessionId matches as a quick check
+    if (refreshToken && payload && payload.sessionId) {
+      const refreshPayload: any = decodeJwtPayload(refreshToken as string);
+      if (refreshPayload?.sessionId && refreshPayload.sessionId !== payload.sessionId) {
         const loginUrl = new URL('/login', request.url);
         const response = NextResponse.redirect(loginUrl);
         response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
@@ -69,6 +70,7 @@ export async function middleware(request: NextRequest) {
         return response;
       }
     }
+
     if (payload && payload.iat) {
       const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30;
       const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30;

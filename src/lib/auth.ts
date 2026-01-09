@@ -30,22 +30,21 @@ export async function getSession() {
     const cookieStore = cookies();
     const accessToken = cookieStore.get('auth_token')?.value;
 
+    // Try validating access token and session first (normal requests)
     if (accessToken) {
-       try {
+        try {
             const { payload } = await jwtVerify<CustomJwtPayload>(accessToken, getJwtSecret('access'));
-            
-            const user = await prisma.user.findUnique({ where: { id: payload.userId }});
-            if (!user || user.tokenVersion !== payload.tokenVersion) {
-                return null; // Token is revoked
-            }
+            const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+            if (!user || user.tokenVersion !== payload.tokenVersion) return null;
 
-            // Ensure the access token is bound to an active server-side session
-            if (payload.sessionId) {
-                const storedSession = await prisma.refreshToken.findFirst({ where: { userId: payload.userId, sessionId: payload.sessionId, revoked: false } });
-                if (!storedSession) return null; // session not found or revoked
-            }
+            if (!payload.sessionId) return null;
+            const session = await prisma.session.findUnique({ where: { id: payload.sessionId } });
+            if (!session || session.revokedAt || new Date(session.expiresAt).getTime() < Date.now()) return null;
 
-             return {
+            // update lastActivity
+            try { await prisma.session.update({ where: { id: session.id }, data: { lastActivity: new Date() } }); } catch (e) {}
+
+            return {
                 id: payload.userId,
                 role: payload.role,
                 name: payload.name,
@@ -55,47 +54,47 @@ export async function getSession() {
                 passwordChangeRequired: user.passwordChangeRequired,
             };
         } catch (e) {
-            // Access token is invalid or expired, which is expected.
-            // We will now rely on the refresh token logic if it exists.
+            // Access token invalid/expired — fall back to refresh flow
         }
     }
-    
+
     // Fallback to refresh token for SSR where access token might be expired.
     const refreshToken = cookieStore.get('refresh_token')?.value;
-    if (!refreshToken) {
-        return null;
-    }
+    if (!refreshToken) return null;
 
-     try {
-        const { payload } = await jwtVerify<{ userId: string; tokenVersion: number }>(refreshToken, getJwtSecret('refresh'));
+    try {
+        const { payload: refreshPayload } = await jwtVerify<{ userId: string; tokenVersion: number; sessionId?: string }>(refreshToken, getJwtSecret('refresh'));
 
-        // Server-side refresh token validation: look up token by hashed value
         const hashed = createHash('sha256').update(refreshToken).digest('hex');
         const stored = await prisma.refreshToken.findUnique({ where: { hashedToken: hashed } });
-
         if (!stored || stored.revoked) {
             securityLog('warn', 'getSession_refresh_invalid', { hashed: stored ? stored.hashedToken : null });
-            return null; // token not found or revoked
-        }
-
-        // If the refresh token payload contains a sessionId, ensure it matches the stored session
-        if ((decoded as any).sessionId && stored.sessionId && (decoded as any).sessionId !== stored.sessionId) {
-            // defensive revoke
-            await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
-            securityLog('warn', 'getSession_refresh_session_mismatch', { storedSessionId: stored.sessionId, tokenSessionId: (decoded as any).sessionId });
             return null;
         }
 
-        // Idle timeout and absolute session lifetime enforcement
+        if (refreshPayload.sessionId && stored.sessionId && refreshPayload.sessionId !== stored.sessionId) {
+            await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+            securityLog('warn', 'getSession_refresh_session_mismatch', { storedSessionId: stored.sessionId, tokenSessionId: refreshPayload.sessionId });
+            return null;
+        }
+
+        // Validate session record
+        if (!stored.sessionId) return null;
+        const session = await prisma.session.findUnique({ where: { id: stored.sessionId } });
+        if (!session || session.revokedAt || new Date(session.expiresAt).getTime() < Date.now()) {
+            await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+            securityLog('warn', 'getSession_session_invalid', { sessionId: stored.sessionId });
+            return null;
+        }
+
+        // Idle/age enforcement using refreshToken record
         const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30; // 30m default
         const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30; // 30d default
-
         const now = Date.now();
         const lastActivity = new Date(stored.lastActivityAt ?? stored.updatedAt).getTime();
         const createdAt = new Date(stored.createdAt).getTime();
 
         if ((now - lastActivity) / 1000 > IDLE_TIMEOUT_SECONDS) {
-            // mark revoked
             await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
             securityLog('audit', 'getSession_idle_expired', { tokenId: stored.id, userId: stored.userId });
             return null;
@@ -107,20 +106,14 @@ export async function getSession() {
             return null;
         }
 
-        const user = await prisma.user.findUnique({
-            where: { id: payload.userId },
-            include: { roles: { include: { role: true } } },
-        });
+        const user = await prisma.user.findUnique({ where: { id: refreshPayload.userId }, include: { roles: { include: { role: true } } } });
+        if (!user || user.tokenVersion !== refreshPayload.tokenVersion) return null;
 
-        if (!user || user.tokenVersion !== payload.tokenVersion) {
-            return null; // User not found or token revoked
-        }
-
-        const sessionRole = user.roles[0]?.role; 
+        const sessionRole = user.roles[0]?.role;
         if (!sessionRole) return null;
 
-        // update last activity timestamp (touch)
         await prisma.refreshToken.update({ where: { id: stored.id }, data: { lastActivityAt: new Date() } });
+        try { await prisma.session.update({ where: { id: session.id }, data: { lastActivity: new Date() } }); } catch (e) {}
 
         return {
             id: user.id,
@@ -132,7 +125,7 @@ export async function getSession() {
             passwordChangeRequired: user.passwordChangeRequired,
         };
     } catch (error) {
-        console.error("Error verifying refresh token in getSession:", error);
+        console.error('Error verifying refresh token in getSession:', error);
         return null;
     }
 }

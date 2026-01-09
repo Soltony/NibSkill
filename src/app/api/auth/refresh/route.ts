@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { jwtVerify, SignJWT } from 'jose';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { securityLog } from '@/lib/logger';
 
 const getJwtSecret = (type: 'access' | 'refresh') => {
@@ -49,6 +49,37 @@ export async function POST(req: NextRequest) {
       try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (e) { }
       securityLog('warn', 'refresh_token_user_mismatch', { storedUserId: stored.userId, tokenUserId: decoded.userId });
       const response = NextResponse.json({ message: 'Invalid refresh token.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
+
+    // Validate underlying Session state (session record is authoritative)
+    if (!stored.sessionId) {
+      const response = NextResponse.json({ message: 'Invalid session.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
+
+    // Require the refresh_sid cookie to be present and match the stored sessionId
+    const refreshSidFromCookie = cookieStore.get('refresh_sid')?.value;
+    if (!refreshSidFromCookie || refreshSidFromCookie !== stored.sessionId) {
+      try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (e) {}
+      securityLog('warn', 'refresh_sid_mismatch', { storedSessionId: stored.sessionId, cookieSid: refreshSidFromCookie });
+      const response = NextResponse.json({ message: 'Invalid session.' }, { status: 401 });
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
+
+    const session = await prisma.session.findUnique({ where: { id: stored.sessionId } });
+    if (!session || session.revokedAt || new Date(session.expiresAt).getTime() < Date.now()) {
+      // revoke stored refresh token defensively
+      try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (e) {}
+      securityLog('audit', 'refresh_session_invalid', { sessionId: stored.sessionId, userId: stored.userId });
+      const response = NextResponse.json({ message: 'Session invalid or expired.' }, { status: 401 });
       response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
       response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
       return response;
@@ -120,6 +151,7 @@ export async function POST(req: NextRequest) {
     }
 
     // --- Issue new access token (bound to same sessionId) ---
+    const newJti = randomUUID();
     const newAccessToken = await new SignJWT({
         userId: user.id,
         role: sessionRole,
@@ -128,7 +160,8 @@ export async function POST(req: NextRequest) {
         avatarUrl: user.avatarUrl,
         trainingProviderId: user.trainingProviderId,
         tokenVersion: user.tokenVersion,
-        sessionId: stored.sessionId,
+      sessionId: stored.sessionId,
+      jti: newJti,
       })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -151,6 +184,8 @@ export async function POST(req: NextRequest) {
 
     const newHash = createHash('sha256').update(newRefreshToken).digest('hex');
     await prisma.refreshToken.create({ data: { hashedToken: newHash, userId: user.id, sessionId: stored.sessionId } });
+    // touch session lastActivity
+    try { await prisma.session.update({ where: { id: stored.sessionId }, data: { lastActivity: new Date() } }); } catch (e) {}
     securityLog('audit', 'refresh_rotated', { userId: user.id });
 
     const response = NextResponse.json({ success: true, message: 'Token refreshed' });
@@ -170,6 +205,19 @@ export async function POST(req: NextRequest) {
       path: '/',
       maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
     });
+
+    // Also set the rotated refresh_sid cookie to match the sessionId
+    try {
+      response.cookies.set('refresh_sid', stored.sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
+      });
+    } catch (e) {
+      // best-effort: do not fail the refresh if setting this cookie fails
+    }
 
     return response;
   } catch (error) {
