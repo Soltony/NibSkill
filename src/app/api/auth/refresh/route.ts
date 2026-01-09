@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       const response = NextResponse.json({ message: 'Invalid or revoked refresh token.' }, { status: 401 });
       response.cookies.set('refresh_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: -1 });
       response.cookies.set('auth_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: -1 });
+      response.cookies.set('refresh_sid', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: -1 });
       return response;
     }
 
@@ -163,9 +164,11 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     securityLog('error', 'refresh_token_exception', { error: error instanceof Error ? error.message : String(error) });
 
+    // On any failure (e.g., token signature invalid), clear all auth cookies to force logout.
     const response = NextResponse.json({ message: 'Invalid refresh token.' }, { status: 401 });
     response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
     response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+    response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: -1 });
     return response;
   }
 }
