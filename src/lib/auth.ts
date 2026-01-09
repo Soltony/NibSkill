@@ -3,6 +3,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 import { createHash } from 'crypto';
+import { securityLog } from '@/lib/logger';
 import prisma from './db';
 import type { Role } from '@prisma/client';
 
@@ -67,6 +68,7 @@ export async function getSession() {
         const stored = await prisma.refreshToken.findUnique({ where: { hashedToken: hashed } });
 
         if (!stored || stored.revoked) {
+            securityLog('warn', 'getSession_refresh_invalid', { hashed: stored ? stored.hashedToken : null });
             return null; // token not found or revoked
         }
 
@@ -81,11 +83,13 @@ export async function getSession() {
         if ((now - lastActivity) / 1000 > IDLE_TIMEOUT_SECONDS) {
             // mark revoked
             await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+            securityLog('audit', 'getSession_idle_expired', { tokenId: stored.id, userId: stored.userId });
             return null;
         }
 
         if ((now - createdAt) / 1000 > MAX_SESSION_AGE_SECONDS) {
             await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+            securityLog('audit', 'getSession_age_expired', { tokenId: stored.id, userId: stored.userId });
             return null;
         }
 

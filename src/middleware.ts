@@ -63,6 +63,13 @@ export async function middleware(request: NextRequest) {
         const response = NextResponse.redirect(loginUrl);
         response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
         response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        try {
+          const ip = request.ip || request.headers.get('x-forwarded-for') || null;
+          const { securityLog } = await import('@/lib/logger');
+          securityLog('warn', 'middleware_token_expire_redirect', { path: pathname, ip });
+        } catch (e) {
+          // ignore
+        }
         return response;
       }
     }
