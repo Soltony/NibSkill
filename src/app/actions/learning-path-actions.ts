@@ -18,8 +18,9 @@ const formSchema = z.object({
 export async function addLearningPath(values: z.infer<typeof formSchema>) {
     try {
         const session = await getSession();
-        if (!session || !session.trainingProviderId) {
-            return { success: false, message: "Unauthorized operation." };
+        const permissions = session?.role.permissions as any;
+        if (!session?.id || !session.trainingProviderId || !permissions?.learningPaths?.c) {
+            return { success: false, message: "Unauthorized: You do not have permission to create learning paths." };
         }
 
         const validatedFields = formSchema.safeParse(values);
@@ -54,9 +55,20 @@ export async function addLearningPath(values: z.infer<typeof formSchema>) {
 
 export async function updateLearningPath(id: string, values: z.infer<typeof formSchema>) {
     try {
+        const session = await getSession();
+        const permissions = session?.role.permissions as any;
+        if (!session?.id || !session.trainingProviderId || !permissions?.learningPaths?.u) {
+            return { success: false, message: "Unauthorized: You do not have permission to update learning paths." };
+        }
+
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
+        }
+
+        const learningPath = await prisma.learningPath.findUnique({ where: { id } });
+        if (!learningPath || learningPath.trainingProviderId !== session.trainingProviderId) {
+            return { success: false, message: "Learning path not found or you do not have permission to edit it." };
         }
 
         await prisma.learningPath.update({
@@ -89,6 +101,17 @@ export async function updateLearningPath(id: string, values: z.infer<typeof form
 
 export async function deleteLearningPath(id: string) {
     try {
+        const session = await getSession();
+        const permissions = session?.role.permissions as any;
+        if (!session?.id || !session.trainingProviderId || !permissions?.learningPaths?.d) {
+            return { success: false, message: "Unauthorized: You do not have permission to delete learning paths." };
+        }
+
+        const learningPath = await prisma.learningPath.findUnique({ where: { id } });
+        if (!learningPath || learningPath.trainingProviderId !== session.trainingProviderId) {
+            return { success: false, message: "Learning path not found or you do not have permission to delete it." };
+        }
+
         await prisma.learningPath.delete({
             where: { id }
         });
