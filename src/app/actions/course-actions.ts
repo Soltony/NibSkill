@@ -27,8 +27,9 @@ const formSchema = z.object({
 export async function addCourse(values: z.infer<typeof formSchema>) {
     try {
         const session = await getSession();
-        if (!session || !session.trainingProviderId) {
-            return { success: false, message: "Unauthorized operation." };
+        const permissions = session?.role.permissions as any;
+        if (!session?.id || !session.trainingProviderId || !permissions?.courses?.c) {
+            return { success: false, message: "Unauthorized: You do not have permission to create courses." };
         }
 
         const validatedFields = formSchema.safeParse(values);
@@ -37,7 +38,7 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
         }
 
         const product = await prisma.product.findUnique({
-            where: { id: validatedFields.data.productId }
+            where: { id: validatedFields.data.productId, trainingProviderId: session.trainingProviderId }
         });
 
         if (!product) {
@@ -73,18 +74,24 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
 
 export async function updateCourse(id: string, values: z.infer<typeof formSchema>) {
     try {
+        const session = await getSession();
+        const permissions = session?.role.permissions as any;
+        if (!session?.id || !session.trainingProviderId || !permissions?.courses?.u) {
+            return { success: false, message: "Unauthorized: You do not have permission to update courses." };
+        }
+
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
         }
         
         const existingCourse = await prisma.course.findUnique({ where: { id } });
-        if (!existingCourse) {
-            return { success: false, message: "Course not found." };
+        if (!existingCourse || existingCourse.trainingProviderId !== session.trainingProviderId) {
+            return { success: false, message: "Course not found or you do not have permission to edit it." };
         }
 
         const product = await prisma.product.findUnique({
-            where: { id: validatedFields.data.productId }
+            where: { id: validatedFields.data.productId, trainingProviderId: session.trainingProviderId }
         });
 
         if (!product) {
@@ -129,6 +136,17 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
 
 export async function deleteCourse(id: string) {
     try {
+        const session = await getSession();
+        const permissions = session?.role.permissions as any;
+        if (!session?.id || !session.trainingProviderId || !permissions?.courses?.d) {
+            return { success: false, message: "Unauthorized: You do not have permission to delete courses." };
+        }
+
+        const course = await prisma.course.findUnique({ where: { id } });
+        if (!course || course.trainingProviderId !== session.trainingProviderId) {
+             return { success: false, message: "Course not found or you do not have permission to delete it." };
+        }
+
         await prisma.course.delete({
             where: { id }
         });
@@ -144,6 +162,17 @@ export async function deleteCourse(id: string) {
 
 export async function publishCourse(id: string) {
     try {
+        const session = await getSession();
+        const permissions = session?.role.permissions as any;
+        if (!session?.id || !session.trainingProviderId || !permissions?.approvals?.u) {
+            return { success: false, message: "Unauthorized: You do not have permission to publish courses." };
+        }
+        
+        const course = await prisma.course.findUnique({ where: { id } });
+        if (!course || course.trainingProviderId !== session.trainingProviderId) {
+             return { success: false, message: "Course not found or you do not have permission to publish it." };
+        }
+
         await prisma.course.update({
             where: { id },
             data: { status: 'PUBLISHED', rejectionReason: null }
@@ -165,9 +194,20 @@ const rejectionSchema = z.object({
 
 export async function rejectCourse(id: string, values: z.infer<typeof rejectionSchema>) {
     try {
+        const session = await getSession();
+        const permissions = session?.role.permissions as any;
+        if (!session?.id || !session.trainingProviderId || !permissions?.approvals?.u) {
+            return { success: false, message: "Unauthorized: You do not have permission to reject courses." };
+        }
+
         const validatedFields = rejectionSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
+        }
+
+        const course = await prisma.course.findUnique({ where: { id } });
+        if (!course || course.trainingProviderId !== session.trainingProviderId) {
+             return { success: false, message: "Course not found or you do not have permission to reject it." };
         }
 
         await prisma.course.update({
