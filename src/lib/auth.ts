@@ -23,6 +23,7 @@ interface CustomJwtPayload extends JWTPayload {
     trainingProviderId?: string;
     passwordChangeRequired?: boolean;
     tokenVersion?: number;
+    sessionId?: string;
 }
 
 // This function now reads from the cookies directly
@@ -43,6 +44,9 @@ export async function getSession() {
             if (payload.sessionId) {
                 const storedSession = await prisma.refreshToken.findFirst({ where: { userId: payload.userId, sessionId: payload.sessionId, revoked: false } });
                 if (!storedSession) return null; // session not found or revoked
+
+                 // update last activity timestamp (touch)
+                await prisma.refreshToken.update({ where: { id: storedSession.id }, data: { lastActivityAt: new Date() } });
             }
 
              return {
@@ -67,7 +71,7 @@ export async function getSession() {
     }
 
      try {
-        const { payload } = await jwtVerify<{ userId: string; tokenVersion: number }>(refreshToken, getJwtSecret('refresh'));
+        const { payload: decoded } = await jwtVerify<{ userId: string; tokenVersion: number; sessionId?: string }>(refreshToken, getJwtSecret('refresh'));
 
         // Server-side refresh token validation: look up token by hashed value
         const hashed = createHash('sha256').update(refreshToken).digest('hex');
@@ -79,10 +83,10 @@ export async function getSession() {
         }
 
         // If the refresh token payload contains a sessionId, ensure it matches the stored session
-        if ((decoded as any).sessionId && stored.sessionId && (decoded as any).sessionId !== stored.sessionId) {
+        if (decoded.sessionId && stored.sessionId && decoded.sessionId !== stored.sessionId) {
             // defensive revoke
             await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
-            securityLog('warn', 'getSession_refresh_session_mismatch', { storedSessionId: stored.sessionId, tokenSessionId: (decoded as any).sessionId });
+            securityLog('warn', 'getSession_refresh_session_mismatch', { storedSessionId: stored.sessionId, tokenSessionId: decoded.sessionId });
             return null;
         }
 
@@ -108,11 +112,11 @@ export async function getSession() {
         }
 
         const user = await prisma.user.findUnique({
-            where: { id: payload.userId },
+            where: { id: decoded.userId },
             include: { roles: { include: { role: true } } },
         });
 
-        if (!user || user.tokenVersion !== payload.tokenVersion) {
+        if (!user || user.tokenVersion !== decoded.tokenVersion) {
             return null; // User not found or token revoked
         }
 
