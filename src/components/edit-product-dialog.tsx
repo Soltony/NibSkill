@@ -34,7 +34,10 @@ import { X } from "lucide-react"
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
-  imageUrl: z.string().url("An image is required."),
+  imageUrl: z.string().url("An image is required.").refine(
+    (val) => val.startsWith('data:image/'),
+    "Uploaded file must be an image."
+  ),
   imageHint: z.string().optional(),
 })
 
@@ -160,7 +163,7 @@ export function EditProductDialog({ product }: EditProductDialogProps) {
                      </div>
                    ) : (
                     <FormControl>
-                      <Input type="file" accept="image/png, image/jpeg, image/gif" onChange={handleImageUpload} />
+                      <Input type="file" accept="image/*" onChange={handleImageUpload} />
                     </FormControl>
                    )}
                   <FormMessage />

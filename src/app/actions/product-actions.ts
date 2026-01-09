@@ -9,7 +9,10 @@ import { getSession } from '@/lib/auth'
 const productSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
   description: z.string().min(10, "Description must be at least 10 characters long."),
-  imageUrl: z.string().url("A valid image data URI is required."),
+  imageUrl: z.string().url("A valid image URL or data URI is required.").refine(
+    (val) => !val.startsWith('data:') || val.startsWith('data:image/'),
+    "Uploaded file must be an image."
+  ),
   imageHint: z.string().optional(),
 })
 
@@ -23,7 +26,7 @@ export async function addProduct(values: z.infer<typeof productSchema>) {
     const validatedFields = productSchema.safeParse(values)
 
     if (!validatedFields.success) {
-      return { success: false, message: 'Invalid data provided.' }
+      return { success: false, message: 'Invalid data provided. Please ensure you upload an image file.' }
     }
 
     await prisma.product.create({
@@ -49,7 +52,7 @@ export async function updateProduct(id: string, values: z.infer<typeof productSc
     const validatedFields = productSchema.safeParse(values)
 
     if (!validatedFields.success) {
-      return { success: false, message: 'Invalid data provided.' }
+      return { success: false, message: 'Invalid data provided. Please ensure you upload an image file.' }
     }
 
     await prisma.product.update({

@@ -6,15 +6,20 @@ import { z } from 'zod'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
 
+const imageValidation = z.string().refine(
+  (val) => val.startsWith('data:image/'), 
+  "Must be a valid image data URL."
+).nullable();
+
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
   organization: z.string().min(2, "Organization is required"),
   body: z.string().min(10, "Body text is required"),
-  logoUrl: z.string().nullable(),
+  logoUrl: imageValidation,
   signatoryName: z.string().min(3, "Signatory name is required"),
   signatoryTitle: z.string().min(3, "Signatory title is required"),
-  signatureUrl: z.string().nullable(),
-  stampUrl: z.string().nullable(),
+  signatureUrl: imageValidation,
+  stampUrl: imageValidation,
   primaryColor: z.string().optional(),
   borderStyle: z.string().optional(),
   templateStyle: z.string().optional(),
@@ -29,7 +34,7 @@ export async function updateCertificateTemplate(values: z.infer<typeof formSchem
 
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
-            return { success: false, message: "Invalid data provided." }
+            return { success: false, message: "Invalid data provided. Please ensure all uploaded files are images." }
         }
 
         await prisma.certificateTemplate.upsert({

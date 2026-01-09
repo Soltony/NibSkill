@@ -31,15 +31,21 @@ import { updateCertificateTemplate } from "@/app/actions/certificate-actions";
 import type { CertificateTemplate } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
+const imageValidation = z.string().refine(
+  (val) => !val || val.startsWith('data:image/'), 
+  "Must be a valid image data URL."
+).nullable();
+
+
 const formSchema = z.object({
   title: z.string().min(3, "Title is required"),
   organization: z.string().min(2, "Organization is required"),
   body: z.string().min(10, "Body text is required"),
-  logoUrl: z.string().nullable(),
+  logoUrl: imageValidation,
   signatoryName: z.string().min(3, "Signatory name is required"),
   signatoryTitle: z.string().min(3, "Signatory title is required"),
-  signatureUrl: z.string().nullable(),
-  stampUrl: z.string().nullable(),
+  signatureUrl: imageValidation,
+  stampUrl: imageValidation,
   primaryColor: z.string().optional(),
   borderStyle: z.string().optional(),
   templateStyle: z.string().optional(),
@@ -82,7 +88,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
         setter(dataUrl);
-        form.setValue(fieldName, dataUrl);
+        form.setValue(fieldName, dataUrl, { shouldValidate: true });
         toast({
           title: "Image Uploaded",
           description: "Your image has been locally selected. Save the template to persist it.",
@@ -94,7 +100,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
 
   const handleImageRemove = (setter: (url: string | null) => void, fieldName: "logoUrl" | "signatureUrl" | "stampUrl") => {
     setter(null);
-    form.setValue(fieldName, null);
+    form.setValue(fieldName, null, { shouldValidate: true });
     toast({
       title: "Image Removed",
       description: `The ${fieldName === 'logoUrl' ? 'logo' : (fieldName === 'signatureUrl' ? 'signature' : 'stamp')} image has been removed locally. Save to confirm.`,
@@ -268,7 +274,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
                     </div>
                   ) : (
                     <FormControl>
-                      <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setLogoUrl, 'logoUrl')} />
+                      <Input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setLogoUrl, 'logoUrl')} />
                     </FormControl>
                   )}
                   <FormMessage />
@@ -379,7 +385,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
                     </div>
                   ) : (
                     <FormControl>
-                      <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setSignatureUrl, 'signatureUrl')} />
+                      <Input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setSignatureUrl, 'signatureUrl')} />
                     </FormControl>
                   )}
                   <FormMessage />
@@ -395,7 +401,7 @@ export function CertificateForm({ template }: CertificateFormProps) {
                     </div>
                   ) : (
                     <FormControl>
-                      <Input type="file" accept="image/png, image/jpeg" onChange={(e) => handleImageUpload(e, setStampUrl, 'stampUrl')} />
+                      <Input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setStampUrl, 'stampUrl')} />
                     </FormControl>
                   )}
                   <FormMessage />

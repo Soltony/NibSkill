@@ -11,16 +11,29 @@ const formSchema = z.object({
   type: z.enum(["video", "pdf", "slides", "audio"]),
   duration: z.coerce.number().min(1, "Duration must be at least 1 minute."),
   description: z.string().min(10, "Description is required."),
-  content: z.string().min(1, "Content is required.").refine(val => val.startsWith('https://') || val.startsWith('data:'), {
-    message: "Content must be a valid URL or a file upload.",
-  }),
-})
+  content: z.string().min(1, "Content is required."),
+}).refine(data => {
+    if (data.content.startsWith('data:')) {
+        const mimeType = data.content.substring(5, data.content.indexOf(';'));
+        if (data.type === 'video' && !mimeType.startsWith('video/')) return false;
+        if (data.type === 'audio' && !mimeType.startsWith('audio/')) return false;
+        if (data.type === 'pdf' && mimeType !== 'application/pdf') return false;
+        if (data.type === 'slides' && !['application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/vnd.apple.keynote'].includes(mimeType)) return false;
+    } else if (!data.content.startsWith('https://')) {
+        return false;
+    }
+    return true;
+}, {
+    message: "File type does not match module type, or URL is invalid.",
+    path: ["content"],
+});
+
 
 export async function addModule(courseId: string, values: z.infer<typeof formSchema>) {
     try {
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
-            return { success: false, message: "Invalid data provided." }
+            return { success: false, message: "Invalid data provided. Please check file types and URLs." }
         }
 
         const { type, ...restOfData } = validatedFields.data;
@@ -45,7 +58,7 @@ export async function updateModule(id: string, values: z.infer<typeof formSchema
     try {
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
-            return { success: false, message: "Invalid data provided." }
+            return { success: false, message: "Invalid data provided. Please check file types and URLs." }
         }
         
         const { type, ...restOfData } = validatedFields.data;
