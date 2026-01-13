@@ -41,7 +41,6 @@ export type User = {
   district: string;
   branch: string;
   avatarUrl: string;
-  password?: string;
   phoneNumber?: string;
 };
 
@@ -193,7 +192,6 @@ export const users: User[] = [
     district: 'North Region',
     branch: 'Main Office',
     avatarUrl: 'https://picsum.photos/seed/user1/100/100',
-    password: 'skillup123'
   },
   {
     id: 'user-2',
@@ -205,13 +203,12 @@ export const users: User[] = [
     district: 'South Region',
     branch: 'Downtown Branch',
     avatarUrl: 'https://picsum.photos/seed/user2/100/100',
-    password: 'skillup123'
   },
-  { id: 'user-3', name: 'Samira Khan', email: 'samira.khan@example.com', phoneNumber: '251911111111', avatarUrl: 'https://picsum.photos/seed/user3/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'skillup123' },
-  { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', phoneNumber: '251922222222', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', department: 'Sales', district: 'South Region', branch: 'Downtown Branch', password: 'skillup123' },
-  { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', phoneNumber: '251933333333', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office', password: 'skillup123' },
-  { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', phoneNumber: '251944444444', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch', password: 'skillup123' },
-  { id: 'super-admin-user', name: 'Super Admin', email: 'super@nibtraining.com', phoneNumber: '251900000000', avatarUrl: 'https://picsum.photos/seed/superadmin/100/100', role: 'super-admin', department: 'Executive', district: 'North Region', branch: 'Main Office', password: 'superadmin123' },
+  { id: 'user-3', name: 'Samira Khan', email: 'samira.khan@example.com', phoneNumber: '251911111111', avatarUrl: 'https://picsum.photos/seed/user3/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office' },
+  { id: 'user-4', name: 'David Chen', email: 'david.chen@example.com', phoneNumber: '251922222222', avatarUrl: 'https://picsum.photos/seed/user4/100/100', role: 'staff', department: 'Sales', district: 'South Region', branch: 'Downtown Branch' },
+  { id: 'user-5', name: 'Emily White', email: 'emily.white@example.com', phoneNumber: '251933333333', avatarUrl: 'https://picsum.photos/seed/user5/100/100', role: 'staff', department: 'Engineering', district: 'North Region', branch: 'Main Office' },
+  { id: 'user-6', name: 'Michael Brown', email: 'michael.brown@example.com', phoneNumber: '251944444444', avatarUrl: 'https://picsum.photos/seed/user6/100/100', role: 'staff', department: 'Marketing', district: 'East Region', branch: 'Suburb Branch' },
+  { id: 'super-admin-user', name: 'Super Admin', email: 'super@nibtraining.com', phoneNumber: '251900000000', avatarUrl: 'https://picsum.photos/seed/superadmin/100/100', role: 'super-admin', department: 'Executive', district: 'North Region', branch: 'Main Office' },
 ];
 
 export const products: Product[] = [
