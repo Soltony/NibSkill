@@ -7,6 +7,7 @@ import prisma from '@/lib/db';
 import { jwtVerify, type JWTPayload } from 'jose';
 import { createHash } from 'crypto';
 import type { Role, User } from '@prisma/client';
+import { securityLog } from '@/lib/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -69,7 +70,7 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     const finalUser: VerifiedUser = { ...user, role: sessionRole };
     return finalUser;
   } catch (error) {
-    console.error('Auth verification failed:', error);
+    securityLog('error', 'auth_verification_failed', { error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }

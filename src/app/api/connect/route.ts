@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
+import { securityLog } from '@/lib/logger';
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
@@ -10,12 +11,13 @@ const getJwtSecret = () => {
 };
 
 export async function GET(request: NextRequest) {
-  console.log('[CONNECT] Incoming request:', request.url);
+  const ip = request.ip ?? request.headers.get('x-forwarded-for');
 
   try {
     const authHeader = request.headers.get('Authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      securityLog('warn', 'connect_missing_header', { ip });
       return NextResponse.json(
         { status: 'error', message: 'Authorization header is missing or invalid.' },
         { status: 401 }
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
     const token = authHeader.substring('Bearer '.length);
 
     if (!token) {
+       securityLog('warn', 'connect_missing_token', { ip });
       return NextResponse.json(
         { status: 'error', message: 'Bearer token is missing.' },
         { status: 401 }
@@ -33,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     const validationUrl = process.env.VALIDATE_TOKEN_URL;
     if (!validationUrl) {
-      console.error('[CONNECT] VALIDATE_TOKEN_URL not set');
+      securityLog('error', 'connect_missing_validation_url', { ip });
       return NextResponse.json(
         { status: 'error', message: 'Server configuration error.' },
         { status: 500 }
@@ -51,6 +54,7 @@ export async function GET(request: NextRequest) {
 
     if (!externalResponse.ok) {
       const errorText = await externalResponse.text();
+      securityLog('warn', 'connect_token_validation_failed', { ip, status: externalResponse.status });
       return NextResponse.json(
         {
           status: 'error',
@@ -65,6 +69,7 @@ export async function GET(request: NextRequest) {
     const phoneNumber = validationResult.phone;
 
     if (!phoneNumber) {
+       securityLog('error', 'connect_phone_not_found', { ip });
       return NextResponse.json(
         { status: 'error', message: 'Phone number not found in validation response.' },
         { status: 400 }
@@ -108,12 +113,12 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const redirectUrl = `${url.protocol}//${url.host}/dashboard`;
-
-    console.log('[CONNECT] Redirecting to:', redirectUrl);
+    
+    securityLog('info', 'connect_success', { ip, redirectUrl });
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {
-    console.error('[CONNECT] Unexpected error:', error);
+    securityLog('error', 'connect_unexpected_error', { ip, error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { status: 'error', message: 'An unexpected server error occurred.' },
       { status: 500 }
