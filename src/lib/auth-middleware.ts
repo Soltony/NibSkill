@@ -46,20 +46,42 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     // Session binding: ensure session exists and is active
     // Check whether this access token was revoked (blacklist)
     if (accessPayload.jti) {
-      try {
-        const revoked = await prisma.revokedAccessToken.findUnique({ where: { jti: accessPayload.jti } });
-        if (revoked) return null;
-      } catch (e) {
-        // ignore DB errors and continue (fail-open to avoid locking out users on DB issues)
-      }
+      const revoked = await prisma.revokedAccessToken.findUnique({ where: { jti: accessPayload.jti } });
+      if (revoked) return null;
     }
     if (!accessPayload.sessionId) return null;
     const session = await prisma.session.findUnique({ where: { id: accessPayload.sessionId } });
     if (!session || session.revokedAt || new Date(session.expiresAt).getTime() < Date.now()) return null;
 
+    // Enforce server-side inactivity using session.lastActivity
+    const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 15; // 15m default
+    const lastActivityMs = new Date(session.lastActivity).getTime();
+    if ((Date.now() - lastActivityMs) / 1000 > IDLE_TIMEOUT_SECONDS) {
+      // Revoke associated refresh tokens and mark session revoked
+      await prisma.refreshToken.updateMany({ where: { sessionId: session.id }, data: { revoked: true } });
+      await prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+      try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'session_idle_expired', { sessionId: session.id, userId: session.userId }); } catch (e) {}
+      return null;
+    }
+
     const user = await prisma.user.findUnique({ where: { id: accessPayload.userId }, include: { roles: { include: { role: true } } } });
     if (!user) return null;
     if (user.tokenVersion !== accessPayload.tokenVersion) return null;
+
+    // If the user is required to change their password, only allow password-change related endpoints
+    try {
+      const pwdRequired = !!user.passwordChangeRequired;
+      if (pwdRequired) {
+        const allowed = ['/api/auth/change-password', '/api/auth/reauthenticate', '/api/auth/logout'];
+        const path = req.nextUrl?.pathname ?? new URL(req.url).pathname;
+        if (!allowed.some(p => path.startsWith(p))) {
+          try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'auth_blocked_password_change_required', { userId: user.id, path }); } catch (e) {}
+          return null;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
 
     // update session lastActivity
     try { await prisma.session.update({ where: { id: session.id }, data: { lastActivity: new Date() } }); } catch (e) {}
@@ -70,7 +92,47 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     const finalUser: VerifiedUser = { ...user, role: sessionRole };
     return finalUser;
   } catch (error) {
-    securityLog('error', 'auth_verification_failed', { error: error instanceof Error ? error.message : String(error) });
+    try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'auth_token_verification_failed', { error: String(error) }); } catch (e) {}
+
+    // Attempt to proactively revoke any stored refresh token and associated session when token verification fails.
+    try {
+      const cookieStore = cookies();
+      const refreshToken = cookieStore.get('refresh_token')?.value;
+      if (refreshToken) {
+        const hashed = createHash('sha256').update(refreshToken).digest('hex');
+        const stored = await prisma.refreshToken.findUnique({ where: { hashedToken: hashed } });
+        if (stored) {
+          try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (e) {}
+          if (stored.sessionId) {
+            try { await prisma.session.update({ where: { id: stored.sessionId }, data: { revokedAt: new Date() } }); } catch (e) {}
+            try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'auth_verification_revoke', { tokenId: stored.id, userId: stored.userId, sessionId: stored.sessionId }); } catch (e) {}
+          }
+        }
+      }
+
+      // Try to extract any JTI from the access token payload (best-effort without verification) and blacklist it.
+      const accessToken = cookieStore.get('auth_token')?.value;
+      if (accessToken) {
+        try {
+          const parts = accessToken.split('.');
+          if (parts.length >= 2) {
+            const payloadJson = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+            const payload = JSON.parse(payloadJson);
+            const jti = payload?.jti;
+            const exp = payload?.exp;
+            if (jti) {
+              try { await prisma.revokedAccessToken.create({ data: { jti, expiresAt: exp ? new Date(exp * 1000) : new Date(Date.now() + 1000 * 60 * 60) } }); } catch (e) {}
+              try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'auth_revoke_access_jti', { jti }); } catch (e) {}
+            }
+          }
+        } catch (e) {
+          // ignore payload parsing errors here
+        }
+      }
+    } catch (e) {
+      try { const { securityLog } = await import('@/lib/logger'); securityLog('error', 'auth_verification_revoke_error', { error: String(e) }); } catch (e) {}
+    }
+
     return null;
   }
 }

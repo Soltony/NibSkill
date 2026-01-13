@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { requirePermission } from '@/lib/authorization'
 
 const productSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters long."),
@@ -19,9 +20,12 @@ const productSchema = z.object({
 export async function addProduct(values: z.infer<typeof productSchema>) {
   try {
     const session = await getSession();
-    if (!session || !session.trainingProviderId) {
-      return { success: false, message: "Unauthorized operation." };
-    }
+    if (!session) return { success: false, message: "Not authenticated." };
+
+    // Server-side permission check: require explicit create permission on products
+    try { requirePermission(session, 'products', 'c'); } catch (e: any) { return { success: false, message: 'Forbidden: insufficient permissions.' }; }
+
+    if (!session.trainingProviderId) return { success: false, message: 'Forbidden: user has no training provider.' };
 
     const validatedFields = productSchema.safeParse(values)
 
@@ -49,11 +53,22 @@ export async function addProduct(values: z.infer<typeof productSchema>) {
 
 export async function updateProduct(id: string, values: z.infer<typeof productSchema>) {
    try {
+    const session = await getSession();
+    if (!session) return { success: false, message: "Not authenticated." };
+
+    // Require update permission
+    try { requirePermission(session, 'products', 'u'); } catch (e: any) { return { success: false, message: 'Forbidden: insufficient permissions.' }; }
+
     const validatedFields = productSchema.safeParse(values)
 
     if (!validatedFields.success) {
       return { success: false, message: 'Invalid data provided. Please ensure you upload an image file.' }
     }
+
+    // Ensure product belongs to the same training provider
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) return { success: false, message: 'Product not found.' };
+    if (existing.trainingProviderId !== session.trainingProviderId) return { success: false, message: 'Forbidden: cannot modify product from another provider.' };
 
     await prisma.product.update({
       where: { id },
@@ -76,7 +91,17 @@ export async function updateProduct(id: string, values: z.infer<typeof productSc
 
 export async function deleteProduct(id: string) {
   try {
+    const session = await getSession();
+    if (!session) return { success: false, message: "Not authenticated." };
+
+    // Require delete permission
+    try { requirePermission(session, 'products', 'd'); } catch (e: any) { return { success: false, message: 'Forbidden: insufficient permissions.' }; }
+
     // Check if any courses are associated with this product
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) return { success: false, message: 'Product not found.' };
+    if (existing.trainingProviderId !== session.trainingProviderId) return { success: false, message: 'Forbidden: cannot delete product from another provider.' };
+
     const associatedCourses = await prisma.course.count({
       where: { productId: id },
     });

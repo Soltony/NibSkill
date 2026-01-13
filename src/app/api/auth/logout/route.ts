@@ -27,6 +27,10 @@ interface DecodedToken extends JWTPayload {
 }
 
 export async function POST(req: NextRequest) {
+    // Track the user id (if found) to log a logout success at the end
+    let logoutUserId: string | null = null;
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || null;
+
     try {
         const cookieStore = cookies();
         const refreshToken = cookieStore.get('refresh_token')?.value;
@@ -40,6 +44,7 @@ export async function POST(req: NextRequest) {
                 });
 
                 if (storedToken) {
+                    logoutUserId = storedToken.userId;
                     // 2. Revoke the specific refresh token
                     await prisma.refreshToken.update({
                         where: { id: storedToken.id },
@@ -71,8 +76,9 @@ export async function POST(req: NextRequest) {
                 const exp = (payload as any).exp; // seconds since epoch
                 if (jti && exp) {
                     await prisma.revokedAccessToken.create({ data: { jti, expiresAt: new Date(exp * 1000) } });
-                    securityLog('audit', 'logout_revoke_access_token', { jti, userId: (payload as any).userId });
+                    try { securityLog('audit', 'logout_revoke_access_token', { jti, userId: (payload as any).userId }); } catch (e) {}
                 }
+                if ((payload as any).userId) logoutUserId = (payload as any).userId;
             } catch (e) {
                 // Ignore errors if access token is invalid/expired already
             }
@@ -89,6 +95,8 @@ export async function POST(req: NextRequest) {
     response.cookies.set('auth_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', expires: new Date(0) });
     response.cookies.set('refresh_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', expires: new Date(0) });
     response.cookies.set('refresh_sid', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', expires: new Date(0) });
+
+    try { securityLog('audit', 'logout_success', { userId: logoutUserId, ip }); } catch (e) {}
 
     return response;
 }

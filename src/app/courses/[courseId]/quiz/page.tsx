@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { BookCopy, ShieldIcon } from 'lucide-react';
+import { generateSecureInt } from '@/lib/crypto'
 
 type QuizType = TQuiz & { 
   questions: (Question & { options: TOption[] })[],
@@ -110,7 +111,19 @@ export default async function QuizPage({ params }: { params: { courseId: string 
         )
     }
     
-    const shuffledQuestions = [...quiz.questions].sort(() => Math.random() - 0.5);
+    // Secure Fisher-Yates shuffle using crypto-backed RNG
+    const secureShuffle = <T,>(arr: T[]) => {
+        const out = [...arr];
+        for (let i = out.length - 1; i > 0; i--) {
+            const j = generateSecureInt(0, i);
+            const tmp = out[i];
+            out[i] = out[j];
+            out[j] = tmp;
+        }
+        return out;
+    }
+
+    const shuffledQuestions = secureShuffle(quiz.questions);
     const quizWithShuffled = {
         ...quiz,
         questions: shuffledQuestions,

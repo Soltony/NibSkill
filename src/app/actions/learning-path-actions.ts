@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { requirePermission } from '@/lib/authorization'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters."),
@@ -18,10 +19,9 @@ const formSchema = z.object({
 export async function addLearningPath(values: z.infer<typeof formSchema>) {
     try {
         const session = await getSession();
-        const permissions = session?.role.permissions as any;
-        if (!session?.id || !session.trainingProviderId || !permissions?.learningPaths?.c) {
-            return { success: false, message: "Unauthorized: You do not have permission to create learning paths." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'learningPaths', 'c'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to create learning paths." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -56,10 +56,9 @@ export async function addLearningPath(values: z.infer<typeof formSchema>) {
 export async function updateLearningPath(id: string, values: z.infer<typeof formSchema>) {
     try {
         const session = await getSession();
-        const permissions = session?.role.permissions as any;
-        if (!session?.id || !session.trainingProviderId || !permissions?.learningPaths?.u) {
-            return { success: false, message: "Unauthorized: You do not have permission to update learning paths." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'learningPaths', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update learning paths." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -102,10 +101,9 @@ export async function updateLearningPath(id: string, values: z.infer<typeof form
 export async function deleteLearningPath(id: string) {
     try {
         const session = await getSession();
-        const permissions = session?.role.permissions as any;
-        if (!session?.id || !session.trainingProviderId || !permissions?.learningPaths?.d) {
-            return { success: false, message: "Unauthorized: You do not have permission to delete learning paths." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'learningPaths', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete learning paths." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const learningPath = await prisma.learningPath.findUnique({ where: { id } });
         if (!learningPath || learningPath.trainingProviderId !== session.trainingProviderId) {

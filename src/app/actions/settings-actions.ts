@@ -8,6 +8,7 @@ import prisma from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { FieldType } from '@prisma/client'
 import { getSession } from '@/lib/auth'
+import { requirePermission } from '@/lib/authorization'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
 import { recordPasswordHistory } from '@/lib/password'
@@ -92,9 +93,9 @@ const registerUserSchema = z.object({
 export async function registerUser(values: z.infer<typeof registerUserSchema>) {
     try {
         const session = await getSession();
-        if (!session || !session.trainingProviderId) {
-            return { success: false, message: "Unauthorized operation." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'c'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to register users." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const validatedFields = registerUserSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -195,9 +196,9 @@ const roleSchema = z.object({
 export async function addRole(values: z.infer<typeof roleSchema>) {
     try {
         const session = await getSession();
-        if (!session || !session.trainingProviderId) {
-            return { success: false, message: "Unauthorized" };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'c'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to create roles." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const validatedFields = roleSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -226,6 +227,11 @@ export async function addRole(values: z.infer<typeof roleSchema>) {
 
 export async function updateRole(id: string, values: z.infer<typeof roleSchema>) {
     try {
+        const session = await getSession();
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update roles." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
+
         const validatedFields = roleSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: 'Invalid data provided.' };
@@ -251,6 +257,16 @@ export async function updateRole(id: string, values: z.infer<typeof roleSchema>)
 
 export async function deleteRole(roleId: string) {
     try {
+        const session = await getSession();
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete roles." }; }
+        
+        const role = await prisma.role.findUnique({ where: { id: roleId } });
+        if (!role) return { success: false, message: 'Role not found.' };
+        if (role.trainingProviderId && role.trainingProviderId !== session.trainingProviderId && session.role.name !== 'Super Admin') {
+          return { success: false, message: 'Forbidden: cannot delete roles from another provider.' };
+        }
+
         await prisma.role.delete({ where: { id: roleId }});
         revalidatePath('/admin/settings');
         return { success: true, message: 'Role deleted successfully.' };
@@ -265,6 +281,16 @@ export async function deleteRole(roleId: string) {
 
 export async function deleteUser(userId: string) {
     try {
+        const session = await getSession();
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete users." }; }
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return { success: false, message: 'User not found.' };
+        if (user.trainingProviderId && user.trainingProviderId !== session.trainingProviderId && session.role.name !== 'Super Admin') {
+          return { success: false, message: 'Forbidden: cannot delete users from another provider.' };
+        }
+
         await prisma.user.delete({ where: { id: userId }});
         revalidatePath('/admin/settings');
         return { success: true, message: 'User deleted successfully.' };
@@ -285,6 +311,10 @@ const registrationFieldsSchema = z.object({
 
 export async function updateRegistrationFields(values: z.infer<typeof registrationFieldsSchema>) {
     try {
+        const session = await getSession();
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update registration fields." }; }
+
         const validatedFields = registrationFieldsSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data provided." }
@@ -321,9 +351,9 @@ const addFieldSchema = z.object({
 export async function addRegistrationField(values: z.infer<typeof addFieldSchema>) {
     try {
         const session = await getSession();
-        if (!session || !session.trainingProviderId) {
-            return { success: false, message: "Unauthorized" };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'c'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to add registration fields." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const validatedFields = addFieldSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -356,6 +386,10 @@ export async function addRegistrationField(values: z.infer<typeof addFieldSchema
 
 export async function deleteRegistrationField(id: string) {
     try {
+        const session = await getSession();
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete registration fields." }; }
+
         await prisma.registrationField.delete({ where: { id }});
         revalidatePath('/admin/settings');
         return { success: true, message: 'Field deleted successfully.' };

@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
         tokenVersion: user.tokenVersion,
         sessionId: stored.sessionId,
         jti: randomUUID(),
+        passwordChangeRequired: user.passwordChangeRequired,
       })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()

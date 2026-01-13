@@ -45,18 +45,35 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const countdownRef = useRef<NodeJS.Timeout>();
 
   const handleLogout = async () => {
-    await logout();
-    window.location.href = '/login';
-  };
+    // Hide the dialog and clear countdown immediately
+    setShowTimeoutDialog(false);
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+
+    try {
+      // Ensure server revokes session and clears auth cookies
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      // Ignore network errors - still redirect to login
+    } finally {
+      // Force a full page navigation so cookies cleared by the server are respected
+        router.push('/login');
+    }
+  }; 
 
   const onIdle = () => {
     if (currentUser && !currentUser.isGuest) {
       setShowTimeoutDialog(true);
       setCountdown(60);
+      // Prevent duplicate intervals
+      if (countdownRef.current) clearInterval(countdownRef.current);
       countdownRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
-            clearInterval(countdownRef.current!);
+            if (countdownRef.current) clearInterval(countdownRef.current);
+            // Hide the dialog immediately and trigger logout
+            setShowTimeoutDialog(false);
             handleLogout();
             return 0;
           }

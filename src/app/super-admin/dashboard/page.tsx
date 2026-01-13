@@ -10,6 +10,7 @@ import prisma from "@/lib/db"
 import { BookCopy, Building, Radio, Users } from "lucide-react"
 import { SuperAdminCharts } from "./super-admin-charts"
 import { subDays, format } from "date-fns";
+import { getSession } from '@/lib/auth'
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,14 @@ async function getSuperAdminData() {
 
 
 export default async function SuperAdminDashboard() {
+  const session = await getSession();
+  // Deny access by default - only Super Admins can view this page
+  if (!session?.id || session.role.name !== 'Super Admin') {
+    // Use notFound so the not-found handler can decide how to respond (redirect to /profile)
+    const { notFound } = await import('next/navigation');
+    notFound();
+  }
+
   const stats = await getSuperAdminData();
 
   return (

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { requirePermission } from '@/lib/authorization'
 
 // District Actions
 const districtSchema = z.object({
@@ -17,6 +18,8 @@ export async function addDistrict(values: z.infer<typeof districtSchema>) {
     if (!session || !session.trainingProviderId) {
         return { success: false, message: "Unauthorized" };
     }
+    try { requirePermission(session, 'staff', 'c'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to add districts." }; }
+
     const validatedFields = districtSchema.safeParse(values)
     if (!validatedFields.success) {
       return { success: false, message: "Invalid data provided." }
@@ -43,6 +46,7 @@ export async function updateDistrict(id: string, values: z.infer<typeof district
     if (!session || !session.trainingProviderId) {
         return { success: false, message: "Unauthorized" };
     }
+    try { requirePermission(session, 'staff', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update districts." }; }
 
     const validatedFields = districtSchema.safeParse(values)
     if (!validatedFields.success) {
@@ -73,6 +77,7 @@ export async function deleteDistrict(id: string) {
     if (!session || !session.trainingProviderId) {
         return { success: false, message: "Unauthorized" };
     }
+    try { requirePermission(session, 'staff', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete districts." }; }
 
     const district = await prisma.district.findUnique({ where: { id } });
     if (!district || district.trainingProviderId !== session.trainingProviderId) {
@@ -103,6 +108,7 @@ export async function addBranch(values: z.infer<typeof branchSchema>) {
         if (!session || !session.trainingProviderId) {
             return { success: false, message: "Unauthorized" };
         }
+        try { requirePermission(session, 'staff', 'c'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to add branches." }; }
         const validatedFields = branchSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data." };
@@ -126,6 +132,7 @@ export async function updateBranch(id: string, values: z.infer<typeof branchSche
         if (!session || !session.trainingProviderId) {
             return { success: false, message: "Unauthorized" };
         }
+        try { requirePermission(session, 'staff', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update branches." }; }
 
         const validatedFields = branchSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -154,6 +161,7 @@ export async function deleteBranch(id: string) {
         if (!session || !session.trainingProviderId) {
             return { success: false, message: "Unauthorized" };
         }
+        try { requirePermission(session, 'staff', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete branches." }; }
 
         const branch = await prisma.branch.findUnique({ where: { id } });
         if (!branch || branch.trainingProviderId !== session.trainingProviderId) {
@@ -183,6 +191,7 @@ export async function addDepartment(values: z.infer<typeof departmentSchema>) {
         if (!session || !session.trainingProviderId) {
             return { success: false, message: "Unauthorized" };
         }
+        try { requirePermission(session, 'staff', 'c'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to add departments." }; }
         const validatedFields = departmentSchema.safeParse(values);
         if (!validatedFields.success) {
             return { success: false, message: "Invalid data." };
@@ -206,6 +215,7 @@ export async function updateDepartment(id: string, values: z.infer<typeof depart
         if (!session || !session.trainingProviderId) {
             return { success: false, message: "Unauthorized" };
         }
+        try { requirePermission(session, 'staff', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update departments." }; }
         
         const validatedFields = departmentSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -234,6 +244,7 @@ export async function deleteDepartment(id: string) {
         if (!session || !session.trainingProviderId) {
             return { success: false, message: "Unauthorized" };
         }
+        try { requirePermission(session, 'staff', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete departments." }; }
 
         const department = await prisma.department.findUnique({ where: { id } });
         if (!department || department.trainingProviderId !== session.trainingProviderId) {

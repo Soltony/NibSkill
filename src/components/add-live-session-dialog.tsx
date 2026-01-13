@@ -52,7 +52,7 @@ const formSchema = z.object({
   allowedUserIds: z.array(z.string()).optional(),
 }).refine(data => {
     if (data.isRestricted && (!data.allowedUserIds || data.allowedUserIds.length === 0)) {
-        return false;
+        return false
     }
     return true;
 }, {

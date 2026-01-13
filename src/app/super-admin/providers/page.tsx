@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { ToggleProviderStatusButton } from "../toggle-provider-status-button"
 import { ResendAdminEmailButton } from "../resend-admin-email-button"
+import { getSession } from '@/lib/auth'
 
 type ProviderWithAdmin = TrainingProvider & { users: User[] };
 export const dynamic = "force-dynamic";
@@ -51,6 +52,12 @@ async function getProviders() {
 
 
 export default async function SuperAdminProvidersPage() {
+  const session = await getSession();
+  if (!session?.id || session.role.name !== 'Super Admin') {
+    const { notFound } = await import('next/navigation');
+    notFound();
+  }
+
   const providers = await getProviders();
 
   return (
