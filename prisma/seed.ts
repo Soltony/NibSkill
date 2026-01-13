@@ -66,7 +66,7 @@ async function main() {
   
   // Seed Roles and Permissions
   for (const role of initialRoles) {
-    const isGlobal = role.name === 'Super Admin' || role.name === 'Training Provider';
+    const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
     
     await prisma.role.upsert({
       where: { id: role.id },
@@ -85,7 +85,7 @@ async function main() {
 
   // Seed Users
   for (const user of initialUsers) {
-    const { id, department, district, branch, role, password, ...userData } = user as any;
+    const { id, department, district, branch, role, ...userData } = user as any;
 
     const departmentRecord = await prisma.department.findFirst({ where: { name: department, trainingProviderId: provider.id } });
     const districtRecord = await prisma.district.findFirst({ where: { name: district, trainingProviderId: provider.id } });
@@ -97,6 +97,8 @@ async function main() {
     else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'provider-admin' } });
     else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: provider.id } });
     
+    // Securely generate and hash a password for each user
+    const password = `${user.name.split(' ')[0].toLowerCase()}123!`;
     const hashedPassword = await bcrypt.hash(password, 10);
     const isSuperAdmin = role === 'super-admin';
 
@@ -430,5 +432,7 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
 
     
