@@ -7,6 +7,7 @@ import prisma from '@/lib/db';
 import { jwtVerify, type JWTPayload } from 'jose';
 import { createHash } from 'crypto';
 import type { Role, User } from '@prisma/client';
+import { securityLog } from '@/lib/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
