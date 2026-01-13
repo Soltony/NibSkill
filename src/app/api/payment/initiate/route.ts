@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, message: 'Payment service timed out.' }, { status: 504 });
       }
       securityLog('error', 'payment_init_fetch_failed', { userId, error: err?.message ?? String(err) });
-      return NextResponse.json({ success: false, message: 'Could not connect to NIB payment service.' }, { status: 502 });
+      return NextResponse.json({ success: false, message: 'Could not connect to payment service.' }, { status: 502 });
     } finally {
       clearTimeout(timeoutId);
     }
@@ -235,12 +235,12 @@ export async function POST(request: NextRequest) {
       responseData = JSON.parse(responseText);
     } catch (e) {
       securityLog('error', 'payment_init_parse_error', { userId, responseText });
-      return NextResponse.json({ error: 'Failed to parse NIB payment response.', raw: responseText }, { status: 502 });
+      return NextResponse.json({ success: false, message: 'Failed to parse payment service response.' }, { status: 502 });
     }
     
     if (!paymentResponse.ok) {
       securityLog('warn', 'payment_init_gateway_error', { userId, status: paymentResponse.status, response: responseData });
-      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request.', details: responseData }, { status: paymentResponse.status });
+      return NextResponse.json({ success: false, message: 'Payment gateway rejected the request.' }, { status: paymentResponse.status });
     }
     
     const paymentToken = responseData?.token;
@@ -257,6 +257,6 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && (error.name === 'JWTExpired' || error.name === 'JOSEError')) {
         return NextResponse.json({ success: false, message: 'Your session has expired. Please re-enter from the Super App.' }, { status: 401 });
     }
-    return NextResponse.json({ success: false, message: 'Internal server error.' }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'An internal server error occurred.' }, { status: 500 });
   }
 }
