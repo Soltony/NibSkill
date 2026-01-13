@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
           errors: [
             `Too many failed attempts. Please try again in ${timeLeft} seconds.`,
           ],
+          lockoutInfo: {
+            isLockedOut: true,
+            lockoutEndsAt: loginAttempts[ip].lockoutEndsAt,
+          }
         },
         { status: 429 }
       );
@@ -66,7 +71,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Log the login attempt (will record both successful and failed attempts via later logs)
     try { securityLog('info', 'login_attempt', { phoneNumber, loginAs, ip }); } catch (e) {}
 
     const user = await prisma.user.findUnique({
@@ -77,17 +81,22 @@ export async function POST(req: NextRequest) {
     const failLogin = () => {
       const attempt = loginAttempts[ip] || { count: 0, lockoutUntil: 0 };
       attempt.count++;
+      let lockoutInfo: any = { isLockedOut: false, remainingAttempts: MAX_LOGIN_ATTEMPTS - attempt.count };
+
       if (attempt.count >= MAX_LOGIN_ATTEMPTS) {
         attempt.lockoutEndsAt = new Date(
           Date.now() + LOCKOUT_DURATION_SECONDS * 1000
         );
         attempt.lockoutUntil = attempt.lockoutEndsAt.getTime();
-        attempt.count = 0;
+        attempt.count = 0; // Reset count after setting lockout
+        lockoutInfo = { isLockedOut: true, lockoutEndsAt: attempt.lockoutEndsAt };
       }
+      
       loginAttempts[ip] = attempt;
-      try { securityLog('warn', 'login_failed', { phoneNumber, loginAs, ip }); } catch (e) {}
+      try { securityLog('warn', 'login_failed', { phoneNumber, loginAs, ip, remainingAttempts: lockoutInfo.remainingAttempts }); } catch (e) {}
+      
       return NextResponse.json(
-        { isSuccess: false, errors: ['Invalid credentials.'] },
+        { isSuccess: false, errors: ['Invalid credentials.'], lockoutInfo },
         { status: 401 }
       );
     };
@@ -123,7 +132,6 @@ export async function POST(req: NextRequest) {
       tokenVersion: user.tokenVersion,
       jti,
       sessionId,
-      passwordChangeRequired: user.passwordChangeRequired,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -143,12 +151,14 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json(
       {
         isSuccess: true,
-        redirectTo:
+        redirectTo: user.passwordChangeRequired ? '/change-password' : (
           role.name === 'Admin'
             ? '/admin/analytics'
             : role.name === 'Super Admin'
             ? '/super-admin/dashboard'
-            : '/dashboard',
+            : '/dashboard'
+        ),
+        passwordChangeRequired: user.passwordChangeRequired,
       },
       { status: 200 }
     );
@@ -168,7 +178,6 @@ export async function POST(req: NextRequest) {
       maxAge: REFRESH_TOKEN_EXPIRES_IN_SECONDS,
     });
 
-    // Set a session identifier cookie (used by refresh endpoint to validate session)
     response.cookies.set('refresh_sid', sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -211,7 +220,7 @@ export async function POST(req: NextRequest) {
       stack: error.stack,
     });
     return NextResponse.json(
-      { isSuccess: false, errors: ['Internal server error.'] },
+      { isSuccess: false, errors: ['An internal server error occurred.'] },
       { status: 500 }
     );
   }
