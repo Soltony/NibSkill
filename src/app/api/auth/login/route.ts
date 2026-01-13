@@ -212,6 +212,19 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    try {
+      // Record login history for audit purposes (best-effort)
+      await prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          ipAddress: ip || null,
+          userAgent: req.headers.get('user-agent') || null,
+        },
+      });
+    } catch (e) {
+      try { securityLog('warn', 'login_history_write_failed', { userId: user.id, error: String(e) }); } catch (ee) {}
+    }
+
     try { securityLog('audit', 'login_success', { userId: user.id, ip, role: role.name, loginAs }); } catch (e) {}
     return response;
   } catch (error: any) {
