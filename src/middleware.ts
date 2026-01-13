@@ -53,42 +53,88 @@ export async function middleware(request: NextRequest) {
   // Best-effort timeout checks in middleware (edge runtime cannot access DB).
   // Decode the access token payload and enforce approximate idle/absolute timeouts
   if (accessToken) {
+    // Middleware must remain stateless and lightweight. Perform *only* a best-effort, unsigned
+    // decode of the token to detect malformed tokens and expired/oversized sessions.
+    // Heavy cryptographic verification and revocation must happen in server code (verifyAuth).
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
+
+    // Best-effort decode — don't trust claims, only use them for best-effort checks.
     const payload: any = decodeJwtPayload(accessToken as string);
-    // If refresh token is present, ensure sessionId matches as a quick check
+    if (!payload) {
+      // Token is malformed — clear cookies and redirect to login (no fetch, no DB access)
+      try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_malformed_access_token', { path: pathname, ip }); } catch (e) {}
+      const loginUrl = new URL('/login', request.url);
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+      response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: -1 });
+      return response;
+    }
+
+    // If refresh token is present, ensure sessionId matches as a quick unsigned check
     if (refreshToken && payload && payload.sessionId) {
       const refreshPayload: any = decodeJwtPayload(refreshToken as string);
-      if (refreshPayload?.sessionId && refreshPayload.sessionId !== payload.sessionId) {
+      if (!refreshPayload) {
+        try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_malformed_refresh_token', { path: pathname, ip }); } catch (e) {}
         const loginUrl = new URL('/login', request.url);
         const response = NextResponse.redirect(loginUrl);
         response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
         response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
-        try {
-          const { securityLog } = await import('@/lib/logger');
-          const ip = request.ip || request.headers.get('x-forwarded-for') || null;
-          securityLog('warn', 'middleware_session_mismatch', { path: pathname, ip });
-        } catch (e) {}
+        response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: -1 });
+        return response;
+      }
+
+      if (refreshPayload?.sessionId && refreshPayload.sessionId !== payload.sessionId) {
+        try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_session_mismatch', { path: pathname, ip }); } catch (e) {}
+        const loginUrl = new URL('/login', request.url);
+        const response = NextResponse.redirect(loginUrl);
+        response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: -1 });
         return response;
       }
     }
 
-    if (payload && payload.iat) {
-      const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30;
-      const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30;
-      const now = Math.floor(Date.now() / 1000);
-      const issuedAt = typeof payload.iat === 'number' ? payload.iat : parseInt(payload.iat || '0', 10);
+    // If the access token indicates the user must change their password, redirect to change-password
+    if (payload && payload.passwordChangeRequired) {
+      const allowedForPasswordChange = ['/change-password', '/api/auth/change-password', '/api/auth/reauthenticate', '/api/auth/logout', '/login'];
+      const isAllowed = allowedForPasswordChange.some(p => pathname.startsWith(p));
+      if (!isAllowed) {
+        try {
+          const { securityLog } = await import('@/lib/logger');
+          securityLog('warn', 'middleware_redirect_to_change_password', { path: pathname, ip });
+        } catch (e) {}
+        const changeUrl = new URL('/change-password', request.url);
+        return NextResponse.redirect(changeUrl);
+      }
+    }
 
-      if (now - issuedAt > MAX_SESSION_AGE_SECONDS || now - issuedAt > IDLE_TIMEOUT_SECONDS) {
+    if (payload && payload.iat) {
+      const now = Math.floor(Date.now() / 1000);
+
+      // Respect `exp` claim if present
+      if (payload.exp && now >= Number(payload.exp)) {
+        try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_token_expire_redirect', { path: pathname, ip }); } catch (e) {}
         const loginUrl = new URL('/login', request.url);
         const response = NextResponse.redirect(loginUrl);
         response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
         response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
-        try {
-          const ip = request.ip || request.headers.get('x-forwarded-for') || null;
-          const { securityLog } = await import('@/lib/logger');
-          securityLog('warn', 'middleware_token_expire_redirect', { path: pathname, ip });
-        } catch (e) {
-          // ignore
-        }
+        response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: -1 });
+        return response;
+      }
+
+      // Enforce only absolute session age approximation (default 7 days). Do NOT treat as activity-based idle enforcement.
+      const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 7;
+      const issuedAt = typeof payload.iat === 'number' ? payload.iat : parseInt(payload.iat || '0', 10);
+
+      if (now - issuedAt > MAX_SESSION_AGE_SECONDS) {
+        try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_token_expire_redirect', { path: pathname, ip }); } catch (e) {}
+        const loginUrl = new URL('/login', request.url);
+        const response = NextResponse.redirect(loginUrl);
+        response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        response.cookies.set('auth_token', '', { httpOnly: true, path: '/', maxAge: -1 });
+        response.cookies.set('refresh_sid', '', { httpOnly: true, path: '/', maxAge: -1 });
         return response;
       }
     }

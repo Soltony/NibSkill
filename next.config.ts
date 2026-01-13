@@ -78,6 +78,24 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  // Server Actions body size limit: configurable via env var `SERVER_ACTION_BODY_SIZE_LIMIT`.
+  // WARNING: increasing/removing this limit can expose the server to large request bodies and potential DoS attacks.
+  // If you need to allow larger Server Action payloads (e.g., large JSON payloads), set the env var to a sensible value
+  // like '10mb' or '50mb'. Avoid setting this to an unbounded value in production.
+  //
+  // Middleware-specific note: the middleware runs at the edge and has a separate client body size limit
+  // (default 10MB). Large POST/PUT payloads that reach middleware (e.g., administrative course JSON) can hit
+  // the 10MB limit and cause `Unterminated string` JSON errors when parsing in middleware. To raise that limit,
+  // set `MIDDLEWARE_CLIENT_MAX_BODY_SIZE` (env var) to a value like '50mb' below.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: (process.env.SERVER_ACTION_BODY_SIZE_LIMIT as any) || '50mb',
+    },
+    // Controls how large a request body the middleware client will accept (default 10mb).
+    // Use with caution; do not set to an unbounded value in production.
+    middlewareClientMaxBodySize: (process.env.MIDDLEWARE_CLIENT_MAX_BODY_SIZE as any) || '50mb',
+  },
 };
 
 export default nextConfig;

@@ -474,13 +474,14 @@ model RefreshToken {
 }
 
 model Session {
-  id           String   @id
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  revokedAt    DateTime?
-  expiresAt    DateTime
-  lastActivity DateTime @default(now())
-  createdAt    DateTime @default(now())
+  id                String   @id
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedAt         DateTime?
+  expiresAt         DateTime
+  lastActivity      DateTime @default(now())
+  reauthenticatedAt DateTime? // Set when the user re-enters credentials for sensitive actions
+  createdAt         DateTime @default(now())
 
   @@index([userId])
   @@index([id])

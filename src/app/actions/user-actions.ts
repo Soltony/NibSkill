@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import { cookies } from 'next/headers'
-import { getSession } from '@/lib/auth'
+import { getSession, requireRecentReauthForSession } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
@@ -198,6 +198,17 @@ export async function updateUserProfile(values: z.infer<typeof profileFormSchema
         const existingUserWithPhone = phoneNumber ? await prisma.user.findFirst({ where: { phoneNumber, id: { not: session.id } } }) : null;
         if (existingUserWithPhone) {
             return { success: false, message: "Phone number is already in use by another account." };
+        }
+
+        // Require recent re-authentication for sensitive identity changes
+        if ((email && email !== session.email) || (phoneNumber && phoneNumber !== session.phoneNumber)) {
+            const { cookies } = await import('next/headers');
+            const localSessionId = cookies().get('refresh_sid')?.value;
+            const reauthOk = localSessionId ? await requireRecentReauthForSession(localSessionId) : false;
+            if (!reauthOk) {
+                try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'sensitive_change_reauth_required', { userId: session.id }); } catch (e) {}
+                return { success: false, message: "Please re-authenticate to change your email or phone number." };
+            }
         }
 
         await prisma.user.update({

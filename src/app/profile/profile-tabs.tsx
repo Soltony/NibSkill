@@ -125,6 +125,12 @@ export function ProfileTabs({ user, completedCourses, userBadges, learningPathCo
                 description: "Your profile information has been successfully updated.",
             })
         } else {
+            if (result.message && result.message.toLowerCase().includes('re-authenticate')) {
+                toast({ title: 'Re-authentication required', description: 'Please re-enter your password to proceed.', variant: 'destructive' });
+                // Redirect to a re-auth page that prompts for password and calls /api/auth/reauthenticate
+                setTimeout(() => window.location.href = '/reauthenticate', 1200);
+                return;
+            }
             toast({
                 title: "Error",
                 description: result.message,

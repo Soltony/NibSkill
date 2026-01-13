@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
+import { requirePermission } from '@/lib/authorization'
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -27,10 +28,9 @@ const formSchema = z.object({
 export async function addCourse(values: z.infer<typeof formSchema>) {
     try {
         const session = await getSession();
-        const permissions = session?.role.permissions as any;
-        if (!session?.id || !session.trainingProviderId || !permissions?.courses?.c) {
-            return { success: false, message: "Unauthorized: You do not have permission to create courses." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'courses', 'c'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to create courses." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -75,10 +75,9 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
 export async function updateCourse(id: string, values: z.infer<typeof formSchema>) {
     try {
         const session = await getSession();
-        const permissions = session?.role.permissions as any;
-        if (!session?.id || !session.trainingProviderId || !permissions?.courses?.u) {
-            return { success: false, message: "Unauthorized: You do not have permission to update courses." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'courses', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update courses." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const validatedFields = formSchema.safeParse(values);
         if (!validatedFields.success) {
@@ -137,10 +136,9 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
 export async function deleteCourse(id: string) {
     try {
         const session = await getSession();
-        const permissions = session?.role.permissions as any;
-        if (!session?.id || !session.trainingProviderId || !permissions?.courses?.d) {
-            return { success: false, message: "Unauthorized: You do not have permission to delete courses." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'courses', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete courses." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const course = await prisma.course.findUnique({ where: { id } });
         if (!course || course.trainingProviderId !== session.trainingProviderId) {
@@ -163,10 +161,9 @@ export async function deleteCourse(id: string) {
 export async function publishCourse(id: string) {
     try {
         const session = await getSession();
-        const permissions = session?.role.permissions as any;
-        if (!session?.id || !session.trainingProviderId || !permissions?.approvals?.u) {
-            return { success: false, message: "Unauthorized: You do not have permission to publish courses." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'approvals', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to publish courses." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
         
         const course = await prisma.course.findUnique({ where: { id } });
         if (!course || course.trainingProviderId !== session.trainingProviderId) {
@@ -195,10 +192,9 @@ const rejectionSchema = z.object({
 export async function rejectCourse(id: string, values: z.infer<typeof rejectionSchema>) {
     try {
         const session = await getSession();
-        const permissions = session?.role.permissions as any;
-        if (!session?.id || !session.trainingProviderId || !permissions?.approvals?.u) {
-            return { success: false, message: "Unauthorized: You do not have permission to reject courses." };
-        }
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'approvals', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to reject courses." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
 
         const validatedFields = rejectionSchema.safeParse(values);
         if (!validatedFields.success) {

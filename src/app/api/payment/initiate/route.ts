@@ -100,6 +100,18 @@ export async function POST(request: NextRequest) {
 
     userId = existingUser.id;
 
+    // If the user also has a local session, require recent re-authentication for initiating payments
+    try {
+      const localSessionId = cookieStore.get('refresh_sid')?.value;
+      if (localSessionId) {
+        const { requireRecentReauthForSession } = await import('@/lib/auth');
+        const reauthOk = await requireRecentReauthForSession(localSessionId);
+        if (!reauthOk) {
+          return NextResponse.json({ success: false, message: 'Please re-authenticate to initiate a payment.' }, { status: 401 });
+        }
+      }
+    } catch (e) {}
+
     // 3) Get SuperApp token to forward to NIB: cookie 'superapp_token' preferred, fallback to Authorization header
     const superAppTokenFromCookie = cookieStore.get('superapp_token')?.value;
     const authHeader = request.headers.get('authorization') ?? request.headers.get('Authorization');

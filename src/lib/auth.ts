@@ -42,6 +42,20 @@ export async function getSession() {
             const session = await prisma.session.findUnique({ where: { id: payload.sessionId } });
             if (!session || session.revokedAt || new Date(session.expiresAt).getTime() < Date.now()) return null;
 
+            // Enforce server-side idle timeout on access-token path as well
+            try {
+                const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 15; // 15m default
+                const lastActivityMs = new Date(session.lastActivity).getTime();
+                if ((Date.now() - lastActivityMs) / 1000 > IDLE_TIMEOUT_SECONDS) {
+                    try { await prisma.refreshToken.updateMany({ where: { sessionId: session.id }, data: { revoked: true } }); } catch (e) {}
+                    try { await prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } }); } catch (e) {}
+                    try { securityLog('audit', 'getSession_idle_expired', { sessionId: session.id, userId: session.userId }); } catch (e) {}
+                    return null;
+                }
+            } catch (e) {
+                // fail-open in the unlikely event of DB errors
+            }
+
             // update lastActivity
             try { await prisma.session.update({ where: { id: session.id }, data: { lastActivity: new Date() } }); } catch (e) {}
 
@@ -89,8 +103,9 @@ export async function getSession() {
         }
 
         // Idle/age enforcement using refreshToken record
-        const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 30; // 30m default
-        const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 30; // 30d default
+        // Reduced defaults: idle -> 15 minutes, max session age -> 7 days
+        const IDLE_TIMEOUT_SECONDS = Number(process.env.IDLE_TIMEOUT_SECONDS) || 60 * 15; // 15m default (was 30m)
+        const MAX_SESSION_AGE_SECONDS = Number(process.env.MAX_SESSION_AGE_SECONDS) || 60 * 60 * 24 * 7; // 7d default (was 30d)
         const now = Date.now();
         const lastActivity = new Date(stored.lastActivityAt ?? stored.updatedAt).getTime();
         const createdAt = new Date(stored.createdAt).getTime();
@@ -129,4 +144,21 @@ export async function getSession() {
         console.error('Error verifying refresh token in getSession:', error);
         return null;
     }
+}
+
+// Check whether a session has a recent re-authentication timestamp
+export async function isSessionRecentlyReauthenticated(sessionId: string, windowSeconds?: number) {
+    if (!sessionId) return false;
+    const REAUTH_TIMEOUT_SECONDS = Number(process.env.REAUTH_TIMEOUT_SECONDS) || 60 * 5; // default 5 minutes
+    const threshold = Number.isFinite(Number(windowSeconds)) ? (windowSeconds as number) : REAUTH_TIMEOUT_SECONDS;
+    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    if (!session || !session.reauthenticatedAt) return false;
+    const reauthAt = new Date(session.reauthenticatedAt).getTime();
+    return (Date.now() - reauthAt) / 1000 <= threshold;
+}
+
+// Helper used by routes that must require recent re-auth (returns false if not re-authenticated recently)
+export async function requireRecentReauthForSession(sessionId: string, windowSeconds?: number) {
+    const ok = await isSessionRecentlyReauthenticated(sessionId, windowSeconds);
+    return ok;
 }
