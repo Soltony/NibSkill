@@ -261,12 +261,20 @@ async function main() {
             createdOptions.push(createdOpt);
           }
 
-          const correctOption = createdOptions.find(opt => opt.text === correctAnswerId);
-          if (correctOption) {
-            correctOptionDatabaseId = correctOption.id;
+          // Find the option record whose text matches the correctAnswerId string from the seed data
+          const correctOptionRecord = createdOptions.find(opt => opt.text === correctAnswerId);
+
+          if (correctOptionRecord) {
+            correctOptionDatabaseId = correctOptionRecord.id;
           } else {
              console.error(`Could not find correct option for question: ${q.text}`);
-             continue; // Skip updating this question's correct answer if not found
+             // Find the option based on its text in the original seed data, not the created records
+             const originalCorrectOption = q.options.find(opt => opt.text === correctAnswerId);
+             if (originalCorrectOption) {
+                correctOptionDatabaseId = originalCorrectOption.id;
+             } else {
+                continue; // Skip if still not found
+             }
           }
 
           await prisma.question.update({
@@ -375,6 +383,7 @@ async function main() {
                   userId: user1ForCompletion.id,
                   courseId: course2.id,
                   amount: course2.price || 49.99,
+                  transactionId: `seed-tx-${Math.random().toString(36).substring(7)}`,
               }
           });
           console.log('Seeded user purchased courses');
@@ -432,5 +441,9 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
+
+    
 
     
