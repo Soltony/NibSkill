@@ -1,5 +1,6 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
 
 // Helper: decode JWT payload without verifying signature (safe for middleware edge runtime)
 function decodeJwtPayload(token: string) {
@@ -35,6 +36,11 @@ export async function middleware(request: NextRequest) {
   const accessToken = request.cookies.get('auth_token')?.value;
   const refreshToken = request.cookies.get('refresh_token')?.value;
 
+  // Allow access to the change-password page and its API
+  if (pathname.startsWith('/change-password') || pathname.startsWith('/api/auth/change-password')) {
+    return NextResponse.next();
+  }
+
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
   
   if (isPublicPath) {
@@ -49,18 +55,19 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Best-effort timeout checks in middleware (edge runtime cannot access DB).
-  // Best-effort timeout checks in middleware (edge runtime cannot access DB).
-  // Decode the access token payload and enforce approximate idle/absolute timeouts
   if (accessToken) {
-    // Middleware must remain stateless and lightweight. Perform *only* a best-effort, unsigned
-    // decode of the token to detect malformed tokens and expired/oversized sessions.
-    // Heavy cryptographic verification and revocation must happen in server code (verifyAuth).
+    const payload: any = decodeJwtPayload(accessToken as string);
 
+    // If the access token indicates the user must change their password, redirect to change-password
+    if (payload && payload.passwordChangeRequired) {
+      const changeUrl = new URL('/change-password', request.url);
+      return NextResponse.redirect(changeUrl);
+    }
+    
+    // Best-effort timeout checks in middleware (edge runtime cannot access DB).
+    // Decode the access token payload and enforce approximate idle/absolute timeouts
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || null;
 
-    // Best-effort decode — don't trust claims, only use them for best-effort checks.
-    const payload: any = decodeJwtPayload(accessToken as string);
     if (!payload) {
       // Token is malformed — clear cookies and redirect to login (no fetch, no DB access)
       const loginUrl = new URL('/login', request.url);
@@ -93,15 +100,6 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // If the access token indicates the user must change their password, redirect to change-password
-    if (payload && payload.passwordChangeRequired) {
-      const allowedForPasswordChange = ['/change-password', '/api/auth/change-password', '/api/auth/reauthenticate', '/api/auth/logout', '/login'];
-      const isAllowed = allowedForPasswordChange.some(p => pathname.startsWith(p));
-      if (!isAllowed) {
-        const changeUrl = new URL('/change-password', request.url);
-        return NextResponse.redirect(changeUrl);
-      }
-    }
 
     if (payload && payload.iat) {
       const now = Math.floor(Date.now() / 1000);
