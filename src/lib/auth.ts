@@ -69,7 +69,44 @@ export async function getSession() {
                 passwordChangeRequired: user.passwordChangeRequired,
             };
         } catch (e) {
-            // Access token invalid/expired — fall back to refresh flow
+            // Access token invalid/expired — this may indicate tampering or signature failure.
+            // Treat verification failures as potentially malicious: revoke any associated refresh tokens/sessions.
+            try {
+                const cookieStoreInner = cookies();
+                const refreshToken = cookieStoreInner.get('refresh_token')?.value;
+                if (refreshToken) {
+                    const hashed = createHash('sha256').update(refreshToken).digest('hex');
+                    const stored = await prisma.refreshToken.findUnique({ where: { hashedToken: hashed } });
+                    if (stored) {
+                        try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (ee) {}
+                        if (stored.sessionId) {
+                            try { await prisma.session.update({ where: { id: stored.sessionId }, data: { revokedAt: new Date() } }); } catch (ee) {}
+                            try { securityLog('audit', 'forced_logout', { userId: stored.userId, sessionId: stored.sessionId, reason: 'auth_token_verification_failed' }); } catch (ee) {}
+                        }
+                        try { securityLog('warn', 'auth_token_verification_failed', { error: String(e), userId: stored.userId, tokenExists: true }); } catch (ee) {}                        try { securityLog('audit', 'auth_token_tampering', { userId: stored.userId, sessionId: stored.sessionId }); } catch (ee) {}                    } else {
+                        try { securityLog('warn', 'auth_token_verification_failed', { error: String(e), tokenExists: false }); } catch (ee) {}
+                    }
+                } else {
+                    try { securityLog('warn', 'auth_token_verification_failed', { error: String(e), tokenExists: false }); } catch (ee) {}
+                }
+
+                // Best-effort: try to extract JTI from tampered access token without verification and blacklist it
+                try {
+                    const parts = accessToken.split('.');
+                    if (parts.length >= 2) {
+                        const payloadJson = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+                        const payload = JSON.parse(payloadJson);
+                        const jti = payload?.jti;
+                        const exp = payload?.exp;
+                        if (jti) {
+                            try { await prisma.revokedAccessToken.create({ data: { jti, expiresAt: exp ? new Date(exp * 1000) : new Date(Date.now() + 1000 * 60 * 60) } }); } catch (ee) {}
+                            try { securityLog('audit', 'auth_revoke_access_jti', { jti }); } catch (ee) {}
+                        }
+                    }
+                } catch (ee) {}
+            } catch (cleanupError) {
+                try { securityLog('error', 'auth_token_verification_cleanup_failed', { error: String(cleanupError) }); } catch (ee) {}
+            }
         }
     }
 

@@ -205,11 +205,28 @@ export async function POST(req: NextRequest) {
           reauthenticatedAt: new Date(),
         },
       });
+
+      // Audit events for session and token issuance
+      try { securityLog('audit', 'session_created', { userId: user.id, sessionId, ip }); } catch (e) {}
+      try { securityLog('audit', 'tokens_issued', { userId: user.id, sessionId, jti }); } catch (e) {}
     } catch (e) {
       securityLog('error', 'session_persist_failed', {
         userId: user.id,
         error: String(e),
       });
+    }
+
+    try {
+      // Record login history for audit purposes (best-effort)
+      await prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          ipAddress: ip || null,
+          userAgent: req.headers.get('user-agent') || null,
+        },
+      });
+    } catch (e) {
+      try { securityLog('warn', 'login_history_write_failed', { userId: user.id, error: String(e) }); } catch (ee) {}
     }
 
     try { securityLog('audit', 'login_success', { userId: user.id, ip, role: role.name, loginAs }); } catch (e) {}

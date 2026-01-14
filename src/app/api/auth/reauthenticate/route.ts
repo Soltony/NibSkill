@@ -19,8 +19,10 @@ export async function POST(req: NextRequest) {
     if (!user || !user.password) return NextResponse.json({ success: false, message: 'User not found or password not set.' }, { status: 401 });
 
     const isValid = await bcrypt.compare(currentPassword, user.password);
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const ua = req.headers.get('user-agent') || null;
     if (!isValid) {
-      securityLog('warn', 'reauth_failed', { userId: user.id });
+      securityLog('warn', 'reauth_failed', { userId: user.id, ip, userAgent: ua });
       return NextResponse.json({ success: false, message: 'Invalid credentials.' }, { status: 401 });
     }
 

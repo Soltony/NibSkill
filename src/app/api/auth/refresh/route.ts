@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
         isRevoked: stored?.revoked,
         sessionRevoked: !!stored?.session?.revokedAt
       });
+      // Emit a forced logout event for SIEM correlation when we detect a revoked token/session
+      try { securityLog('audit', 'forced_logout', { userId: decoded.userId, sessionId: stored?.sessionId ?? null, reason: 'revoked_refresh_or_session' }); } catch (e) {}
       const response = NextResponse.json({ message: 'Invalid or revoked refresh token.' }, { status: 401 });
       response.cookies.set('refresh_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: -1 });
       response.cookies.set('auth_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: -1 });
@@ -69,6 +71,8 @@ export async function POST(req: NextRequest) {
     if (!stored.session || new Date(stored.session.expiresAt).getTime() < Date.now()) {
       await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
       securityLog('audit', 'refresh_session_expired', { sessionId: stored.sessionId, userId: stored.userId });
+      // Emit a general session_expired event as well
+      try { securityLog('audit', 'session_expired', { sessionId: stored.sessionId, userId: stored.userId, reason: 'refresh_expiry' }); } catch (e) {}
       return NextResponse.json({ message: 'Session has expired.' }, { status: 401 });
     }
 
@@ -164,6 +168,24 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (error) {
     securityLog('error', 'refresh_token_exception', { error: error instanceof Error ? error.message : String(error) });
+
+    // Try to revoke any stored refresh token/session associated with the cookie (best-effort cleanup)
+    try {
+      if (refreshTokenFromCookie) {
+        const hashed = createHash('sha256').update(refreshTokenFromCookie).digest('hex');
+        const stored = await prisma.refreshToken.findUnique({ where: { hashedToken: hashed } });
+        if (stored) {
+          try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (e) {}
+          if (stored.sessionId) {
+            try { await prisma.session.update({ where: { id: stored.sessionId }, data: { revokedAt: new Date() } }); } catch (e) {}
+            try { securityLog('audit', 'forced_logout', { userId: stored.userId, sessionId: stored.sessionId, reason: 'refresh_token_verification_failed' }); } catch (e) {}
+            try { securityLog('audit', 'auth_token_tampering', { userId: stored.userId, sessionId: stored.sessionId }); } catch (e) {}
+          }
+        }
+      }
+    } catch (cleanupError) {
+      try { securityLog('error', 'refresh_token_verification_cleanup_failed', { error: String(cleanupError) }); } catch (e) {}
+    }
 
     // On any failure (e.g., token signature invalid), clear all auth cookies to force logout.
     const response = NextResponse.json({ message: 'Invalid refresh token.' }, { status: 401 });

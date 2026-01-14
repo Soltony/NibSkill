@@ -29,6 +29,7 @@ interface DecodedToken extends JWTPayload {
 export async function POST(req: NextRequest) {
     // Track the user id (if found) to log a logout success at the end
     let logoutUserId: string | null = null;
+    let logoutSessionId: string | null = null;
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || null;
 
     try {
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
                     
                     // 3. Revoke the associated session
                     if (storedToken.sessionId) {
+                        logoutSessionId = storedToken.sessionId;
                         await prisma.session.update({
                             where: { id: storedToken.sessionId },
                             data: { revokedAt: new Date() }
@@ -97,6 +99,9 @@ export async function POST(req: NextRequest) {
     response.cookies.set('refresh_sid', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', expires: new Date(0) });
 
     try { securityLog('audit', 'logout_success', { userId: logoutUserId, ip }); } catch (e) {}
+
+    // Emit a concise logout event for session tracking
+    try { securityLog('audit', 'logout', { userId: logoutUserId, sessionId: logoutSessionId, reason: 'user_initiated', ip }); } catch (e) {}
 
     return response;
 }
