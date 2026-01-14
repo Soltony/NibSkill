@@ -375,6 +375,7 @@ async function main() {
                   userId: user1ForCompletion.id,
                   courseId: course2.id,
                   amount: course2.price || 49.99,
+                  transactionId: `seed-tx-${Math.random().toString(36).substring(7)}`,
               }
           });
           console.log('Seeded user purchased courses');
@@ -432,6 +433,8 @@ main()
     await prisma.$disconnect()
     process.exit(1)
   })
+
+    
 
     
 
