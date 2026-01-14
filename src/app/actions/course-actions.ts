@@ -17,6 +17,9 @@ const formSchema = z.object({
   hasCertificate: z.boolean().default(false),
   status: z.enum(["PENDING", "PUBLISHED", "REJECTED"]).optional(),
   isPublic: z.boolean().default(true),
+  districtIds: z.array(z.string()).optional(),
+  branchIds: z.array(z.string()).optional(),
+  departmentIds: z.array(z.string()).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -37,8 +40,10 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
             return { success: false, message: "Invalid data provided." }
         }
 
+        const { districtIds, branchIds, departmentIds, ...courseData } = validatedFields.data;
+
         const product = await prisma.product.findUnique({
-            where: { id: validatedFields.data.productId, trainingProviderId: session.trainingProviderId }
+            where: { id: courseData.productId, trainingProviderId: session.trainingProviderId }
         });
 
         if (!product) {
@@ -47,19 +52,17 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
 
         await prisma.course.create({
             data: {
-                title: validatedFields.data.title,
-                description: validatedFields.data.description,
-                productId: validatedFields.data.productId,
-                isPaid: validatedFields.data.isPaid,
-                price: validatedFields.data.isPaid ? validatedFields.data.price : null,
-                currency: validatedFields.data.isPaid ? validatedFields.data.currency : null,
-                hasCertificate: validatedFields.data.hasCertificate,
-                isPublic: validatedFields.data.isPublic,
+                ...courseData,
+                price: courseData.isPaid ? courseData.price : null,
+                currency: courseData.isPaid ? courseData.currency : null,
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description, // Use product description as a fallback for image description
                 status: 'PENDING',
                 trainingProviderId: session.trainingProviderId,
+                assignedDistricts: districtIds ? { connect: districtIds.map(id => ({ id })) } : undefined,
+                assignedBranches: branchIds ? { connect: branchIds.map(id => ({ id })) } : undefined,
+                assignedDepartments: departmentIds ? { connect: departmentIds.map(id => ({ id })) } : undefined,
             }
         });
 
@@ -102,22 +105,22 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
             newStatus = 'PENDING';
         }
 
+        const { districtIds, branchIds, departmentIds, ...courseData } = validatedFields.data;
+
         await prisma.course.update({
             where: { id },
             data: {
-                title: validatedFields.data.title,
-                description: validatedFields.data.description,
-                productId: validatedFields.data.productId,
-                isPaid: validatedFields.data.isPaid,
-                price: validatedFields.data.isPaid ? validatedFields.data.price : null,
-                currency: validatedFields.data.isPaid ? validatedFields.data.currency : null,
-                hasCertificate: validatedFields.data.hasCertificate,
-                isPublic: validatedFields.data.isPublic,
+                ...courseData,
+                price: courseData.isPaid ? courseData.price : null,
+                currency: courseData.isPaid ? courseData.currency : null,
                 imageUrl: product.imageUrl,
                 imageHint: product.imageHint,
                 imageDescription: product.description,
                 status: newStatus,
                 rejectionReason: newStatus === 'PENDING' ? null : existingCourse.rejectionReason,
+                assignedDistricts: { set: districtIds?.map(id => ({ id })) },
+                assignedBranches: { set: branchIds?.map(id => ({ id })) },
+                assignedDepartments: { set: departmentIds?.map(id => ({ id })) },
             }
         });
 
@@ -144,6 +147,15 @@ export async function deleteCourse(id: string) {
         if (!course || course.trainingProviderId !== session.trainingProviderId) {
              return { success: false, message: "Course not found or you do not have permission to delete it." };
         }
+
+        await prisma.course.update({
+            where: { id },
+            data: {
+                assignedDistricts: { set: [] },
+                assignedBranches: { set: [] },
+                assignedDepartments: { set: [] },
+            }
+        });
 
         await prisma.course.delete({
             where: { id }

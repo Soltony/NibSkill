@@ -37,8 +37,9 @@ import {
 import { PlusCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { addCourse } from "@/app/actions/course-actions"
-import type { Product } from "@prisma/client"
+import type { Product, District, Branch, Department } from "@prisma/client"
 import { Switch } from "./ui/switch"
+import { MultiSelect } from "./ui/multi-select"
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -49,6 +50,9 @@ const formSchema = z.object({
   currency: z.enum(["USD", "ETB"]).optional(),
   hasCertificate: z.boolean().default(false),
   isPublic: z.boolean().default(true),
+  districtIds: z.array(z.string()).optional(),
+  branchIds: z.array(z.string()).optional(),
+  departmentIds: z.array(z.string()).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -59,9 +63,12 @@ const formSchema = z.object({
 
 type AddCourseDialogProps = {
   products: Product[]
+  districts: District[]
+  branches: Branch[]
+  departments: Department[]
 }
 
-export function AddCourseDialog({ products }: AddCourseDialogProps) {
+export function AddCourseDialog({ products, districts, branches, departments }: AddCourseDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -75,10 +82,14 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
       currency: undefined,
       hasCertificate: false,
       isPublic: true,
+      districtIds: [],
+      branchIds: [],
+      departmentIds: [],
     },
   })
   
   const isPaid = form.watch("isPaid");
+  const isPublic = form.watch("isPublic");
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     const result = await addCourse(values as any);
@@ -185,6 +196,59 @@ export function AddCourseDialog({ products }: AddCourseDialogProps) {
                 </FormItem>
               )}
             />
+            {!isPublic && (
+                <div className="space-y-4 rounded-lg border p-4">
+                    <h3 className="text-sm font-medium">Assign to (Optional)</h3>
+                     <FormField
+                        control={form.control}
+                        name="departmentIds"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Departments</FormLabel>
+                                <MultiSelect
+                                    options={departments.map(d => ({ value: d.id, label: d.name }))}
+                                    selected={field.value || []}
+                                    onChange={field.onChange}
+                                    placeholder="Select departments..."
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="districtIds"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Districts</FormLabel>
+                                <MultiSelect
+                                    options={districts.map(d => ({ value: d.id, label: d.name }))}
+                                    selected={field.value || []}
+                                    onChange={field.onChange}
+                                    placeholder="Select districts..."
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="branchIds"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Branches</FormLabel>
+                                <MultiSelect
+                                    options={branches.map(b => ({ value: b.id, label: b.name }))}
+                                    selected={field.value || []}
+                                    onChange={field.onChange}
+                                    placeholder="Select branches..."
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            )}
             <FormField
               control={form.control}
               name="isPaid"

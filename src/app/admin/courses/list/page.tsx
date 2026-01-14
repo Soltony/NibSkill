@@ -34,6 +34,9 @@ async function getData(trainingProviderId: string | null | undefined, userRole: 
     include: {
       modules: true,
       product: true,
+      assignedDistricts: true,
+      assignedBranches: true,
+      assignedDepartments: true,
     }
   });
   
@@ -42,7 +45,11 @@ async function getData(trainingProviderId: string | null | undefined, userRole: 
     orderBy: { name: 'asc' }
   });
 
-  return { courses, products }
+  const districts = await prisma.district.findMany({ where: whereClause });
+  const branches = await prisma.branch.findMany({ where: userRole === 'Super Admin' ? {} : { district: { trainingProviderId } } });
+  const departments = await prisma.department.findMany({ where: whereClause });
+
+  return { courses, products, districts, branches, departments }
 }
 
 export default async function CourseManagementPage() {
@@ -52,7 +59,7 @@ export default async function CourseManagementPage() {
     notFound();
   }
 
-  const { courses, products } = await getData(session.trainingProviderId, session.role.name);
+  const { courses, products, districts, branches, departments } = await getData(session.trainingProviderId, session.role.name);
 
   return (
       <div className="space-y-8">
@@ -70,7 +77,13 @@ export default async function CourseManagementPage() {
                 A list of all training courses in the system, including pending and published.
               </CardDescription>
             </div>
-            <CourseClient courses={courses} products={products} />
+            <CourseClient 
+              courses={courses as any} 
+              products={products}
+              districts={districts}
+              branches={branches}
+              departments={departments}
+            />
           </CardHeader>
           <CardContent>
             <Table>
@@ -108,7 +121,7 @@ export default async function CourseManagementPage() {
                       )}
                     </TableCell>
                     <TableCell className="font-medium">
-                        <CourseLink course={course} />
+                        <CourseLink course={course as any} />
                     </TableCell>
                     <TableCell>{course.product?.name}</TableCell>
                     <TableCell className="text-center">
@@ -144,7 +157,13 @@ export default async function CourseManagementPage() {
                        )}
                     </TableCell>
                     <TableCell>
-                      <CourseActions course={course} products={products} />
+                      <CourseActions 
+                        course={course as any} 
+                        products={products}
+                        districts={districts}
+                        branches={branches}
+                        departments={departments}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

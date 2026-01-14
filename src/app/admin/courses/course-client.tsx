@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState } from "react"
@@ -27,21 +28,27 @@ import { AddCourseDialog } from "@/components/add-course-dialog"
 import { EditCourseDialog } from "@/components/edit-course-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { deleteCourse } from "@/app/actions/course-actions"
-import type { Course as CourseType, Product as ProductType, Module } from "@prisma/client"
+import type { Course as CourseType, Product as ProductType, Module, District, Branch, Department } from "@prisma/client"
 
 type CourseWithRelations = CourseType & {
     modules: Module[];
     product: ProductType | null;
+    assignedDistricts: District[];
+    assignedBranches: Branch[];
+    assignedDepartments: Department[];
 }
 
 type CourseClientProps = {
   courses: CourseWithRelations[]
   products: ProductType[]
+  districts: District[]
+  branches: Branch[]
+  departments: Department[]
 }
 
-export function CourseClient({ courses, products }: CourseClientProps) {
+export function CourseClient({ courses, products, districts, branches, departments }: CourseClientProps) {
   return (
-    <AddCourseDialog products={products} />
+    <AddCourseDialog products={products} districts={districts} branches={branches} departments={departments} />
   )
 }
 
@@ -53,7 +60,13 @@ export function CourseLink({ course }: { course: CourseWithRelations }) {
     )
 }
 
-export function CourseActions({ course, products }: { course: CourseWithRelations, products: ProductType[]}) {
+export function CourseActions({ course, products, districts, branches, departments }: { 
+  course: CourseWithRelations, 
+  products: ProductType[],
+  districts: District[],
+  branches: Branch[],
+  departments: Department[]
+}) {
     const [courseToDelete, setCourseToDelete] = useState<CourseWithRelations | null>(null);
     const { toast } = useToast();
 
@@ -94,7 +107,13 @@ export function CourseActions({ course, products }: { course: CourseWithRelation
             <DropdownMenuItem asChild>
                 <Link href={`/admin/courses/${course.id}`}>Manage</Link>
             </DropdownMenuItem>
-            <EditCourseDialog course={course} products={products}>
+            <EditCourseDialog 
+              course={course} 
+              products={products}
+              districts={districts}
+              branches={branches}
+              departments={departments}
+            >
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                     Edit
                 </DropdownMenuItem>
