@@ -196,6 +196,10 @@ export async function POST(req: NextRequest) {
           reauthenticatedAt: new Date(),
         },
       });
+
+      // Audit events for session and token issuance
+      try { securityLog('audit', 'session_created', { userId: user.id, sessionId, ip }); } catch (e) {}
+      try { securityLog('audit', 'tokens_issued', { userId: user.id, sessionId, jti }); } catch (e) {}
     } catch (e) {
       securityLog('error', 'session_persist_failed', {
         userId: user.id,

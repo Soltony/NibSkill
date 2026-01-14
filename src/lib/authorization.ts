@@ -27,7 +27,7 @@ export function hasPermission(session: SessionLike | null | undefined, resource:
 export function requirePermission(session: SessionLike | null | undefined, resource: string, action: Action) {
   const ok = hasPermission(session, resource, action);
   if (!ok) {
-    try { securityLog('warn', 'permission_denied', { resource, action, userId: session?.id ?? null }); } catch (e) {}
+    try { securityLog('warn', 'permission_denied', { resource, action, userId: session?.id ?? null, role: session?.role?.name ?? null }); } catch (e) {}
     const err: any = new Error('Forbidden');
     err.status = 403;
     throw err;

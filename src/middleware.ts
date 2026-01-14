@@ -138,6 +138,33 @@ export async function middleware(request: NextRequest) {
         return response;
       }
     }
+
+    // --- Authorization checks for admin/super-admin pages (best-effort unsigned check) ---
+    try {
+      const roleName = payload?.role?.name || null;
+      const userId = payload?.userId || null;
+      const ipAddr = ip || null;
+
+      if (pathname.startsWith('/super-admin')) {
+        const requiredRole = 'super_admin';
+        if (roleName !== 'Super Admin') {
+          try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'authorization_denied', { userId, role: roleName, endpoint: pathname, requiredRole, ip: ipAddr }); } catch (e) {}
+          const loginUrl = new URL('/', request.url);
+          return NextResponse.redirect(loginUrl);
+        }
+      }
+
+      if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+        const requiredRole = 'admin';
+        if (roleName !== 'Admin' && roleName !== 'Super Admin') {
+          try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'authorization_denied', { userId, role: roleName, endpoint: pathname, requiredRole, ip: ipAddr }); } catch (e) {}
+          const loginUrl = new URL('/', request.url);
+          return NextResponse.redirect(loginUrl);
+        }
+      }
+    } catch (e) {
+      // don't block requests from failing due to logging
+    }
   }
 
   // The client is now fully responsible for handling password change redirects

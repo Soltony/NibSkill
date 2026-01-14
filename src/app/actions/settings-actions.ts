@@ -12,6 +12,7 @@ import { requirePermission } from '@/lib/authorization'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
 import { recordPasswordHistory } from '@/lib/password'
+import { securityLog } from '@/lib/logger'
 
 const phoneValidation = z.string().min(1, "Phone number is required.")
     .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
@@ -43,9 +44,8 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
 
             // This is a simplification. Assuming one role per user from the UI for now.
             // For a true multi-role system, this would need to handle additions/removals.
-            const existingUserRole = await tx.userRole.findFirst({
-                where: { userId: userId }
-            });
+            const existingUserRole = await tx.userRole.findFirst({ where: { userId: userId } });
+            const previousRole = existingUserRole ? await tx.role.findUnique({ where: { id: existingUserRole.roleId } }) : null;
 
             if (existingUserRole) {
                 await tx.userRole.update({
@@ -60,10 +60,23 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
                     }
                 });
             }
+
+            // After updating role mapping, fetch the new role and emit a role_changed audit if different
+            try {
+                const newRole = await tx.role.findUnique({ where: { id: roleId } });
+                const oldName = previousRole?.name || null;
+                const newName = newRole?.name || null;
+                if (oldName !== newName) {
+                    try { securityLog('audit', 'role_changed', { targetUserId: userId, oldRole: oldName, newRole: newName, performedBy: session.id }); } catch (e) {}
+                }
+            } catch (e) {
+                // ignore audit failures
+            }
         });
 
 
         revalidatePath('/admin/settings');
+        try { securityLog('audit', 'user_updated', { actorId: session.id, targetUserId: userId, roleId, changes: userData }); } catch (e) {}
         return { success: true, message: 'User updated successfully.' };
     } catch (error) {
         console.error("Error updating user:", error);
@@ -158,6 +171,7 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
         try { await recordPasswordHistory(newUser.id, hashedPassword); } catch (e) { }
 
+        try { securityLog('audit', 'user_registered', { actorId: session.id, userId: newUser.id, roleId }); } catch (e) {}
 
         revalidatePath('/admin/settings');
         return { success: true, message: 'User registered successfully.' };
@@ -205,13 +219,15 @@ export async function addRole(values: z.infer<typeof roleSchema>) {
             return { success: false, message: 'Invalid data provided.' };
         }
         
-        await prisma.role.create({
+        const createdRole = await prisma.role.create({
             data: {
                 name: validatedFields.data.name,
                 permissions: validatedFields.data.permissions,
                 trainingProviderId: session.trainingProviderId,
             }
         });
+
+        try { securityLog('audit', 'role_created', { actorId: session.id, roleId: createdRole.id }); } catch (e) {}
 
         revalidatePath('/admin/settings');
         return { success: true, message: 'Role created successfully.' };
@@ -245,6 +261,8 @@ export async function updateRole(id: string, values: z.infer<typeof roleSchema>)
             }
         });
 
+        try { securityLog('audit', 'role_updated', { actorId: session.id, roleId: id }); } catch (e) {}
+
         revalidatePath('/admin/settings');
         return { success: true, message: 'Role updated successfully.' };
 
@@ -268,6 +286,7 @@ export async function deleteRole(roleId: string) {
         }
 
         await prisma.role.delete({ where: { id: roleId }});
+        try { securityLog('audit', 'role_deleted', { actorId: session.id, roleId }); } catch (e) {}
         revalidatePath('/admin/settings');
         return { success: true, message: 'Role deleted successfully.' };
     } catch (error) {
@@ -292,6 +311,7 @@ export async function deleteUser(userId: string) {
         }
 
         await prisma.user.delete({ where: { id: userId }});
+        try { securityLog('audit', 'user_deleted', { actorId: session.id, userId }); } catch (e) {}
         revalidatePath('/admin/settings');
         return { success: true, message: 'User deleted successfully.' };
     } catch (error) {

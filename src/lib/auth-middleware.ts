@@ -61,6 +61,8 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
       await prisma.refreshToken.updateMany({ where: { sessionId: session.id }, data: { revoked: true } });
       await prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
       try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'session_idle_expired', { sessionId: session.id, userId: session.userId }); } catch (e) {}
+      // Also emit a generic session_expired event (useful for alerting / SIEM)
+      try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'session_expired', { sessionId: session.id, userId: session.userId, reason: 'idle_timeout' }); } catch (e) {}
       return null;
     }
 
@@ -90,6 +92,20 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
     if (!sessionRole) return null;
 
     const finalUser: VerifiedUser = { ...user, role: sessionRole };
+
+    // Audit a successful token verification and record access to sensitive endpoints
+    try {
+      const path = req.nextUrl?.pathname ?? new URL(req.url).pathname;
+      const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+      const ua = req.headers.get('user-agent') || null;
+      try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'auth_token_valid', { userId: user.id, sessionId: session.id, role: sessionRole.name, path, ip, userAgent: ua }); } catch (e) {}
+
+      const sensitivePrefixes = ['/admin', '/super-admin', '/api/admin', '/api/auth/change-password', '/api/auth/reauthenticate', '/api/auth/logout'];
+      if (sensitivePrefixes.some(p => path.startsWith(p))) {
+        try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'sensitive_endpoint_access', { userId: user.id, role: sessionRole.name, endpoint: path, method: req.method, sessionId: session.id, ip, userAgent: ua }); } catch (e) {}
+      }
+    } catch (e) {}
+
     return finalUser;
   } catch (error) {
     try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'auth_token_verification_failed', { error: String(error) }); } catch (e) {}
@@ -105,8 +121,8 @@ export async function verifyAuth(req: NextRequest): Promise<VerifiedUser | null>
           try { await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } }); } catch (e) {}
           if (stored.sessionId) {
             try { await prisma.session.update({ where: { id: stored.sessionId }, data: { revokedAt: new Date() } }); } catch (e) {}
-            try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'auth_verification_revoke', { tokenId: stored.id, userId: stored.userId, sessionId: stored.sessionId }); } catch (e) {}
-          }
+            try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'auth_verification_revoke', { tokenId: stored.id, userId: stored.userId, sessionId: stored.sessionId }); } catch (e) {}            // Emit a forced logout audit record when we actively revoke a session during verification failure
+            try { const { securityLog } = await import('@/lib/logger'); securityLog('audit', 'forced_logout', { userId: stored.userId, sessionId: stored.sessionId, reason: 'auth_verification_revoke' }); } catch (e) {}          }
         }
       }
 

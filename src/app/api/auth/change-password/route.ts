@@ -59,8 +59,9 @@ export async function POST(req: NextRequest) {
 
     // Revoke all refresh tokens for this user to terminate other sessions
     try {
-      await prisma.refreshToken.updateMany({ where: { userId: user.id }, data: { revoked: true } });
-      securityLog('audit', 'password_change_invalidate_sessions', { userId: user.id });
+      const result = await prisma.refreshToken.updateMany({ where: { userId: user.id }, data: { revoked: true } });
+      securityLog('audit', 'password_change_invalidate_sessions', { userId: user.id, revokedCount: result.count });
+      try { securityLog('audit', 'forced_logout', { userId: user.id, reason: 'password_change', revokedCount: result.count }); } catch (e) {}
     } catch (e) {
       console.error('Failed to invalidate sessions after password change', e);
     }

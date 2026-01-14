@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
         isRevoked: stored?.revoked,
         sessionRevoked: !!stored?.session?.revokedAt
       });
+      // Emit a forced logout event for SIEM correlation when we detect a revoked token/session
+      try { securityLog('audit', 'forced_logout', { userId: decoded.userId, sessionId: stored?.sessionId ?? null, reason: 'revoked_refresh_or_session' }); } catch (e) {}
       const response = NextResponse.json({ message: 'Invalid or revoked refresh token.' }, { status: 401 });
       response.cookies.set('refresh_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: -1 });
       response.cookies.set('auth_token', '', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: -1 });
@@ -69,6 +71,8 @@ export async function POST(req: NextRequest) {
     if (!stored.session || new Date(stored.session.expiresAt).getTime() < Date.now()) {
       await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
       securityLog('audit', 'refresh_session_expired', { sessionId: stored.sessionId, userId: stored.userId });
+      // Emit a general session_expired event as well
+      try { securityLog('audit', 'session_expired', { sessionId: stored.sessionId, userId: stored.userId, reason: 'refresh_expiry' }); } catch (e) {}
       return NextResponse.json({ message: 'Session has expired.' }, { status: 401 });
     }
 
