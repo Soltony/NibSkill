@@ -38,7 +38,8 @@ const nextConfig: NextConfig = {
       style-src 'self' 'unsafe-inline';
       img-src 'self' blob: data: https://picsum.photos;
       font-src 'self';
-      object-src 'none';
+      object-src 'self' blob: data:;
+      frame-src 'self' blob: data: https://view.officeapps.live.com;
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
