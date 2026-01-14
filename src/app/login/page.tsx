@@ -87,7 +87,6 @@ export default function LoginPage() {
         });
 
         if (data.passwordChangeRequired) {
-          // Reset loading state before navigating away
           setIsLoading(false);
           router.push(data.redirectTo);
         } else {
@@ -212,5 +211,3 @@ export default function LoginPage() {
     </main>
   );
 }
-
-    
