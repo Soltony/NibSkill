@@ -62,11 +62,11 @@ export default function LoginPage() {
   }, [lockoutInfo]);
 
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const form = e.target as HTMLFormElement;
+    const form = e.currentTarget;
     const phoneNumber = (form.elements.namedItem('phoneNumber') as HTMLInputElement).value;
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
 
@@ -121,10 +121,19 @@ export default function LoginPage() {
     }
   };
 
-  const LoginForm = () => {
+  const LoginForm = ({ role }: { role: 'staff' | 'admin'}) => {
     const [showPassword, setShowPassword] = useState(false);
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [password, setPassword] = useState('');
     const isFormDisabled = isLoading || !!lockoutInfo?.isLockedOut;
-    const role = activeTab;
+    
+    useEffect(() => {
+        if(activeTab !== role) {
+            setPhoneNumber('');
+            setPassword('');
+        }
+    }, [activeTab, role]);
+
 
     return (
         <form onSubmit={handleLogin}>
@@ -138,6 +147,8 @@ export default function LoginPage() {
                 placeholder="e.g. 2519..." 
                 required 
                 disabled={isFormDisabled}
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
             />
             </div>
             <div className="space-y-2">
@@ -150,6 +161,8 @@ export default function LoginPage() {
                 required 
                 className="pr-10"
                 disabled={isFormDisabled}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 />
                 <Button
                 type="button"
@@ -188,16 +201,16 @@ export default function LoginPage() {
           <CardDescription>Please select your role and sign in.</CardDescription>
         </CardHeader>
         
-        <Tabs defaultValue="staff" className="w-full" onValueChange={setActiveTab}>
+        <Tabs defaultValue="staff" className="w-full" onValueChange={setActiveTab} value={activeTab}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="staff" disabled={isLoading || !!lockoutInfo?.isLockedOut}>Staff</TabsTrigger>
             <TabsTrigger value="admin" disabled={isLoading || !!lockoutInfo?.isLockedOut}>Admin</TabsTrigger>
           </TabsList>
           <TabsContent value="staff">
-            <LoginForm />
+            <LoginForm role="staff" />
           </TabsContent>
           <TabsContent value="admin">
-            <LoginForm />
+            <LoginForm role="admin" />
           </TabsContent>
         </Tabs>
         
