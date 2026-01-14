@@ -36,6 +36,11 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
         
         const { roleId, ...userData } = validatedFields.data;
 
+        const session = await getSession();
+        if (!session?.id) return { success: false, message: "Not authenticated." };
+        try { requirePermission(session, 'settings', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update users." }; }
+        if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
+
         await prisma.$transaction(async (tx) => {
             await tx.user.update({
                 where: { id: userId },
