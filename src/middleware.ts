@@ -63,7 +63,6 @@ export async function middleware(request: NextRequest) {
     const payload: any = decodeJwtPayload(accessToken as string);
     if (!payload) {
       // Token is malformed — clear cookies and redirect to login (no fetch, no DB access)
-      try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_malformed_access_token', { path: pathname, ip }); } catch (e) {}
       const loginUrl = new URL('/login', request.url);
       const response = NextResponse.redirect(loginUrl);
       response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
@@ -76,7 +75,6 @@ export async function middleware(request: NextRequest) {
     if (refreshToken && payload && payload.sessionId) {
       const refreshPayload: any = decodeJwtPayload(refreshToken as string);
       if (!refreshPayload) {
-        try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_malformed_refresh_token', { path: pathname, ip }); } catch (e) {}
         const loginUrl = new URL('/login', request.url);
         const response = NextResponse.redirect(loginUrl);
         response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
@@ -86,7 +84,6 @@ export async function middleware(request: NextRequest) {
       }
 
       if (refreshPayload?.sessionId && refreshPayload.sessionId !== payload.sessionId) {
-        try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_session_mismatch', { path: pathname, ip }); } catch (e) {}
         const loginUrl = new URL('/login', request.url);
         const response = NextResponse.redirect(loginUrl);
         response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
@@ -101,10 +98,6 @@ export async function middleware(request: NextRequest) {
       const allowedForPasswordChange = ['/change-password', '/api/auth/change-password', '/api/auth/reauthenticate', '/api/auth/logout', '/login'];
       const isAllowed = allowedForPasswordChange.some(p => pathname.startsWith(p));
       if (!isAllowed) {
-        try {
-          const { securityLog } = await import('@/lib/logger');
-          securityLog('warn', 'middleware_redirect_to_change_password', { path: pathname, ip });
-        } catch (e) {}
         const changeUrl = new URL('/change-password', request.url);
         return NextResponse.redirect(changeUrl);
       }
@@ -115,7 +108,6 @@ export async function middleware(request: NextRequest) {
 
       // Respect `exp` claim if present
       if (payload.exp && now >= Number(payload.exp)) {
-        try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_token_expire_redirect', { path: pathname, ip }); } catch (e) {}
         const loginUrl = new URL('/login', request.url);
         const response = NextResponse.redirect(loginUrl);
         response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });
@@ -129,7 +121,6 @@ export async function middleware(request: NextRequest) {
       const issuedAt = typeof payload.iat === 'number' ? payload.iat : parseInt(payload.iat || '0', 10);
 
       if (now - issuedAt > MAX_SESSION_AGE_SECONDS) {
-        try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'middleware_token_expire_redirect', { path: pathname, ip }); } catch (e) {}
         const loginUrl = new URL('/login', request.url);
         const response = NextResponse.redirect(loginUrl);
         response.cookies.set('refresh_token', '', { httpOnly: true, path: '/', maxAge: -1 });

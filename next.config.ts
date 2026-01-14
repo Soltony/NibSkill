@@ -35,13 +35,14 @@ const nextConfig: NextConfig = {
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'unsafe-eval' 'unsafe-inline';
-      style-src 'self';
+      style-src 'self' 'unsafe-inline';
       img-src 'self' blob: data: https://picsum.photos;
       font-src 'self';
       object-src 'none';
       base-uri 'self';
       form-action 'self';
       frame-ancestors 'none';
+      media-src 'self' blob: data:;
       block-all-mixed-content;
       upgrade-insecure-requests;
     `.replace(/\s{2,}/g, ' ').trim();
