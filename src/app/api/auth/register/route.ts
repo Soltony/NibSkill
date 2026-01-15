@@ -108,9 +108,9 @@ export async function POST(request: NextRequest) {
         name,
         email: email || null,
         password: hashedPassword,
-        departmentId: departmentId || null,
-        districtId: districtId || null,
-        branchId: branchId || null,
+        departmentId: departmentId || undefined,
+        districtId: districtId || undefined,
+        branchId: branchId || undefined,
         phoneNumber: phoneNumber,
         avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
         trainingProvider: {

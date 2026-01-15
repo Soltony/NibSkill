@@ -159,9 +159,9 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
                 trainingProvider: {
                     connect: { id: session.trainingProviderId }
                 },
-                departmentId: departmentId || null,
-                districtId: districtId || null,
-                branchId: branchId || null,
+                departmentId: departmentId || undefined,
+                districtId: districtId || undefined,
+                branchId: branchId || undefined,
             }
         });
         
