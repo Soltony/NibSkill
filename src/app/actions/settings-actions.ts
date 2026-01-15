@@ -414,7 +414,6 @@ export async function deleteRegistrationField(id: string) {
         const session = await getSession();
         if (!session?.id) return { success: false, message: "Not authenticated." };
         try { requirePermission(session, 'settings', 'd'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to delete registration fields." }; }
-        try { requireExactRole(session, 'Admin'); } catch (e: any) { return { success: false, message: 'Unauthorized: Admins only.' }; }
 
         await prisma.registrationField.delete({ where: { id }});
         revalidatePath('/admin/settings');
@@ -424,3 +423,5 @@ export async function deleteRegistrationField(id: string) {
         return { success: false, message: 'Failed to delete field.' };
     }
 }
+
+    
