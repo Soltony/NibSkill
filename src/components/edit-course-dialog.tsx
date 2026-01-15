@@ -36,8 +36,15 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { updateCourse } from "@/app/actions/course-actions"
-import type { Course, Product } from "@prisma/client"
+import type { Course, Product, District, Branch, Department } from "@prisma/client"
 import { Switch } from "./ui/switch"
+import { MultiSelect } from "./ui/multi-select"
+
+type FullCourse = Course & {
+    assignedDistricts: District[];
+    assignedBranches: Branch[];
+    assignedDepartments: Department[];
+};
 
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
@@ -49,6 +56,9 @@ const formSchema = z.object({
   hasCertificate: z.boolean().default(false),
   status: z.enum(["PENDING", "PUBLISHED", "REJECTED"]).optional(),
   isPublic: z.boolean().default(true),
+  districtIds: z.array(z.string()).optional(),
+  branchIds: z.array(z.string()).optional(),
+  departmentIds: z.array(z.string()).optional(),
 }).refine(data => !data.isPaid || (data.price !== undefined && data.price > 0), {
     message: "Price must be a positive number for paid courses.",
     path: ["price"],
@@ -58,12 +68,15 @@ const formSchema = z.object({
 });
 
 type EditCourseDialogProps = {
-  course: Course;
+  course: FullCourse;
   products: Product[];
+  districts: District[];
+  branches: Branch[];
+  departments: Department[];
   children: React.ReactNode;
 }
 
-export function EditCourseDialog({ course, products, children }: EditCourseDialogProps) {
+export function EditCourseDialog({ course, products, districts, branches, departments, children }: EditCourseDialogProps) {
   const [open, setOpen] = useState(false)
   const { toast } = useToast()
 
@@ -72,6 +85,7 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
   })
   
   const isPaid = form.watch("isPaid");
+  const isPublic = form.watch("isPublic");
 
   useEffect(() => {
     if (open) {
@@ -85,6 +99,9 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
         hasCertificate: course.hasCertificate,
         status: course.status,
         isPublic: course.isPublic,
+        districtIds: course.assignedDistricts.map(d => d.id),
+        branchIds: course.assignedBranches.map(b => b.id),
+        departmentIds: course.assignedDepartments.map(d => d.id),
       })
     }
   }, [open, course, form])
@@ -192,6 +209,59 @@ export function EditCourseDialog({ course, products, children }: EditCourseDialo
                 </FormItem>
               )}
             />
+            {!isPublic && (
+                <div className="space-y-4 rounded-lg border p-4">
+                    <h3 className="text-sm font-medium">Assign to (Optional)</h3>
+                     <FormField
+                        control={form.control}
+                        name="departmentIds"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Departments</FormLabel>
+                                <MultiSelect
+                                    options={departments.map(d => ({ value: d.id, label: d.name }))}
+                                    selected={field.value || []}
+                                    onChange={field.onChange}
+                                    placeholder="Select departments..."
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="districtIds"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Districts</FormLabel>
+                                <MultiSelect
+                                    options={districts.map(d => ({ value: d.id, label: d.name }))}
+                                    selected={field.value || []}
+                                    onChange={field.onChange}
+                                    placeholder="Select districts..."
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="branchIds"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Branches</FormLabel>
+                                <MultiSelect
+                                    options={branches.map(b => ({ value: b.id, label: b.name }))}
+                                    selected={field.value || []}
+                                    onChange={field.onChange}
+                                    placeholder="Select branches..."
+                                />
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            )}
              <FormField
               control={form.control}
               name="isPaid"
