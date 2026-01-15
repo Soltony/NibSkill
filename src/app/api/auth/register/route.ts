@@ -67,16 +67,11 @@ export async function POST(request: NextRequest) {
         where: {
             phoneNumber,
             trainingProviderId,
-            roles: {
-                some: {
-                    roleId: staffRole.id
-                }
-            }
         }
     });
 
     if (existingUser) {
-        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
+        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number already exists for this provider.'] }, { status: 409 });
     }
 
     // validate password policy (server-side)
@@ -108,9 +103,9 @@ export async function POST(request: NextRequest) {
         name,
         email: email || null,
         password: hashedPassword,
-        departmentId: departmentId || undefined,
-        districtId: districtId || undefined,
-        branchId: branchId || undefined,
+        department: departmentId ? { connect: { id: departmentId } } : undefined,
+        district: districtId ? { connect: { id: districtId } } : undefined,
+        branch: branchId ? { connect: { id: branchId } } : undefined,
         phoneNumber: phoneNumber,
         avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
         trainingProvider: {
