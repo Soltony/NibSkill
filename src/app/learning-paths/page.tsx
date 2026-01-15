@@ -65,7 +65,7 @@ export default async function LearningPathsPage() {
   // Enforce Staff-only access
   const roleName = user.role?.name;
   if (roleName !== 'Staff') {
-    if (roleName === 'Admin') redirect('/admin/analytics');
+    if (roleName === 'Admin' || roleName === 'Training Provider') redirect('/admin/analytics');
     else if (roleName === 'Super Admin') redirect('/super-admin/dashboard');
     else redirect('/login');
   }

@@ -63,12 +63,35 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
         const hashedPassword = await bcrypt.hash(validatedFields.data.password, 10);
 
+        // Enforce uniqueness of email/phone scoped to the same role within the provider
+        if (validatedFields.data.phoneNumber) {
+            const exists = await prisma.user.findFirst({
+                where: {
+                    phoneNumber: validatedFields.data.phoneNumber,
+                    trainingProviderId: session.trainingProviderId,
+                    roles: { some: { roleId: validatedFields.data.roleId } }
+                }
+            });
+            if (exists) return { success: false, message: 'A user with this phone number and role already exists for this provider.' };
+        }
+        if (validatedFields.data.email) {
+            const exists = await prisma.user.findFirst({
+                where: {
+                    email: validatedFields.data.email,
+                    trainingProviderId: session.trainingProviderId,
+                    roles: { some: { roleId: validatedFields.data.roleId } }
+                }
+            });
+            if (exists) return { success: false, message: 'A user with this email and role already exists for this provider.' };
+        }
+
         const created = await prisma.user.create({
             data: {
                 name: validatedFields.data.name,
                 email: validatedFields.data.email,
                 password: hashedPassword,
-                roleId: validatedFields.data.roleId,
+                passwordChangeRequired: true,
+                roles: { create: { roleId: validatedFields.data.roleId } },
                 phoneNumber: validatedFields.data.phoneNumber,
                 avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
                 trainingProviderId: session.trainingProviderId,

@@ -511,12 +511,6 @@ CREATE TABLE "_CourseBranchAssignments" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_phoneNumber_key" ON "User"("phoneNumber");
-
--- CreateIndex
 CREATE INDEX "Session_userId_idx" ON "Session"("userId");
 
 -- CreateIndex

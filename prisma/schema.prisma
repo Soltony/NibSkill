@@ -14,11 +14,11 @@ datasource db {
 model User {
   id                      String                    @id @default(cuid())
   name                    String
-  email                   String?                   @unique
+  email                   String?
   password                String
   passwordChangeRequired  Boolean                   @default(false)
   avatarUrl               String?
-  phoneNumber             String?                   @unique
+  phoneNumber             String?
   tokenVersion            Int                       @default(0)
   departmentId            String?
   department              Department?               @relation(fields: [departmentId], references: [id])

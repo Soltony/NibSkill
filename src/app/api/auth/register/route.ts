@@ -72,20 +72,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ isSuccess: false, errors: ['Default "Staff" role not found for the selected provider.'] }, { status: 500 });
     }
     
-    const existingUser = await prisma.user.findFirst({
-        where: {
-            phoneNumber,
-            trainingProviderId,
-            roles: {
-                some: {
-                    roleId: staffRole.id
-                }
-            }
-        }
+    // Ensure phone/email uniqueness scoped to the Staff role for this provider
+    const existingPhone = await prisma.user.findFirst({
+      where: { phoneNumber, trainingProviderId, roles: { some: { roleId: staffRole.id } } }
     });
+    if (existingPhone) {
+      return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
+    }
 
-    if (existingUser) {
-        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
+    if (email) {
+      const existingEmail = await prisma.user.findFirst({
+      where: { email, trainingProviderId, roles: { some: { roleId: staffRole.id } } }
+      });
+      if (existingEmail) {
+      return NextResponse.json({ isSuccess: false, errors: ['A user with this email and role already exists for this provider.'] }, { status: 409 });
+      }
     }
 
     // validate password policy (server-side)

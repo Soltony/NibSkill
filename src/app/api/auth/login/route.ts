@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     try { securityLog('info', 'login_attempt', { phoneNumber, loginAs, ip }); } catch (e) {}
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: { phoneNumber },
       include: { roles: { include: { role: true } } },
     });
@@ -106,11 +106,17 @@ export async function POST(req: NextRequest) {
     const role =
       loginAs === 'super-admin'
         ? user.roles.find((r) => r.role.id === 'super-admin')?.role
-        : user.roles.find(
-            (r) =>
-              r.role.name.toLowerCase() === loginAs.toLowerCase() &&
-              r.role.trainingProviderId === user.trainingProviderId
-          )?.role;
+        : user.roles.find((r) => {
+            const roleName = r.role.name?.toLowerCase();
+            const target = loginAs.toLowerCase();
+            const roleProviderId = r.role.trainingProviderId;
+            const providerMatches = roleProviderId === user.trainingProviderId || roleProviderId == null;
+            // Allow admin login to match both Admin and Training Provider roles (provider admins)
+            if (target === 'admin') {
+              return (roleName === 'admin' || roleName === 'training provider' || r.role.id === 'provider-admin') && providerMatches;
+            }
+            return roleName === target && providerMatches;
+          })?.role;
 
     if (!role) return failLogin();
 
@@ -154,7 +160,7 @@ export async function POST(req: NextRequest) {
       {
         isSuccess: true,
         redirectTo: user.passwordChangeRequired ? '/change-password' : (
-          role.name === 'Admin'
+          (role.name === 'Admin' || role.name === 'Training Provider')
             ? '/admin/analytics'
             : role.name === 'Super Admin'
             ? '/super-admin/dashboard'
