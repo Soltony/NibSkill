@@ -148,6 +148,7 @@ export async function deleteCourse(id: string) {
              return { success: false, message: "Course not found or you do not have permission to delete it." };
         }
 
+        // Must disconnect relations before deleting
         await prisma.course.update({
             where: { id },
             data: {
