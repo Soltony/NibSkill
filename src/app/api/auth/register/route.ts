@@ -72,12 +72,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ isSuccess: false, errors: ['Default "Staff" role not found for the selected provider.'] }, { status: 500 });
     }
     
-    // Ensure phone/email uniqueness scoped to the Staff role for this provider
-    const existingPhone = await prisma.user.findFirst({
-      where: { phoneNumber, trainingProviderId, roles: { some: { roleId: staffRole.id } } }
+    const existingUser = await prisma.user.findFirst({
+        where: {
+            phoneNumber,
+            trainingProviderId,
+            roles: {
+                some: {
+                    roleId: staffRole.id
+                }
+            }
+        }
     });
-    if (existingPhone) {
-      return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
+
+    if (existingUser) {
+        return NextResponse.json({ isSuccess: false, errors: ['A user with this phone number and role already exists for this provider.'] }, { status: 409 });
     }
 
     if (email) {
@@ -113,37 +121,34 @@ export async function POST(request: NextRequest) {
         }
     }
     
-    const createData: any = {
-      name,
-      email: email || null,
-      password: hashedPassword,
-      phoneNumber: phoneNumber,
-      avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-      trainingProvider: {
-        connect: { id: trainingProviderId }
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email: email || null,
+        password: hashedPassword,
+        departmentId: departmentId || undefined,
+        districtId: districtId || undefined,
+        branchId: branchId || undefined,
+        phoneNumber: phoneNumber,
+        avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
+        trainingProvider: {
+            connect: { id: trainingProviderId }
+        },
+        passwordChangeRequired: false, // Self-registered users set their own password
+        roles: {
+            create: {
+                roleId: staffRole.id
+            }
+        },
+        loginHistory: superAppToken ? {
+            create: {
+                ipAddress: request.ip,
+                userAgent: request.headers.get('user-agent'),
+                superAppToken: superAppToken,
+            }
+        } : undefined,
       },
-      passwordChangeRequired: false, // Self-registered users set their own password
-      roles: {
-        create: {
-          roleId: staffRole.id
-        }
-      }
-    };
-
-    if (departmentId) createData.department = { connect: { id: departmentId } };
-    if (districtId) createData.district = { connect: { id: districtId } };
-    if (branchId) createData.branch = { connect: { id: branchId } };
-    if (superAppToken) {
-      createData.loginHistory = {
-        create: {
-          ipAddress: request.ip,
-          userAgent: request.headers.get('user-agent'),
-          superAppToken: superAppToken,
-        }
-      };
-    }
-
-    const newUser = await prisma.user.create({ data: createData });
+    });
 
     // record initial password history
     try {

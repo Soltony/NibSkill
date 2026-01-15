@@ -70,7 +70,11 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
         await prisma.$transaction(async (tx) => {
             await tx.user.update({
                 where: { id: userId },
-                data: userData
+                data: {
+                    name: userData.name,
+                    email: userData.email,
+                    phoneNumber: userData.phoneNumber,
+                }
             });
 
             // This is a simplification. Assuming one role per user from the UI for now.
@@ -113,10 +117,10 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
         console.error("Error updating user:", error);
          if ((error as any).code === 'P2002') {
              if ((error as any).meta?.target.includes('email')) {
-                return { success: false, message: 'Failed to update user. Email might already be in use.' };
+                return { success: false, message: 'Failed to update user. Email might already be in use by another user in this organization.' };
              }
              if ((error as any).meta?.target.includes('phoneNumber')) {
-                 return { success: false, message: 'Failed to update user. Phone number might already be in use.' };
+                 return { success: false, message: 'Failed to update user. Phone number might already be in use by another user in this organization.' };
              }
         }
         return { success: false, message: 'Failed to update user.' };
@@ -148,22 +152,15 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
         const { name, email, roleId, phoneNumber, departmentId, districtId, branchId } = validatedFields.data;
 
-        // Since phone number is the main identifier, check for its uniqueness if provided
-        if (phoneNumber) {
-             const existingUser = await prisma.user.findFirst({
-                 where: { 
-                    phoneNumber: phoneNumber,
-                    trainingProviderId: session.trainingProviderId,
-                    roles: {
-                        some: {
-                            roleId: roleId,
-                        }
-                    }
-                },
-             });
-             if (existingUser) {
-                 return { success: false, message: 'A user with this phone number and role already exists for this provider.' };
-             }
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                phoneNumber: phoneNumber,
+                trainingProviderId: session.trainingProviderId,
+            }
+        });
+
+        if(existingUser) {
+            return { success: false, message: 'A user with this phone number already exists for this training provider.' };
         }
         // Check email uniqueness scoped to role
         if (email) {
@@ -464,3 +461,4 @@ export async function deleteRegistrationField(id: string) {
 }
 
     
+
