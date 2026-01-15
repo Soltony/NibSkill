@@ -50,20 +50,17 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
       status: 'PUBLISHED'
     };
 
-    // If a user is logged in, apply role-specific filtering
     if (user) {
-        if (user.trainingProviderId) { // Regular staff or provider admin
-            
-            const userSpecificConditions: Prisma.CourseWhereInput[] = [];
-            // Only add conditions if the user has the corresponding ID
+        if (user.trainingProviderId) {
+            const userAssignments: Prisma.CourseWhereInput[] = [];
             if (user.departmentId) {
-                userSpecificConditions.push({ assignedDepartments: { some: { id: user.departmentId } } });
+                userAssignments.push({ assignedDepartments: { some: { id: user.departmentId } } });
             }
             if (user.branchId) {
-                userSpecificConditions.push({ assignedBranches: { some: { id: user.branchId } } });
+                userAssignments.push({ assignedBranches: { some: { id: user.branchId } } });
             }
             if (user.districtId) {
-                userSpecificConditions.push({ assignedDistricts: { some: { id: user.districtId } } });
+                userAssignments.push({ assignedDistricts: { some: { id: user.districtId } } });
             }
 
             courseWhere = {
@@ -72,25 +69,22 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
                     { trainingProviderId: user.trainingProviderId },
                     {
                         OR: [
-                            // Condition 1: The course is public
+                            // Course is public
                             { isPublic: true },
-                            // Condition 2: The course is NOT public AND the user meets assignment criteria
+                            // OR course is restricted and user matches an assignment
                             {
-                                AND: [
-                                    { isPublic: false },
-                                    // If a course is not public and has no assignments, it's visible to no one (by default)
-                                    // unless we want it visible to all in the provider. Let's assume explicit assignment is required.
-                                    userSpecificConditions.length > 0 ? { OR: userSpecificConditions } : { id: 'non-existent-id' } // Effectively block if user has no assignments
-                                ]
+                                isPublic: false,
+                                OR: userAssignments
                             }
                         ]
                     }
                 ]
             };
-        } else { // Super Admin sees all published courses
+        } else {
+             // Super Admin sees all published courses
             courseWhere = { status: 'PUBLISHED' };
         }
-    } else { // Guest user
+    } else { // Guest user only sees public courses
         courseWhere = { status: 'PUBLISHED', isPublic: true };
     }
 
