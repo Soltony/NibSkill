@@ -102,11 +102,14 @@ async function main() {
     const hashedPassword = await bcrypt.hash(password, 10);
     const isSuperAdmin = role === 'super-admin';
 
+    const requirePasswordChange = role === 'admin' || role === 'super-admin' || role === 'staff';
+
     const createdUser = await prisma.user.upsert({
       where: { id: user.id },
       update: {
         password: hashedPassword,
         phoneNumber: user.phoneNumber,
+        passwordChangeRequired: requirePasswordChange,
       },
       create: {
         id: user.id,
@@ -115,6 +118,7 @@ async function main() {
         phoneNumber: user.phoneNumber,
         avatarUrl: user.avatarUrl,
         password: hashedPassword,
+        passwordChangeRequired: requirePasswordChange,
         departmentId: departmentRecord?.id,
         districtId: districtRecord?.id,
         branchId: branchRecord?.id,

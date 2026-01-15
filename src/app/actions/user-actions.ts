@@ -7,6 +7,7 @@ import { z } from 'zod'
 import prisma from '@/lib/db'
 import { cookies } from 'next/headers'
 import { getSession, requireRecentReauthForSession } from '@/lib/auth'
+import { requireExactRole } from '@/lib/authorization'
 import bcrypt from 'bcryptjs'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
@@ -29,8 +30,9 @@ export async function resendCredentialsEmail(userId: string) {
             return { success: false, message: "User not found or has no email address." };
         }
         
-        // Security check: ensure admin has authority over the user
-        if (session.role.name !== 'Super Admin' && user.trainingProviderId !== session.trainingProviderId) {
+        // Security check: only Admins of the same provider can manage provider users
+        try { requireExactRole(session, 'Admin'); } catch (e: any) { return { success: false, message: 'Unauthorized: Admins only.' }; }
+        if (user.trainingProviderId !== session.trainingProviderId) {
              return { success: false, message: "You do not have permission to manage this user." };
         }
 

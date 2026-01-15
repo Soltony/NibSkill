@@ -93,24 +93,7 @@ const registrationFieldsSchema = z.object({
     }))
 })
 
-const CrudPermissions = ({ permissions }: { permissions: any }) => {
-  const letters: (keyof PermissionType)[] = ['c', 'r', 'u', 'd'];
-  return (
-    <div className="flex space-x-1 tracking-widest">
-      {letters.map(letter => (
-        <span 
-          key={letter} 
-          className={cn(
-            'font-mono font-bold',
-            permissions && permissions[letter] ? 'text-green-500' : 'text-muted-foreground/30'
-          )}
-        >
-          {letter.toUpperCase()}
-        </span>
-      ))}
-    </div>
-  )
-}
+import { CrudPermissions } from '@/components/crud-permissions'
 
 type SettingsTabsProps = {
     users: UserWithRoles[];

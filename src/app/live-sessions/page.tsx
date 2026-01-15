@@ -36,6 +36,14 @@ export default async function LiveSessionsPage() {
         redirect('/login');
     }
 
+    // Enforce Staff-only access
+    const roleName = user.role?.name;
+    if (roleName !== 'Staff') {
+      if (roleName === 'Admin') redirect('/admin/analytics');
+      else if (roleName === 'Super Admin') redirect('/super-admin/dashboard');
+      else redirect('/login');
+    }
+
     const { sessions, userId } = await getLiveSessionsData(user.id);
 
     const now = new Date();

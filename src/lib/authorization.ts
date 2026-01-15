@@ -34,3 +34,20 @@ export function requirePermission(session: SessionLike | null | undefined, resou
   }
   return true;
 }
+
+/**
+ * Check exact role name on the session (non-hierarchical)
+ */
+export function isRole(session: SessionLike | null | undefined, roleName: string): boolean {
+  return !!(session && session.role && session.role.name === roleName);
+}
+
+export function requireExactRole(session: SessionLike | null | undefined, roleName: string) {
+  if (!isRole(session, roleName)) {
+    try { securityLog('warn', 'authorization_denied', { userId: session?.id ?? null, role: session?.role?.name ?? null, requiredRole: roleName }); } catch (e) {}
+    const err: any = new Error('Forbidden');
+    err.status = 403;
+    throw err;
+  }
+  return true;
+}
