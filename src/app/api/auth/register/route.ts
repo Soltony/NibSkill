@@ -20,7 +20,7 @@ const getJwtSecret = () => {
 };
 
 
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>\/\?])/;
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])/;
 
 const phoneValidation = z.string().min(1, "Phone number is required.")
     .refine(val => (val.startsWith('09') && val.length === 10 && /^\d+$/.test(val)) || (val.startsWith('251') && val.length === 12 && /^\d+$/.test(val)), {
@@ -108,9 +108,9 @@ export async function POST(request: NextRequest) {
         name,
         email: email || null,
         password: hashedPassword,
-        department: departmentId ? { connect: { id: departmentId } } : undefined,
-        district: districtId ? { connect: { id: districtId } } : undefined,
-        branch: branchId ? { connect: { id: branchId } } : undefined,
+        departmentId: departmentId || null,
+        districtId: districtId || null,
+        branchId: branchId || null,
         phoneNumber: phoneNumber,
         avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
         trainingProvider: {
