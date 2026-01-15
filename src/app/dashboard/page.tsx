@@ -48,23 +48,39 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
   trainingProviders: TrainingProvider[];
 }> {
     let courseWhere: Prisma.CourseWhereInput = {
-      status: 'PUBLISHED',
-      isPublic: true,
+      status: 'PUBLISHED'
     };
 
-    if (user && user.trainingProviderId) {
-      courseWhere = {
-        status: 'PUBLISHED',
-        OR: [
-          { isPublic: true },
-          { 
-            isPublic: false,
-            trainingProviderId: user.trainingProviderId,
-          }
-        ]
-      };
-    } else if (user && !user.trainingProviderId) { // Super Admin
-        courseWhere = { status: 'PUBLISHED' };
+    // If a user is logged in, apply role-specific filtering
+    if (user) {
+        if (user.trainingProviderId) { // Regular staff or provider admin
+            const userSpecificConditions: Prisma.CourseWhereInput[] = [];
+            if (user.departmentId) {
+                userSpecificConditions.push({ assignedDepartments: { some: { id: user.departmentId } } });
+            }
+            if (user.branchId) {
+                userSpecificConditions.push({ assignedBranches: { some: { id: user.branchId } } });
+            }
+            if (user.districtId) {
+                userSpecificConditions.push({ assignedDistricts: { some: { id: user.districtId } } });
+            }
+
+            courseWhere = {
+                status: 'PUBLISHED',
+                trainingProviderId: user.trainingProviderId,
+                OR: [
+                    { isPublic: true },
+                    { 
+                        isPublic: false,
+                        AND: userSpecificConditions.length > 0 ? [{ OR: userSpecificConditions }] : []
+                    }
+                ]
+            };
+        } else { // Super Admin sees all published courses
+            courseWhere = { status: 'PUBLISHED' };
+        }
+    } else { // Guest user
+        courseWhere = { status: 'PUBLISHED', isPublic: true };
     }
 
 
