@@ -47,45 +47,42 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
   trainingProviders: TrainingProvider[];
 }> {
     let courseWhere: Prisma.CourseWhereInput = {
-      status: 'PUBLISHED'
+      status: 'PUBLISHED',
+      isPublic: true, // Guests and users with no assignments only see public courses by default.
     };
 
-    if (user) {
-        if (user.trainingProviderId) {
-            const userAssignments: Prisma.CourseWhereInput[] = [];
-            if (user.departmentId) {
-                userAssignments.push({ assignedDepartments: { some: { id: user.departmentId } } });
-            }
-            if (user.branchId) {
-                userAssignments.push({ assignedBranches: { some: { id: user.branchId } } });
-            }
-            if (user.districtId) {
-                userAssignments.push({ assignedDistricts: { some: { id: user.districtId } } });
-            }
-
-            courseWhere = {
-                AND: [
-                    { status: 'PUBLISHED' },
-                    { trainingProviderId: user.trainingProviderId },
-                    {
-                        OR: [
-                            // Course is public
-                            { isPublic: true },
-                            // OR course is restricted and user matches an assignment
-                            {
-                                isPublic: false,
-                                OR: userAssignments
-                            }
-                        ]
-                    }
-                ]
-            };
-        } else {
-             // Super Admin sees all published courses
-            courseWhere = { status: 'PUBLISHED' };
+    if (user && user.trainingProviderId) {
+        // Build the authorization clause for restricted courses
+        const userAssignments: Prisma.CourseWhereInput[] = [];
+        if (user.departmentId) {
+            userAssignments.push({ assignedDepartments: { some: { id: user.departmentId } } });
         }
-    } else { // Guest user only sees public courses
-        courseWhere = { status: 'PUBLISHED', isPublic: true };
+        if (user.branchId) {
+            userAssignments.push({ assignedBranches: { some: { id: user.branchId } } });
+        }
+        if (user.districtId) {
+            userAssignments.push({ assignedDistricts: { some: { id: user.districtId } } });
+        }
+
+        courseWhere = {
+            status: 'PUBLISHED',
+            trainingProviderId: user.trainingProviderId,
+            OR: [
+                // Condition 1: The course is public
+                { isPublic: true },
+                // Condition 2: The course is restricted AND the user is assigned to it
+                {
+                    AND: [
+                        { isPublic: false },
+                        // Check if the user's groups have any overlap with the course's assigned groups
+                        { OR: userAssignments.length > 0 ? userAssignments : [] },
+                    ]
+                }
+            ]
+        };
+    } else if (user && user.roles.some(r => r.role.name === 'Super Admin')) {
+        // Super Admin sees all published courses from all providers
+        courseWhere = { status: 'PUBLISHED' };
     }
 
 
