@@ -1,5 +1,4 @@
 
-
 import {
   Card,
   CardContent,
@@ -12,9 +11,9 @@ import { Radio } from 'lucide-react';
 import Link from 'next/link';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { DashboardClient } from './dashboard-client';
-import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse, Role, UserRole, User } from '@prisma/client';
+import type { Course, Product, Module, UserCompletedModule, UserCompletedCourse, TrainingProvider, LearningPathCourse, Role, UserRole, User, Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { jwtVerify, type JWTPayload } from 'jose';
 
@@ -54,7 +53,9 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
     // If a user is logged in, apply role-specific filtering
     if (user) {
         if (user.trainingProviderId) { // Regular staff or provider admin
+            
             const userSpecificConditions: Prisma.CourseWhereInput[] = [];
+            // Only add conditions if the user has the corresponding ID
             if (user.departmentId) {
                 userSpecificConditions.push({ assignedDepartments: { some: { id: user.departmentId } } });
             }
@@ -66,13 +67,23 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
             }
 
             courseWhere = {
-                status: 'PUBLISHED',
-                trainingProviderId: user.trainingProviderId,
-                OR: [
-                    { isPublic: true },
-                    { 
-                        isPublic: false,
-                        AND: userSpecificConditions.length > 0 ? [{ OR: userSpecificConditions }] : []
+                AND: [
+                    { status: 'PUBLISHED' },
+                    { trainingProviderId: user.trainingProviderId },
+                    {
+                        OR: [
+                            // Condition 1: The course is public
+                            { isPublic: true },
+                            // Condition 2: The course is NOT public AND the user meets assignment criteria
+                            {
+                                AND: [
+                                    { isPublic: false },
+                                    // If a course is not public and has no assignments, it's visible to no one (by default)
+                                    // unless we want it visible to all in the provider. Let's assume explicit assignment is required.
+                                    userSpecificConditions.length > 0 ? { OR: userSpecificConditions } : { id: 'non-existent-id' } // Effectively block if user has no assignments
+                                ]
+                            }
+                        ]
                     }
                 ]
             };
@@ -89,7 +100,10 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
         include: { 
             modules: true, 
             product: true,
-            trainingProvider: true
+            trainingProvider: true,
+            assignedDepartments: { select: { id: true } },
+            assignedBranches: { select: { id: true } },
+            assignedDistricts: { select: { id: true } },
         }
     });
 
