@@ -33,9 +33,13 @@ const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters long.').refine((val) => passwordRegex.test(val), {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, and one special character.',
   }),
+  // Accept both `departmentId` and legacy/dynamic field names `department`/`district`/`branch`
   departmentId: z.string().optional(),
   districtId: z.string().optional(),
   branchId: z.string().optional(),
+  department: z.string().optional(),
+  district: z.string().optional(),
+  branch: z.string().optional(),
   phoneNumber: phoneValidation,
   trainingProviderId: z.string({ required_error: "Please select a training provider." }),
 });
@@ -50,7 +54,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ isSuccess: false, errors: validation.error.issues.map(i => i.message) }, { status: 400 });
     }
 
-    const { name, email, password, departmentId, districtId, branchId, phoneNumber, trainingProviderId } = validation.data;
+    // Map dynamic field names (department/district/branch) to the canonical departmentId/districtId/branchId
+    const raw = validation.data as any;
+    const departmentId = raw.departmentId || raw.department || undefined;
+    const districtId = raw.districtId || raw.district || undefined;
+    const branchId = raw.branchId || raw.branch || undefined;
+    const { name, email, password, phoneNumber, trainingProviderId } = validation.data as any;
 
     const staffRole = await prisma.role.findFirst({
         where: { 
@@ -103,34 +112,37 @@ export async function POST(request: NextRequest) {
         }
     }
     
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email: email || null,
-        password: hashedPassword,
-        departmentId: departmentId || undefined,
-        districtId: districtId || undefined,
-        branchId: branchId || undefined,
-        phoneNumber: phoneNumber,
-        avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
-        trainingProvider: {
-            connect: { id: trainingProviderId }
-        },
-        passwordChangeRequired: false, // Self-registered users set their own password
-        roles: {
-            create: {
-                roleId: staffRole.id
-            }
-        },
-        loginHistory: superAppToken ? {
-            create: {
-                ipAddress: request.ip,
-                userAgent: request.headers.get('user-agent'),
-                superAppToken: superAppToken,
-            }
-        } : undefined,
+    const createData: any = {
+      name,
+      email: email || null,
+      password: hashedPassword,
+      phoneNumber: phoneNumber,
+      avatarUrl: `https://picsum.photos/seed/user${Date.now()}/100/100`,
+      trainingProvider: {
+        connect: { id: trainingProviderId }
       },
-    });
+      passwordChangeRequired: false, // Self-registered users set their own password
+      roles: {
+        create: {
+          roleId: staffRole.id
+        }
+      }
+    };
+
+    if (departmentId) createData.department = { connect: { id: departmentId } };
+    if (districtId) createData.district = { connect: { id: districtId } };
+    if (branchId) createData.branch = { connect: { id: branchId } };
+    if (superAppToken) {
+      createData.loginHistory = {
+        create: {
+          ipAddress: request.ip,
+          userAgent: request.headers.get('user-agent'),
+          superAppToken: superAppToken,
+        }
+      };
+    }
+
+    const newUser = await prisma.user.create({ data: createData });
 
     // record initial password history
     try {

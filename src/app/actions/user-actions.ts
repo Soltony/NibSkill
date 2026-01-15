@@ -7,7 +7,7 @@ import { z } from 'zod'
 import prisma from '@/lib/db'
 import { cookies } from 'next/headers'
 import { getSession, requireRecentReauthForSession } from '@/lib/auth'
-import { requireExactRole } from '@/lib/authorization'
+import { requireExactRole, hasAccessToCourse } from '@/lib/authorization'
 import bcrypt from 'bcryptjs'
 import { sendEmail, getLoginCredentialsEmailTemplate } from '@/lib/email'
 import { generateSecurePassword } from '@/lib/crypto'
@@ -85,6 +85,10 @@ export async function completeCourse(values: z.infer<typeof completeCourseSchema
         if (!course) {
             return { success: false, message: "Course not found." };
         }
+
+        // Enforce access control: user must be allowed to access this course
+        const accessOk = await hasAccessToCourse(prisma, userId, courseId);
+        if (!accessOk) return { success: false, message: "You do not have access to this course." };
         
         const passed = course.quiz ? score >= course.quiz.passingScore : true;
         
@@ -259,6 +263,13 @@ export async function toggleModuleCompletion(courseId: string, values: z.infer<t
     const userId = session.id;
 
     try {
+        // Verify the module belongs to the given course
+        const module = await prisma.module.findUnique({ where: { id: validatedFields.data.moduleId } });
+        if (!module || module.courseId !== courseId) return { success: false, message: 'Module does not belong to the specified course.' };
+
+        // Enforce access control for the course
+        const allowed = await hasAccessToCourse(prisma, session.id, courseId);
+        if (!allowed) return { success: false, message: 'You do not have access to this course.' };
         if (completed) {
             await prisma.userCompletedModule.create({
                 data: {
