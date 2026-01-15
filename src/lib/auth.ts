@@ -67,6 +67,9 @@ export async function getSession() {
                 avatarUrl: payload.avatarUrl,
                 trainingProviderId: payload.trainingProviderId,
                 passwordChangeRequired: user.passwordChangeRequired,
+                departmentId: user.departmentId || undefined,
+                districtId: user.districtId || undefined,
+                branchId: user.branchId || undefined,
             };
         } catch (e) {
             // Access token invalid/expired — this may indicate tampering or signature failure.
@@ -176,6 +179,9 @@ export async function getSession() {
             avatarUrl: user.avatarUrl || '',
             trainingProviderId: user.trainingProviderId || undefined,
             passwordChangeRequired: user.passwordChangeRequired,
+            departmentId: user.departmentId || undefined,
+            districtId: user.districtId || undefined,
+            branchId: user.branchId || undefined,
         };
     } catch (error) {
         console.error('Error verifying refresh token in getSession:', error);

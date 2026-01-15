@@ -91,9 +91,15 @@ export async function hasAccessToCourse(prisma: PrismaClient, userId: string | n
     const branchIds = (course.assignedBranches || []).map(b => b.id);
     const districtIds = (course.assignedDistricts || []).map(d => d.id);
 
+    // Allow access if user's group matches any of the assigned lists
     if (user.departmentId && deptIds.includes(user.departmentId)) return true;
     if (user.branchId && branchIds.includes(user.branchId)) return true;
     if (user.districtId && districtIds.includes(user.districtId)) return true;
+
+    // Also allow access if the course has a primary scalar assignment matching the user
+    if (user.departmentId && course.departmentId && user.departmentId === course.departmentId) return true;
+    if (user.branchId && course.branchId && user.branchId === course.branchId) return true;
+    if (user.districtId && course.districtId && user.districtId === course.districtId) return true;
 
     return false;
   } catch (e) {

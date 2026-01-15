@@ -63,6 +63,10 @@ export async function addCourse(values: z.infer<typeof formSchema>) {
                 assignedDistricts: districtIds ? { connect: districtIds.map(id => ({ id })) } : undefined,
                 assignedBranches: branchIds ? { connect: branchIds.map(id => ({ id })) } : undefined,
                 assignedDepartments: departmentIds ? { connect: departmentIds.map(id => ({ id })) } : undefined,
+                // Set primary scalar relations when a single group is selected for convenience
+                departmentId: departmentIds && departmentIds.length > 0 ? departmentIds[0] : undefined,
+                districtId: districtIds && districtIds.length > 0 ? districtIds[0] : undefined,
+                branchId: branchIds && branchIds.length > 0 ? branchIds[0] : undefined,
             }
         });
 
@@ -121,6 +125,10 @@ export async function updateCourse(id: string, values: z.infer<typeof formSchema
                 assignedDistricts: { set: districtIds?.map(id => ({ id })) },
                 assignedBranches: { set: branchIds?.map(id => ({ id })) },
                 assignedDepartments: { set: departmentIds?.map(id => ({ id })) },
+                // Keep primary scalar relations in sync: set to first selected id or clear when none selected
+                departmentId: departmentIds && departmentIds.length > 0 ? departmentIds[0] : null,
+                districtId: districtIds && districtIds.length > 0 ? districtIds[0] : null,
+                branchId: branchIds && branchIds.length > 0 ? branchIds[0] : null,
             }
         });
 

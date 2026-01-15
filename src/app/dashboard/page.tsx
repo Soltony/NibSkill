@@ -55,30 +55,28 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
         // Build the authorization clause for restricted courses
         const userAssignments: Prisma.CourseWhereInput[] = [];
         if (user.departmentId) {
-            userAssignments.push({ assignedDepartments: { some: { id: user.departmentId } } });
+          userAssignments.push({ assignedDepartments: { some: { id: user.departmentId } } });
+          userAssignments.push({ departmentId: user.departmentId });
         }
         if (user.branchId) {
-            userAssignments.push({ assignedBranches: { some: { id: user.branchId } } });
+          userAssignments.push({ assignedBranches: { some: { id: user.branchId } } });
+          userAssignments.push({ branchId: user.branchId });
         }
         if (user.districtId) {
-            userAssignments.push({ assignedDistricts: { some: { id: user.districtId } } });
+          userAssignments.push({ assignedDistricts: { some: { id: user.districtId } } });
+          userAssignments.push({ districtId: user.districtId });
+        }
+
+        // Only include non-public courses if the user actually has any assignment values
+        const orClauses: any[] = [ { isPublic: true } ];
+        if (userAssignments.length > 0) {
+          orClauses.push({ AND: [ { isPublic: false }, { OR: userAssignments } ] });
         }
 
         courseWhere = {
-            status: 'PUBLISHED',
-            trainingProviderId: user.trainingProviderId,
-            OR: [
-                // Condition 1: The course is public
-                { isPublic: true },
-                // Condition 2: The course is restricted AND the user is assigned to it
-                {
-                    AND: [
-                        { isPublic: false },
-                        // Check if the user's groups have any overlap with the course's assigned groups
-                        { OR: userAssignments.length > 0 ? userAssignments : [] },
-                    ]
-                }
-            ]
+          status: 'PUBLISHED',
+          trainingProviderId: user.trainingProviderId,
+          OR: orClauses,
         };
     } else if (user && user.roles.some(r => r.role.name === 'Super Admin')) {
         // Super Admin sees all published courses from all providers
