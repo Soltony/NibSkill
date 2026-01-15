@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast"
 import { updateUser } from "@/app/actions/settings-actions"
 import type { User, Role, UserRole } from "@prisma/client"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select"
+import { CrudPermissions } from '@/components/crud-permissions'
 
 const formSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -152,6 +153,26 @@ export function EditUserDialog({ user, roles, children }: EditUserDialogProps) {
                             </SelectContent>
                         </Select>
                     <FormMessage />
+
+                    {/* Permissions preview for the selected role */}
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">Role permissions preview</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          'dashboard', 'products', 'courses', 'approvals', 'learningPaths', 'quizzes', 'grading', 'liveSessions', 'reports', 'certificate', 'settings'
+                        ].map((key) => {
+                          const selectedId = form.getValues('roleId') || user.roles[0]?.role.id;
+                          const roleObj = roles.find(r => r.id === selectedId);
+                          const permsForKey = (roleObj?.permissions as any)?.[key];
+                          return (
+                            <div key={key} className="flex items-center justify-between p-2 border rounded">
+                              <div className="text-sm capitalize">{key.replace(/([A-Z])/g, ' $1')}</div>
+                              <CrudPermissions permissions={permsForKey} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
                     </FormItem>
                 )}
             />

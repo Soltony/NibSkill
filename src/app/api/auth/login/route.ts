@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
       email: user.email,
       avatarUrl: user.avatarUrl,
       trainingProviderId: user.trainingProviderId,
+      passwordChangeRequired: user.passwordChangeRequired,
       tokenVersion: user.tokenVersion,
       jti,
       sessionId,

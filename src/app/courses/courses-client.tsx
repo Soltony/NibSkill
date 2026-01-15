@@ -17,7 +17,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, BookCopy, BookMarked, Radio, ShieldCheck, User, CheckCircle, Package, ClipboardCheck, Edit, FilePieChart, UserCheck, Award, Settings, LogOut, Users } from 'lucide-react';
+import { LayoutDashboard, BookCopy, BookMarked, Radio, ShieldCheck, User, CheckCircle, Package, ClipboardCheck, Edit, FilePieChart, UserCheck, Award, Settings, LogOut } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
 import { NotificationCenter } from '@/components/notification-center';
@@ -214,21 +214,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       ))}
                     </SidebarGroup>
 
-                    {isStaffView && hasAnyAdminReadAccess && (
-                      <SidebarMenuItem>
-                        <Link href="/admin/analytics">
-                          <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
-                        </Link>
-                      </SidebarMenuItem>
-                    )}
 
-                    {!isStaffView && (
-                      <SidebarMenuItem>
-                        <Link href="/dashboard">
-                          <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
-                        </Link>
-                      </SidebarMenuItem>
-                    )}
                   </SidebarMenu>
                 )}
               </SidebarContent>

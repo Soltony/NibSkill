@@ -18,7 +18,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, BookCopy, BookMarked, Radio, ShieldCheck, User, CheckCircle, Package, ClipboardCheck, Edit, FilePieChart, UserCheck, Award, Settings, LogOut, Users, Building } from 'lucide-react';
+import { LayoutDashboard, BookCopy, BookMarked, Radio, CheckCircle, Package, ClipboardCheck, Edit, FilePieChart, UserCheck, Award, Settings, LogOut, Building, ShieldCheck } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
 import { NotificationCenter } from '@/components/notification-center';
@@ -156,11 +156,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const isAdminPath = pathname.startsWith('/admin');
   const isSuperAdminPath = pathname.startsWith('/super-admin');
 
+  const roleName = userRole?.name;
+  const isSuperAdminRole = !isGuest && roleName === 'Super Admin';
+  const isAdminRole = !isGuest && roleName === 'Admin';
+  const isStaffRole = !isGuest && roleName === 'Staff';
+
   let currentNavItem;
 
-  if (isSuperAdminPath) {
+  if (isSuperAdminRole) {
     currentNavItem = superAdminNavItems.find(item => pathname.startsWith(item.href));
-  } else if (isAdminPath) {
+  } else if (isAdminRole) {
     currentNavItem = adminNavItems.find(item => pathname.startsWith(item.href));
   } else {
     currentNavItem = navItems.find(item => pathname.startsWith(item.href));
@@ -201,8 +206,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   const hasAnyAdminReadAccess = !isGuest && adminNavItems.some(item => item.permission === true);
-  const isStaffView = !isAdminPath && !isSuperAdminPath;
-  const isSuperAdminRole = !isGuest && userRole?.name === 'Super Admin';
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -225,18 +228,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <SidebarMenu>
                   <SidebarGroup>
                       <SidebarGroupLabel>
-                        {isSuperAdminPath ? 'Super Admin' : isAdminPath ? 'Admin Menu' : 'Menu'}
+                        {isSuperAdminRole ? 'Super Admin' : isAdminRole ? 'Admin Menu' : 'Menu'}
                       </SidebarGroupLabel>
-                      {isStaffView && navItems.map(item => (
-                        <SidebarMenuItem key={item.href}>
-                          <Link href={item.href}>
-                            <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
-                              <item.icon /><span>{item.label}</span>
-                            </SidebarMenuButton>
-                          </Link>
-                        </SidebarMenuItem>
-                      ))}
-                      {isSuperAdminPath && superAdminNavItems.map(item => (
+                      {isSuperAdminRole && superAdminNavItems.map(item => (
                          <SidebarMenuItem key={item.href}>
                           <Link href={item.href}>
                             <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
@@ -245,7 +239,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                           </Link>
                         </SidebarMenuItem>
                       ))}
-                       {isAdminPath && adminNavItems.map(item => (
+                      {isAdminRole && adminNavItems.map(item => (
                          item.permission && (
                             <SidebarMenuItem key={item.href}>
                             <Link href={item.href}>
@@ -256,28 +250,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                             </SidebarMenuItem>
                          )
                       ))}
+                      {!isAdminRole && !isSuperAdminRole && navItems.map(item => (
+                        <SidebarMenuItem key={item.href}>
+                          <Link href={item.href}>
+                            <SidebarMenuButton isActive={isLinkActive(item.href)} tooltip={item.label}>
+                              <item.icon /><span>{item.label}</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                      ))}
                     </SidebarGroup>
 
-                    {isStaffView && hasAnyAdminReadAccess && (
-                      <SidebarMenuItem>
-                        <Link href="/admin/analytics">
-                          <SidebarMenuButton tooltip="Admin View"><ShieldCheck /><span>Admin View</span></SidebarMenuButton>
-                        </Link>
-                      </SidebarMenuItem>
-                    )}
-                     {isSuperAdminRole && !isSuperAdminPath && (
+                    {isSuperAdminRole && !isSuperAdminPath && (
                        <SidebarMenuItem>
                           <Link href="/super-admin">
                             <SidebarMenuButton tooltip="Super Admin"><ShieldCheck /><span>Super Admin</span></SidebarMenuButton>
                           </Link>
                         </SidebarMenuItem>
-                    )}
-                    {!isStaffView && (
-                      <SidebarMenuItem>
-                        <Link href="/dashboard">
-                          <SidebarMenuButton tooltip="Staff View"><Users /><span>Staff View</span></SidebarMenuButton>
-                        </Link>
-                      </SidebarMenuItem>
                     )}
                   </SidebarMenu>
               </SidebarContent>

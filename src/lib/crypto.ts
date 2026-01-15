@@ -1,5 +1,5 @@
 
-import { randomBytes } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 
 /**
  * Generates a cryptographically secure random password.
@@ -30,4 +30,21 @@ export function generateSecurePassword(length = 12): string {
     // This is rare but ensures compliance with password policies.
     return generateSecurePassword(length);
   }
+}
+
+/**
+ * Generate a cryptographically secure integer between min and max (inclusive).
+ * Uses Node's crypto.randomInt under the hood which is uniformly distributed.
+ * @param min Inclusive minimum
+ * @param max Inclusive maximum
+ */
+export function generateSecureInt(min: number, max: number): number {
+  if (!Number.isInteger(min) || !Number.isInteger(max)) {
+    throw new TypeError('generateSecureInt expects integer min and max');
+  }
+  if (min > max) {
+    throw new RangeError('min must be <= max');
+  }
+  // crypto.randomInt generates values in [min, maxExclusive), so add 1
+  return randomInt(min, max + 1);
 }
