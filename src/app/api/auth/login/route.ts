@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
     try { securityLog('info', 'login_attempt', { phoneNumber, loginAs, ip }); } catch (e) {}
 
     const user = await prisma.user.findUnique({
-      where: { phoneNumber },
+      where: { phoneNumber_trainingProviderId: { phoneNumber, trainingProviderId: null } },
       include: { roles: { include: { role: true } } },
     });
 
@@ -102,15 +102,22 @@ export async function POST(req: NextRequest) {
     };
 
     if (!user || !user.password) return failLogin();
-
-    const role =
-      loginAs === 'super-admin'
-        ? user.roles.find((r) => r.role.id === 'super-admin')?.role
-        : user.roles.find(
+    
+    let role;
+    if (loginAs === 'super-admin') {
+        role = user.roles.find(r => r.role.id === 'super-admin')?.role;
+    } else if (loginAs === 'admin') {
+        // An "admin" login can be a 'Training Provider' or a regular 'Admin'
+        role = user.roles.find(
+            (r) => r.role.name === 'Training Provider' || r.role.name === 'Admin'
+        )?.role;
+    } else { // 'staff'
+        role = user.roles.find(
             (r) =>
-              r.role.name.toLowerCase() === loginAs.toLowerCase() &&
-              r.role.trainingProviderId === user.trainingProviderId
-          )?.role;
+                r.role.name.toLowerCase() === loginAs.toLowerCase() &&
+                r.role.trainingProviderId === user.trainingProviderId
+        )?.role;
+    }
 
     if (!role) return failLogin();
 
@@ -133,7 +140,6 @@ export async function POST(req: NextRequest) {
       tokenVersion: user.tokenVersion,
       jti,
       sessionId,
-      passwordChangeRequired: user.passwordChangeRequired, // Include the flag
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -150,16 +156,19 @@ export async function POST(req: NextRequest) {
       .setExpirationTime(`${REFRESH_TOKEN_EXPIRES_IN_SECONDS}s`)
       .sign(getJwtSecret('refresh'));
 
+    let redirectTo = '/dashboard'; // Default for staff
+    if (user.passwordChangeRequired) {
+        redirectTo = '/change-password';
+    } else if (role.name === 'Super Admin') {
+        redirectTo = '/super-admin/dashboard';
+    } else if (role.name === 'Admin' || role.name === 'Training Provider') {
+        redirectTo = '/admin/analytics';
+    }
+
     const response = NextResponse.json(
       {
         isSuccess: true,
-        redirectTo: user.passwordChangeRequired ? '/change-password' : (
-          role.name === 'Admin'
-            ? '/admin/analytics'
-            : role.name === 'Super Admin'
-            ? '/super-admin/dashboard'
-            : '/dashboard'
-        ),
+        redirectTo,
         passwordChangeRequired: user.passwordChangeRequired,
       },
       { status: 200 }
