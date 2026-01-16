@@ -199,20 +199,21 @@ export async function POST(req: NextRequest) {
         .update(refreshToken)
         .digest('hex');
 
-      await prisma.refreshToken.create({
-        data: { hashedToken: hashed, userId: user.id, sessionId },
-      });
-
-      await prisma.session.create({
-        data: {
-          id: sessionId,
-          userId: user.id,
-          expiresAt: new Date(
-            Date.now() + MAX_SESSION_AGE_SECONDS * 1000
-          ),
-          reauthenticatedAt: new Date(),
-        },
-      });
+      await prisma.$transaction([
+        prisma.session.create({
+          data: {
+            id: sessionId,
+            userId: user.id,
+            expiresAt: new Date(
+              Date.now() + MAX_SESSION_AGE_SECONDS * 1000
+            ),
+            reauthenticatedAt: new Date(),
+          },
+        }),
+        prisma.refreshToken.create({
+          data: { hashedToken: hashed, userId: user.id, sessionId },
+        }),
+      ]);
 
       // Audit events for session and token issuance
       try { securityLog('audit', 'session_created', { userId: user.id, sessionId, ip }); } catch (e) {}

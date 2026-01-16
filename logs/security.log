@@ -473,3 +473,34 @@
 {"timestamp":"2026-01-15T15:03:38.797Z","level":"audit","event":"session_created","pid":9760,"userId":"cmkfjo7nc0019tvf0n1d083ne","sessionId":"350a51f0-b903-4011-9d51-11b1984573cb","ip":"::1"}
 {"timestamp":"2026-01-15T15:03:38.797Z","level":"audit","event":"tokens_issued","pid":9760,"userId":"cmkfjo7nc0019tvf0n1d083ne","sessionId":"350a51f0-b903-4011-9d51-11b1984573cb","jti":"4ab50330-3339-49e7-a147-51173c157ddf"}
 {"timestamp":"2026-01-15T15:03:38.800Z","level":"audit","event":"login_success","pid":9760,"userId":"cmkfjo7nc0019tvf0n1d083ne","ip":"::1","role":"Training Provider","loginAs":"admin"}
+{"timestamp":"2026-01-16T05:39:13.113Z","level":"info","event":"login_attempt","pid":6364,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T05:39:13.551Z","level":"error","event":"session_persist_failed","pid":6364,"userId":"user-2","error":"PrismaClientKnownRequestError: \nInvalid `prisma.refreshToken.create()` invocation:\n\n\nForeign key constraint violated: `RefreshToken_sessionId_fkey (index)`"}
+{"timestamp":"2026-01-16T05:39:13.569Z","level":"audit","event":"login_success","pid":6364,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T05:44:13.329Z","level":"info","event":"login_attempt","pid":7660,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T05:44:13.734Z","level":"audit","event":"session_created","pid":7660,"userId":"user-2","sessionId":"6626e9f2-cd5f-4532-9772-a8f9485125f4","ip":"::1"}
+{"timestamp":"2026-01-16T05:44:13.735Z","level":"audit","event":"tokens_issued","pid":7660,"userId":"user-2","sessionId":"6626e9f2-cd5f-4532-9772-a8f9485125f4","jti":"e6452360-b8fa-4063-9695-58dbe9148686"}
+{"timestamp":"2026-01-16T05:44:13.737Z","level":"audit","event":"login_success","pid":7660,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T05:44:42.203Z","level":"audit","event":"forced_logout","pid":7660,"userId":"user-2","reason":"password_change","revokedCount":1}
+{"timestamp":"2026-01-16T05:44:42.203Z","level":"audit","event":"password_change_invalidate_sessions","pid":7660,"userId":"user-2","revokedCount":1}
+{"timestamp":"2026-01-16T05:44:52.816Z","level":"info","event":"login_attempt","pid":7660,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T05:44:52.889Z","level":"audit","event":"tokens_issued","pid":7660,"userId":"user-2","sessionId":"0c680336-d8ef-402e-9430-07c1337fcc1d","jti":"c2ff75b5-9e9f-4a20-b09f-d7202cef9728"}
+{"timestamp":"2026-01-16T05:44:52.888Z","level":"audit","event":"session_created","pid":7660,"userId":"user-2","sessionId":"0c680336-d8ef-402e-9430-07c1337fcc1d","ip":"::1"}
+{"timestamp":"2026-01-16T05:44:52.891Z","level":"audit","event":"login_success","pid":7660,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T05:45:19.336Z","level":"audit","event":"logout_revoke_session","pid":7660,"userId":"user-2","sessionId":"0c680336-d8ef-402e-9430-07c1337fcc1d"}
+{"timestamp":"2026-01-16T05:45:19.358Z","level":"audit","event":"logout_revoke_access_token","pid":7660,"jti":"c2ff75b5-9e9f-4a20-b09f-d7202cef9728","userId":"user-2"}
+{"timestamp":"2026-01-16T05:45:19.358Z","level":"audit","event":"logout_success","pid":7660,"userId":"user-2","ip":"::1"}
+{"timestamp":"2026-01-16T05:45:19.358Z","level":"audit","event":"logout","pid":7660,"userId":"user-2","sessionId":"0c680336-d8ef-402e-9430-07c1337fcc1d","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T05:45:27.514Z","level":"info","event":"login_attempt","pid":7660,"phoneNumber":"251987654321","loginAs":"staff","ip":"::1"}
+{"timestamp":"2026-01-16T05:45:27.587Z","level":"audit","event":"session_created","pid":7660,"userId":"user-1","sessionId":"2128ba4b-fa3c-442a-9729-6d206001f99d","ip":"::1"}
+{"timestamp":"2026-01-16T05:45:27.587Z","level":"audit","event":"tokens_issued","pid":7660,"userId":"user-1","sessionId":"2128ba4b-fa3c-442a-9729-6d206001f99d","jti":"a75e9fbc-acf7-4797-9fec-001a00fac6ef"}
+{"timestamp":"2026-01-16T05:45:27.590Z","level":"audit","event":"login_success","pid":7660,"userId":"user-1","ip":"::1","role":"Staff","loginAs":"staff"}
+{"timestamp":"2026-01-16T05:45:56.274Z","level":"audit","event":"forced_logout","pid":7660,"userId":"user-1","reason":"password_change","revokedCount":1}
+{"timestamp":"2026-01-16T05:45:56.274Z","level":"audit","event":"password_change_invalidate_sessions","pid":7660,"userId":"user-1","revokedCount":1}
+{"timestamp":"2026-01-16T05:46:03.772Z","level":"info","event":"login_attempt","pid":7660,"phoneNumber":"251987654321","loginAs":"staff","ip":"::1"}
+{"timestamp":"2026-01-16T05:46:03.844Z","level":"audit","event":"session_created","pid":7660,"userId":"user-1","sessionId":"0779344b-e402-4872-9034-9803438bc6ef","ip":"::1"}
+{"timestamp":"2026-01-16T05:46:03.844Z","level":"audit","event":"tokens_issued","pid":7660,"userId":"user-1","sessionId":"0779344b-e402-4872-9034-9803438bc6ef","jti":"af46df15-d544-4cb2-b363-74ca450d3b06"}
+{"timestamp":"2026-01-16T05:46:03.846Z","level":"audit","event":"login_success","pid":7660,"userId":"user-1","ip":"::1","role":"Staff","loginAs":"staff"}
+{"timestamp":"2026-01-16T05:46:10.678Z","level":"audit","event":"logout_revoke_session","pid":7660,"userId":"user-1","sessionId":"0779344b-e402-4872-9034-9803438bc6ef"}
+{"timestamp":"2026-01-16T05:46:10.680Z","level":"audit","event":"logout_revoke_access_token","pid":7660,"jti":"af46df15-d544-4cb2-b363-74ca450d3b06","userId":"user-1"}
+{"timestamp":"2026-01-16T05:46:10.680Z","level":"audit","event":"logout_success","pid":7660,"userId":"user-1","ip":"::1"}
+{"timestamp":"2026-01-16T05:46:10.680Z","level":"audit","event":"logout","pid":7660,"userId":"user-1","sessionId":"0779344b-e402-4872-9034-9803438bc6ef","reason":"user_initiated","ip":"::1"}
