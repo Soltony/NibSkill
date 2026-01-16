@@ -1,32 +1,32 @@
 -- CreateEnum
+CREATE TYPE "RequestStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
 CREATE TYPE "ModuleType" AS ENUM ('VIDEO', 'PDF', 'AUDIO', 'SLIDES');
 
 -- CreateEnum
 CREATE TYPE "QuestionType" AS ENUM ('MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_IN_THE_BLANK', 'SHORT_ANSWER');
 
 -- CreateEnum
-CREATE TYPE "LiveSessionPlatform" AS ENUM ('Zoom', 'Google_Meet');
-
--- CreateEnum
 CREATE TYPE "FieldType" AS ENUM ('TEXT', 'NUMBER', 'DATE', 'SELECT');
-
--- CreateEnum
-CREATE TYPE "CourseStatus" AS ENUM ('PENDING', 'PUBLISHED', 'REJECTED');
 
 -- CreateEnum
 CREATE TYPE "QuizType" AS ENUM ('OPEN_LOOP', 'CLOSED_LOOP');
 
 -- CreateEnum
-CREATE TYPE "SubmissionStatus" AS ENUM ('PENDING_REVIEW', 'COMPLETED');
+CREATE TYPE "CourseStatus" AS ENUM ('PENDING', 'PUBLISHED', 'REJECTED');
 
 -- CreateEnum
-CREATE TYPE "Currency" AS ENUM ('USD', 'ETB');
+CREATE TYPE "LiveSessionPlatform" AS ENUM ('Zoom', 'Google_Meet');
 
 -- CreateEnum
 CREATE TYPE "LiveSessionStatus" AS ENUM ('UPCOMING', 'LIVE', 'ENDED');
 
 -- CreateEnum
-CREATE TYPE "RequestStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+CREATE TYPE "Currency" AS ENUM ('USD', 'ETB');
+
+-- CreateEnum
+CREATE TYPE "SubmissionStatus" AS ENUM ('PENDING_REVIEW', 'COMPLETED');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -34,18 +34,27 @@ CREATE TABLE "User" (
     "name" TEXT NOT NULL,
     "email" TEXT,
     "password" TEXT NOT NULL,
-    "passwordChangeRequired" BOOLEAN NOT NULL DEFAULT false,
     "avatarUrl" TEXT,
     "phoneNumber" TEXT,
     "tokenVersion" INTEGER NOT NULL DEFAULT 0,
+    "passwordChangeRequired" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "trainingProviderId" TEXT,
     "departmentId" TEXT,
     "districtId" TEXT,
     "branchId" TEXT,
-    "trainingProviderId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserRole" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "roleId" TEXT NOT NULL,
+
+    CONSTRAINT "UserRole_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -53,8 +62,8 @@ CREATE TABLE "Session" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
-    "reauthenticatedAt" TIMESTAMP(3),
     "lastActivity" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "reauthenticatedAt" TIMESTAMP(3),
     "revokedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -79,6 +88,9 @@ CREATE TABLE "Course" (
     "isPublic" BOOLEAN NOT NULL DEFAULT true,
     "productId" TEXT NOT NULL,
     "trainingProviderId" TEXT NOT NULL,
+    "departmentId" TEXT,
+    "districtId" TEXT,
+    "branchId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -91,19 +103,25 @@ CREATE TABLE "Role" (
     "name" TEXT NOT NULL,
     "permissions" JSONB NOT NULL,
     "trainingProviderId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Role_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "UserRole" (
+CREATE TABLE "Module" (
     "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "roleId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "type" "ModuleType" NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "description" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "UserRole_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Module_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -114,38 +132,19 @@ CREATE TABLE "Product" (
     "imageUrl" TEXT NOT NULL,
     "imageHint" TEXT,
     "trainingProviderId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Module" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "description" TEXT NOT NULL,
-    "type" "ModuleType" NOT NULL,
-    "duration" INTEGER NOT NULL,
-    "content" TEXT NOT NULL,
-    "courseId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "Module_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "Quiz" (
     "id" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
     "passingScore" INTEGER NOT NULL,
     "timeLimit" INTEGER NOT NULL,
-    "quizType" "QuizType" NOT NULL,
-    "maxAttempts" INTEGER NOT NULL DEFAULT 0,
-    "courseId" TEXT NOT NULL,
+    "quizType" "QuizType" NOT NULL DEFAULT 'CLOSED_LOOP',
     "requiresManualGrading" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "maxAttempts" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "Quiz_pkey" PRIMARY KEY ("id")
 );
@@ -155,9 +154,9 @@ CREATE TABLE "Question" (
     "id" TEXT NOT NULL,
     "text" TEXT NOT NULL,
     "type" "QuestionType" NOT NULL,
-    "weight" DOUBLE PRECISION NOT NULL,
     "quizId" TEXT NOT NULL,
     "correctAnswerId" TEXT NOT NULL,
+    "weight" DOUBLE PRECISION NOT NULL DEFAULT 1.0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -176,52 +175,57 @@ CREATE TABLE "Option" (
 );
 
 -- CreateTable
-CREATE TABLE "QuizSubmission" (
+CREATE TABLE "Badge" (
     "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "quizId" TEXT NOT NULL,
-    "score" DOUBLE PRECISION,
-    "status" "SubmissionStatus" NOT NULL,
-    "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "gradedAt" TIMESTAMP(3),
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "icon" TEXT NOT NULL,
 
-    CONSTRAINT "QuizSubmission_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Badge_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "Answer" (
-    "id" TEXT NOT NULL,
-    "submissionId" TEXT NOT NULL,
-    "questionId" TEXT NOT NULL,
-    "selectedOptionId" TEXT,
-    "answerText" TEXT,
+CREATE TABLE "UserBadge" (
+    "userId" TEXT NOT NULL,
+    "badgeId" TEXT NOT NULL,
+    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
-    CONSTRAINT "Answer_pkey" PRIMARY KEY ("id")
+-- CreateTable
+CREATE TABLE "UserCompletedCourse" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
+    "completionDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "score" DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT "UserCompletedCourse_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "LearningPath" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
-    "description" TEXT NOT NULL,
+    "description" TEXT,
     "hasCertificate" BOOLEAN NOT NULL DEFAULT false,
     "trainingProviderId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "LearningPath_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "LearningPathCourse" (
-    "id" TEXT NOT NULL,
     "learningPathId" TEXT NOT NULL,
     "courseId" TEXT NOT NULL,
     "order" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "LearningPathCourse_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "LearningPathCourse_pkey" PRIMARY KEY ("learningPathId","courseId")
+);
+
+-- CreateTable
+CREATE TABLE "UserCompletedModule" (
+    "userId" TEXT NOT NULL,
+    "moduleId" TEXT NOT NULL
 );
 
 -- CreateTable
@@ -236,65 +240,23 @@ CREATE TABLE "LiveSession" (
     "joinUrl" TEXT NOT NULL,
     "recordingUrl" TEXT,
     "isRestricted" BOOLEAN NOT NULL DEFAULT false,
-    "status" "LiveSessionStatus" NOT NULL,
+    "status" "LiveSessionStatus" NOT NULL DEFAULT 'UPCOMING',
     "trainingProviderId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "LiveSession_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "LiveSessionAllowedUser" (
-    "id" TEXT NOT NULL,
+CREATE TABLE "UserAttendedLiveSession" (
+    "userId" TEXT NOT NULL,
     "sessionId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-
-    CONSTRAINT "LiveSessionAllowedUser_pkey" PRIMARY KEY ("id")
+    "attendedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- CreateTable
-CREATE TABLE "UserCompletedCourse" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "courseId" TEXT NOT NULL,
-    "completionDate" TIMESTAMP(3) NOT NULL,
-    "score" DOUBLE PRECISION NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "UserCompletedCourse_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "UserCompletedModule" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "moduleId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "UserCompletedModule_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Badge" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "description" TEXT NOT NULL,
-    "icon" TEXT NOT NULL,
-
-    CONSTRAINT "Badge_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "UserBadge" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "badgeId" TEXT NOT NULL,
-    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "UserBadge_pkey" PRIMARY KEY ("id")
+CREATE TABLE "LiveSessionAllowedUser" (
+    "sessionId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL
 );
 
 -- CreateTable
@@ -303,11 +265,30 @@ CREATE TABLE "Notification" (
     "userId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "isRead" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "url" TEXT,
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CertificateTemplate" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "organization" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "logoUrl" TEXT,
+    "signatoryName" TEXT NOT NULL,
+    "signatoryTitle" TEXT NOT NULL,
+    "signatureUrl" TEXT,
+    "stampUrl" TEXT,
+    "primaryColor" TEXT DEFAULT '#4a6e3a',
+    "borderStyle" TEXT DEFAULT 'solid',
+    "templateStyle" TEXT DEFAULT 'Modern',
+    "trainingProviderId" TEXT NOT NULL,
+
+    CONSTRAINT "CertificateTemplate_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -367,42 +348,6 @@ CREATE TABLE "UserPurchasedCourse" (
 );
 
 -- CreateTable
-CREATE TABLE "PendingTransaction" (
-    "id" TEXT NOT NULL,
-    "transactionId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "courseId" TEXT NOT NULL,
-    "amount" DOUBLE PRECISION NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "PendingTransaction_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "UserAttendedLiveSession" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "sessionId" TEXT NOT NULL,
-    "attendedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "UserAttendedLiveSession_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "RefreshToken" (
-    "id" TEXT NOT NULL,
-    "hashedToken" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "revoked" BOOLEAN NOT NULL DEFAULT false,
-    "sessionId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "lastActivityAt" TIMESTAMP(3),
-
-    CONSTRAINT "RefreshToken_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "LoginHistory" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -412,6 +357,38 @@ CREATE TABLE "LoginHistory" (
     "superAppToken" TEXT,
 
     CONSTRAINT "LoginHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PasswordHistory" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PasswordHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RefreshToken" (
+    "id" TEXT NOT NULL,
+    "hashedToken" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "revoked" BOOLEAN NOT NULL DEFAULT false,
+    "lastActivityAt" TIMESTAMP(3),
+    "sessionId" TEXT,
+
+    CONSTRAINT "RefreshToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RevokedAccessToken" (
+    "jti" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RevokedAccessToken_pkey" PRIMARY KEY ("jti")
 );
 
 -- CreateTable
@@ -425,56 +402,39 @@ CREATE TABLE "FailedLoginAttempt" (
 );
 
 -- CreateTable
-CREATE TABLE "PasswordHistory" (
+CREATE TABLE "PendingTransaction" (
+    "id" TEXT NOT NULL,
+    "transactionId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PendingTransaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "QuizSubmission" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "hashedPassword" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "quizId" TEXT NOT NULL,
+    "score" DOUBLE PRECISION,
+    "status" "SubmissionStatus" NOT NULL DEFAULT 'PENDING_REVIEW',
+    "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "gradedAt" TIMESTAMP(3),
 
-    CONSTRAINT "PasswordHistory_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "QuizSubmission_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "TrainingProvider" (
+CREATE TABLE "Answer" (
     "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "address" TEXT NOT NULL,
-    "accountNumber" TEXT NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "submissionId" TEXT NOT NULL,
+    "questionId" TEXT NOT NULL,
+    "selectedOptionId" TEXT,
+    "answerText" TEXT,
 
-    CONSTRAINT "TrainingProvider_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "CertificateTemplate" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "body" TEXT NOT NULL,
-    "organization" TEXT NOT NULL,
-    "logoUrl" TEXT,
-    "signatureUrl" TEXT,
-    "signatoryName" TEXT NOT NULL,
-    "signatoryTitle" TEXT NOT NULL,
-    "stampUrl" TEXT,
-    "primaryColor" TEXT,
-    "borderStyle" TEXT,
-    "templateStyle" TEXT,
-    "trainingProviderId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "CertificateTemplate_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "RevokedAccessToken" (
-    "id" TEXT NOT NULL,
-    "jti" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "RevokedAccessToken_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Answer_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -487,6 +447,19 @@ CREATE TABLE "ResetRequest" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ResetRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TrainingProvider" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "address" TEXT NOT NULL,
+    "accountNumber" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT "TrainingProvider_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -508,34 +481,25 @@ CREATE TABLE "_CourseBranchAssignments" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_phoneNumber_key" ON "User"("phoneNumber");
-
--- CreateIndex
-CREATE INDEX "Session_userId_idx" ON "Session"("userId");
-
--- CreateIndex
-CREATE INDEX "Session_id_idx" ON "Session"("id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Role_name_trainingProviderId_key" ON "Role"("name", "trainingProviderId");
+CREATE UNIQUE INDEX "User_phoneNumber_trainingProviderId_key" ON "User"("phoneNumber", "trainingProviderId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserRole_userId_roleId_key" ON "UserRole"("userId", "roleId");
 
 -- CreateIndex
+CREATE INDEX "Session_id_idx" ON "Session"("id");
+
+-- CreateIndex
+CREATE INDEX "Session_userId_idx" ON "Session"("userId");
+
+-- CreateIndex
+CREATE INDEX "Role_trainingProviderId_idx" ON "Role"("trainingProviderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Role_name_trainingProviderId_key" ON "Role"("name", "trainingProviderId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Quiz_courseId_key" ON "Quiz"("courseId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "LiveSessionAllowedUser_sessionId_userId_key" ON "LiveSessionAllowedUser"("sessionId", "userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "UserCompletedCourse_userId_courseId_key" ON "UserCompletedCourse"("userId", "courseId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "UserCompletedModule_userId_moduleId_key" ON "UserCompletedModule"("userId", "moduleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Badge_title_key" ON "Badge"("title");
@@ -544,22 +508,40 @@ CREATE UNIQUE INDEX "Badge_title_key" ON "Badge"("title");
 CREATE UNIQUE INDEX "UserBadge_userId_badgeId_key" ON "UserBadge"("userId", "badgeId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "UserCompletedCourse_userId_courseId_key" ON "UserCompletedCourse"("userId", "courseId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserCompletedModule_userId_moduleId_key" ON "UserCompletedModule"("userId", "moduleId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserAttendedLiveSession_userId_sessionId_key" ON "UserAttendedLiveSession"("userId", "sessionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LiveSessionAllowedUser_sessionId_userId_key" ON "LiveSessionAllowedUser"("sessionId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CertificateTemplate_trainingProviderId_key" ON "CertificateTemplate"("trainingProviderId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "UserPurchasedCourse_transactionId_key" ON "UserPurchasedCourse"("transactionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserPurchasedCourse_userId_courseId_key" ON "UserPurchasedCourse"("userId", "courseId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PendingTransaction_transactionId_key" ON "PendingTransaction"("transactionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "UserAttendedLiveSession_userId_sessionId_key" ON "UserAttendedLiveSession"("userId", "sessionId");
+CREATE INDEX "PasswordHistory_userId_idx" ON "PasswordHistory"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RefreshToken_hashedToken_key" ON "RefreshToken"("hashedToken");
 
 -- CreateIndex
-CREATE INDEX "PasswordHistory_userId_idx" ON "PasswordHistory"("userId");
+CREATE UNIQUE INDEX "RevokedAccessToken_jti_key" ON "RevokedAccessToken"("jti");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PendingTransaction_transactionId_key" ON "PendingTransaction"("transactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ResetRequest_userId_courseId_key" ON "ResetRequest"("userId", "courseId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TrainingProvider_name_key" ON "TrainingProvider"("name");
@@ -568,13 +550,7 @@ CREATE UNIQUE INDEX "TrainingProvider_name_key" ON "TrainingProvider"("name");
 CREATE UNIQUE INDEX "TrainingProvider_accountNumber_key" ON "TrainingProvider"("accountNumber");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CertificateTemplate_trainingProviderId_key" ON "CertificateTemplate"("trainingProviderId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "RevokedAccessToken_jti_key" ON "RevokedAccessToken"("jti");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ResetRequest_userId_courseId_key" ON "ResetRequest"("userId", "courseId");
+CREATE INDEX "TrainingProvider_name_idx" ON "TrainingProvider"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "_CourseDistrictAssignments_AB_unique" ON "_CourseDistrictAssignments"("A", "B");
@@ -607,6 +583,12 @@ ALTER TABLE "User" ADD CONSTRAINT "User_branchId_fkey" FOREIGN KEY ("branchId") 
 ALTER TABLE "User" ADD CONSTRAINT "User_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -616,19 +598,22 @@ ALTER TABLE "Course" ADD CONSTRAINT "Course_productId_fkey" FOREIGN KEY ("produc
 ALTER TABLE "Course" ADD CONSTRAINT "Course_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Role" ADD CONSTRAINT "Role_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Course" ADD CONSTRAINT "Course_departmentId_fkey" FOREIGN KEY ("departmentId") REFERENCES "Department"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Course" ADD CONSTRAINT "Course_districtId_fkey" FOREIGN KEY ("districtId") REFERENCES "District"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Course" ADD CONSTRAINT "Course_branchId_fkey" FOREIGN KEY ("branchId") REFERENCES "Branch"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Product" ADD CONSTRAINT "Product_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Role" ADD CONSTRAINT "Role_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Module" ADD CONSTRAINT "Module_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Product" ADD CONSTRAINT "Product_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Quiz" ADD CONSTRAINT "Quiz_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -640,19 +625,16 @@ ALTER TABLE "Question" ADD CONSTRAINT "Question_quizId_fkey" FOREIGN KEY ("quizI
 ALTER TABLE "Option" ADD CONSTRAINT "Option_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "QuizSubmission" ADD CONSTRAINT "QuizSubmission_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "UserBadge" ADD CONSTRAINT "UserBadge_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "QuizSubmission" ADD CONSTRAINT "QuizSubmission_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "Quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "UserBadge" ADD CONSTRAINT "UserBadge_badgeId_fkey" FOREIGN KEY ("badgeId") REFERENCES "Badge"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Answer" ADD CONSTRAINT "Answer_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES "QuizSubmission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "UserCompletedCourse" ADD CONSTRAINT "UserCompletedCourse_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Answer" ADD CONSTRAINT "Answer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Answer" ADD CONSTRAINT "Answer_selectedOptionId_fkey" FOREIGN KEY ("selectedOptionId") REFERENCES "Option"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "UserCompletedCourse" ADD CONSTRAINT "UserCompletedCourse_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LearningPath" ADD CONSTRAINT "LearningPath_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -664,7 +646,19 @@ ALTER TABLE "LearningPathCourse" ADD CONSTRAINT "LearningPathCourse_learningPath
 ALTER TABLE "LearningPathCourse" ADD CONSTRAINT "LearningPathCourse_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "UserCompletedModule" ADD CONSTRAINT "UserCompletedModule_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserCompletedModule" ADD CONSTRAINT "UserCompletedModule_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "Module"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "LiveSession" ADD CONSTRAINT "LiveSession_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserAttendedLiveSession" ADD CONSTRAINT "UserAttendedLiveSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserAttendedLiveSession" ADD CONSTRAINT "UserAttendedLiveSession_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "LiveSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LiveSessionAllowedUser" ADD CONSTRAINT "LiveSessionAllowedUser_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "LiveSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -673,25 +667,13 @@ ALTER TABLE "LiveSessionAllowedUser" ADD CONSTRAINT "LiveSessionAllowedUser_sess
 ALTER TABLE "LiveSessionAllowedUser" ADD CONSTRAINT "LiveSessionAllowedUser_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserCompletedCourse" ADD CONSTRAINT "UserCompletedCourse_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserCompletedCourse" ADD CONSTRAINT "UserCompletedCourse_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserCompletedModule" ADD CONSTRAINT "UserCompletedModule_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserCompletedModule" ADD CONSTRAINT "UserCompletedModule_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "Module"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserBadge" ADD CONSTRAINT "UserBadge_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserBadge" ADD CONSTRAINT "UserBadge_badgeId_fkey" FOREIGN KEY ("badgeId") REFERENCES "Badge"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CertificateTemplate" ADD CONSTRAINT "CertificateTemplate_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RegistrationField" ADD CONSTRAINT "RegistrationField_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "District" ADD CONSTRAINT "District_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -712,28 +694,40 @@ ALTER TABLE "UserPurchasedCourse" ADD CONSTRAINT "UserPurchasedCourse_userId_fke
 ALTER TABLE "UserPurchasedCourse" ADD CONSTRAINT "UserPurchasedCourse_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PendingTransaction" ADD CONSTRAINT "PendingTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PendingTransaction" ADD CONSTRAINT "PendingTransaction_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserAttendedLiveSession" ADD CONSTRAINT "UserAttendedLiveSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "UserAttendedLiveSession" ADD CONSTRAINT "UserAttendedLiveSession_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "LiveSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "LoginHistory" ADD CONSTRAINT "LoginHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PasswordHistory" ADD CONSTRAINT "PasswordHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CertificateTemplate" ADD CONSTRAINT "CertificateTemplate_trainingProviderId_fkey" FOREIGN KEY ("trainingProviderId") REFERENCES "TrainingProvider"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "Session"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FailedLoginAttempt" ADD CONSTRAINT "FailedLoginAttempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PendingTransaction" ADD CONSTRAINT "PendingTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PendingTransaction" ADD CONSTRAINT "PendingTransaction_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "QuizSubmission" ADD CONSTRAINT "QuizSubmission_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "QuizSubmission" ADD CONSTRAINT "QuizSubmission_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "Quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Answer" ADD CONSTRAINT "Answer_submissionId_fkey" FOREIGN KEY ("submissionId") REFERENCES "QuizSubmission"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Answer" ADD CONSTRAINT "Answer_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Answer" ADD CONSTRAINT "Answer_selectedOptionId_fkey" FOREIGN KEY ("selectedOptionId") REFERENCES "Option"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ResetRequest" ADD CONSTRAINT "ResetRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

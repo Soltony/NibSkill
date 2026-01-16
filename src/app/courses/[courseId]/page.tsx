@@ -3,6 +3,7 @@
 import { notFound, redirect } from 'next/navigation';
 import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { hasAccessToCourse } from '@/lib/authorization';
 import { CourseDetailClient } from './course-detail-client';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -102,6 +103,11 @@ export default async function CourseDetailPage({ params }: { params: { courseId:
   const courseData = await getCourseData(courseId, session?.id);
 
   if (!courseData.course) {
+    notFound();
+  }
+
+  const accessOk = await hasAccessToCourse(prisma, session?.id, courseId);
+  if (!accessOk) {
     notFound();
   }
 

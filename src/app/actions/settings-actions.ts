@@ -36,10 +36,36 @@ export async function updateUser(userId: string, values: z.infer<typeof updateUs
         
         const { roleId, ...userData } = validatedFields.data;
 
+        
+
         const session = await getSession();
         if (!session?.id) return { success: false, message: "Not authenticated." };
         try { requirePermission(session, 'settings', 'u'); } catch (e: any) { return { success: false, message: "Unauthorized: You do not have permission to update users." }; }
         if (!session.trainingProviderId) return { success: false, message: "Forbidden: user has no training provider." };
+
+        // Prevent updating email/phone to values that would conflict with another user having the same role
+        if (userData.phoneNumber) {
+            const conflict = await prisma.user.findFirst({
+                where: {
+                    phoneNumber: userData.phoneNumber,
+                    trainingProviderId: session.trainingProviderId,
+                    roles: { some: { roleId } },
+                    NOT: { id: userId }
+                }
+            });
+            if (conflict) return { success: false, message: 'Another user with this phone number and role already exists.' };
+        }
+        if (userData.email) {
+            const conflict = await prisma.user.findFirst({
+                where: {
+                    email: userData.email,
+                    trainingProviderId: session.trainingProviderId,
+                    roles: { some: { roleId } },
+                    NOT: { id: userId }
+                }
+            });
+            if (conflict) return { success: false, message: 'Another user with this email and role already exists.' };
+        }
 
         await prisma.$transaction(async (tx) => {
             await tx.user.update({
@@ -135,6 +161,19 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
 
         if(existingUser) {
             return { success: false, message: 'A user with this phone number already exists for this training provider.' };
+        }
+        // Check email uniqueness scoped to role
+        if (email) {
+            const existingByEmail = await prisma.user.findFirst({
+                where: {
+                    email: email,
+                    trainingProviderId: session.trainingProviderId,
+                    roles: { some: { roleId: roleId } }
+                }
+            });
+            if (existingByEmail) {
+                return { success: false, message: 'A user with this email and role already exists for this provider.' };
+            }
         }
         
         const password = generateSecurePassword();

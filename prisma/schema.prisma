@@ -17,9 +17,9 @@ model User {
   id                      String                    @id @default(cuid())
   name                    String
   email                   String?
-  phoneNumber             String
   password                String
   avatarUrl               String?
+  phoneNumber             String?
   tokenVersion            Int                       @default(0)
   passwordChangeRequired  Boolean                   @default(true)
   createdAt               DateTime                  @default(now())
@@ -46,6 +46,7 @@ model User {
   pendingTransactions     PendingTransaction[]
   refreshTokens           RefreshToken[]
   loginHistory            LoginHistory[]
+  failedLoginAttempts     FailedLoginAttempt[]
   quizSubmissions         QuizSubmission[]
 
   @@unique([phoneNumber, trainingProviderId])
@@ -71,69 +72,69 @@ model Session {
   revokedAt       DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  refreshTokens   RefreshToken[]
 
   @@index([id])
   @@index([userId])
 }
 
 model Course {
-  id                String                 @id @default(cuid())
-  title             String
-  description       String
-  productId         String
-  product           Product                @relation(fields: [productId], references: [id])
-  imageUrl          String?
-  imageDescription  String?
-  imageHint         String?
-  isPaid            Boolean                @default(false)
-  price             Float?
-  currency          Currency?
-  modules           Module[]
-  quiz              Quiz?
-  completedBy       UserCompletedCourse[]
-  hasCertificate    Boolean                @default(false)
-  status            CourseStatus           @default(PENDING)
-  rejectionReason   String?
-  isPublic          Boolean                @default(true)
-  trainingProviderId  String
-  trainingProvider    TrainingProvider       @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-  assignedDistricts   District[]             @relation("CourseDistrictAssignments")
-  assignedBranches    Branch[]               @relation("CourseBranchAssignments")
-  assignedDepartments Department[]           @relation("CourseDepartmentAssignments")
-  learningPathCourses LearningPathCourse[]
-  resetRequests       ResetRequest[]
-  pendingTransactions PendingTransaction[]
+  id                   String                  @id @default(cuid())
+  title                String
+  description          String
+  imageUrl             String?
+  imageHint            String?
+  imageDescription     String?
+  isPaid               Boolean                 @default(false)
+  price                Float?
+  currency             Currency?
+  hasCertificate       Boolean                 @default(false)
+  status               CourseStatus            @default(PENDING)
+  rejectionReason      String?
+  isPublic             Boolean                 @default(true)
+  productId            String
+  product              Product                 @relation(fields: [productId], references: [id])
+  modules              Module[]
+  completedBy          UserCompletedCourse[]
+  purchasedBy          UserPurchasedCourse[]
+  quiz                 Quiz?
+  learningPathCourses  LearningPathCourse[]
+  trainingProviderId   String
+  trainingProvider     TrainingProvider        @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  // Optional single-assignment helpers. These allow a course to be assigned
+  // directly to one department / district / branch for simpler filtering.
+  departmentId         String?
+  department           Department?             @relation("CoursePrimaryDepartment", fields: [departmentId], references: [id])
+  districtId           String?
+  district             District?               @relation("CoursePrimaryDistrict", fields: [districtId], references: [id])
+  branchId             String?
+  branch               Branch?                 @relation("CoursePrimaryBranch", fields: [branchId], references: [id])
+  assignedDistricts    District[]              @relation("CourseDistrictAssignments")
+  assignedBranches     Branch[]                @relation("CourseBranchAssignments")
+  assignedDepartments  Department[]            @relation("CourseDepartmentAssignments")
+  resetRequests        ResetRequest[]
+  pendingTransactions  PendingTransaction[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 }
 
-model District {
+model Role {
   id                 String   @id @default(cuid())
   name               String
-  branches           Branch[]
-  users              User[]
-  trainingProviderId String
-  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-  assignedCourses    Course[]   @relation("CourseDistrictAssignments")
+  permissions        Json
+  trainingProviderId String?
+
+  trainingProvider TrainingProvider? @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  users              UserRole[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([name, trainingProviderId], name: "unique_role_name_for_provider")
+  @@index([trainingProviderId])
 }
 
-model Branch {
-  id                 String    @id @default(cuid())
-  name               String
-  districtId         String
-  district           District  @relation(fields: [districtId], references: [id], onDelete: Cascade)
-  users              User[]
-  trainingProviderId String
-  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-  assignedCourses    Course[]    @relation("CourseBranchAssignments")
-}
 
-model Department {
-  id                 String   @id @default(cuid())
-  name               String
-  users              User[]
-  trainingProviderId String
-  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
-  assignedCourses    Course[]     @relation("CourseDepartmentAssignments")
-}
 
 model Module {
   id            String                @id @default(cuid())
@@ -227,18 +228,6 @@ model UserCompletedCourse {
     @@unique([userId, courseId])
 }
 
-model UserPurchasedCourse {
-    id            String   @id @default(cuid())
-    userId        String
-    courseId      String
-    user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-    purchaseDate  DateTime @default(now())
-    amount        Float
-    transactionId String   @unique
-
-    @@unique([userId, courseId])
-}
 
 
 model LearningPath {
@@ -338,27 +327,69 @@ model CertificateTemplate {
 }
 
 model RegistrationField {
-    id                String     @id
-    label             String
-    type              FieldType
-    options           String[]
-    enabled           Boolean
-    required          Boolean
-    createdAt         DateTime   @default(now())
-    updatedAt         DateTime   @updatedAt
-    trainingProviderId String?
-    trainingProvider  TrainingProvider? @relation(fields: [trainingProviderId], references: [id])
+  id                 String  @id
+  label              String
+  type               FieldType
+  enabled            Boolean @default(false)
+  required           Boolean @default(false)
+  options            String[]
+  trainingProviderId String?
+  trainingProvider   TrainingProvider? @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  isLoginIdentifier  Boolean @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
-model PasswordHistory {
-    id             String   @id @default(cuid())
-    userId         String
-    user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    hashedPassword String
-    createdAt      DateTime @default(now())
-
-    @@index([userId])
+model District {
+  id                 String  @id @default(cuid())
+  name               String
+  branches           Branch[]
+  users              User[]
+  // Primary-assigned courses (one-to-many where Course.departmentId points here)
+  primaryCourses     Course[] @relation("CoursePrimaryDistrict")
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  assignedCourses    Course[] @relation("CourseDistrictAssignments")
 }
+
+model Branch {
+  id                 String  @id @default(cuid())
+  name               String
+  districtId         String
+  district           District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  users              User[]
+  // Primary-assigned courses (one-to-many where Course.branchId points here)
+  primaryCourses     Course[] @relation("CoursePrimaryBranch")
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  assignedCourses    Course[] @relation("CourseBranchAssignments")
+}
+
+model Department {
+  id                 String  @id @default(cuid())
+  name               String
+  users              User[]
+  // Primary-assigned courses (one-to-many where Course.departmentId points here)
+  primaryCourses     Course[] @relation("CoursePrimaryDepartment")
+  trainingProviderId String
+  trainingProvider   TrainingProvider @relation(fields: [trainingProviderId], references: [id], onDelete: Cascade)
+  assignedCourses    Course[] @relation("CourseDepartmentAssignments")
+}
+
+model UserPurchasedCourse {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId      String
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  transactionId String   @unique
+  amount        Float
+  purchasedAt   DateTime @default(now())
+
+  @@unique([userId, courseId])
+}
+
+
 
 model LoginHistory {
     id          String   @id @default(cuid())
@@ -368,6 +399,16 @@ model LoginHistory {
     ipAddress   String?
     userAgent   String?
     superAppToken String?
+}
+
+model PasswordHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  password  String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model RefreshToken {
@@ -398,13 +439,13 @@ model FailedLoginAttempt {
 
 model PendingTransaction {
     id             String   @id @default(cuid())
-    transactionId  String   @unique
-    userId         String
-    user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    courseId       String
-    course         Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-    amount         Float
-    createdAt      DateTime @default(now())
+  transactionId  String   @unique
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId       String
+  course         Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  amount         Float
+  createdAt      DateTime @default(now())
 }
 
 model QuizSubmission {
@@ -445,21 +486,27 @@ model ResetRequest {
 }
 
 model TrainingProvider {
-    id                  String                 @id @default(cuid())
-    name                String                 @unique
-    address             String
-    accountNumber       String                 @unique
-    isActive            Boolean                @default(true)
-    createdAt           DateTime               @default(now())
-    updatedAt           DateTime               @updatedAt
-    users               User[]
-    roles               Role[]
-    products            Product[]
-    courses             Course[]
-    learningPaths       LearningPath[]
-    liveSessions        LiveSession[]
-    registrationFields  RegistrationField[]
-    certificateTemplate CertificateTemplate?
+  id            String   @id @default(cuid())
+  name          String   @unique
+  address       String
+  accountNumber String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  isActive      Boolean  @default(true)
+
+  users               User[]
+  roles               Role[]
+  products            Product[]
+  courses             Course[]
+  learningPaths       LearningPath[]
+  liveSessions        LiveSession[]
+  districts           District[]
+  departments         Department[]
+  branches            Branch[]
+  registrationFields  RegistrationField[]
+  certificateTemplate CertificateTemplate?
+
+  @@index([name])
 }
 
 enum RequestStatus {

@@ -1,5 +1,6 @@
 import { securityLog } from './logger';
 import type { Role } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 
 export type Action = 'c' | 'r' | 'u' | 'd';
 
@@ -50,4 +51,59 @@ export function requireExactRole(session: SessionLike | null | undefined, roleNa
     throw err;
   }
   return true;
+}
+
+/**
+ * Check whether a user (by id) has access to a course.
+ * - Public courses are accessible by anyone.
+ * - `Super Admin` and `Admin` roles bypass assignment checks.
+ * - Otherwise the user's department/branch/district must match any of the course's assigned groups.
+ */
+export async function hasAccessToCourse(prisma: PrismaClient, userId: string | null | undefined, courseId: string) : Promise<boolean> {
+  try {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      include: {
+        assignedDepartments: { select: { id: true } },
+        assignedBranches: { select: { id: true } },
+        assignedDistricts: { select: { id: true } },
+      }
+    });
+    if (!course) return false;
+    if (course.isPublic) return true;
+
+    if (!userId) return false;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { roles: { include: { role: true } } }
+    });
+    if (!user) return false;
+
+    const roleNames = (user.roles || []).map(r => r.role?.name).filter(Boolean) as string[];
+    if (roleNames.includes('Super Admin') || roleNames.includes('Admin')) return true;
+
+    // Training provider must match
+    if (!user.trainingProviderId || user.trainingProviderId !== course.trainingProviderId) return false;
+
+    // If the course has no assigned groups (empty arrays) treat it as not visible to restricted users
+    const deptIds = (course.assignedDepartments || []).map(d => d.id);
+    const branchIds = (course.assignedBranches || []).map(b => b.id);
+    const districtIds = (course.assignedDistricts || []).map(d => d.id);
+
+    // Allow access if user's group matches any of the assigned lists
+    if (user.departmentId && deptIds.includes(user.departmentId)) return true;
+    if (user.branchId && branchIds.includes(user.branchId)) return true;
+    if (user.districtId && districtIds.includes(user.districtId)) return true;
+
+    // Also allow access if the course has a primary scalar assignment matching the user
+    if (user.departmentId && course.departmentId && user.departmentId === course.departmentId) return true;
+    if (user.branchId && course.branchId && user.branchId === course.branchId) return true;
+    if (user.districtId && course.districtId && user.districtId === course.districtId) return true;
+
+    return false;
+  } catch (e) {
+    try { securityLog('error', 'access_check_failed', { userId, courseId, error: String(e) }); } catch (ee) {}
+    return false;
+  }
 }

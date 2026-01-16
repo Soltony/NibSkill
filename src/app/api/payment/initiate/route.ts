@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { securityLog } from '@/lib/logger';
+import { hasAccessToCourse } from '@/lib/authorization';
 
 
 // We intentionally avoid decoding/verifying SuperApp tokens here (they may be opaque).
@@ -197,13 +198,25 @@ export async function POST(request: NextRequest) {
       signature: signature
     };
 
+    // Enforce course access for this user
+    const effectiveCourseId = pendingTx?.course?.id ?? courseId;
+    if (!effectiveCourseId) {
+      return NextResponse.json({ success: false, message: 'Course not specified.' }, { status: 400 });
+    }
+
+    const allowed = await hasAccessToCourse(prisma, userId, effectiveCourseId);
+    if (!allowed) {
+      securityLog('warn', 'payment_init_access_denied', { userId, courseId: effectiveCourseId });
+      return NextResponse.json({ success: false, message: 'You do not have access to purchase this course.' }, { status: 403 });
+    }
+
     // Create a PendingTransaction only if we don't already have one (new standard passes an existing transactionId)
     if (!pendingTx) {
       await prisma.pendingTransaction.create({
         data: {
             transactionId,
             userId: userId!,
-            courseId: courseId,
+            courseId: effectiveCourseId,
             amount: parseFloat(safeAmount),
         }
       });

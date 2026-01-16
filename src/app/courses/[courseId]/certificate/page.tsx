@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import prisma from "@/lib/db";
 import { CertificateClient } from "./certificate-client";
 import { getSession } from "@/lib/auth";
+import { hasAccessToCourse } from '@/lib/authorization';
 
 async function getCertificateData(courseId: string, user: { id: string, name: string }) {
 
@@ -40,6 +41,8 @@ export default async function UserCertificatePage({ params }: { params: { course
         notFound();
     }
     const { courseId } = params;
+    const accessOk = await hasAccessToCourse(prisma, user.id, courseId);
+    if (!accessOk) return notFound();
     const { template, course, completionDate } = await getCertificateData(courseId, user);
 
     if (!template || !course || !completionDate) {

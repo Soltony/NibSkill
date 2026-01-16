@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
 
     try { securityLog('info', 'login_attempt', { phoneNumber, loginAs, ip }); } catch (e) {}
 
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber_trainingProviderId: { phoneNumber, trainingProviderId: null } },
+    const user = await prisma.user.findFirst({
+      where: { phoneNumber },
       include: { roles: { include: { role: true } } },
     });
 
@@ -102,22 +102,21 @@ export async function POST(req: NextRequest) {
     };
 
     if (!user || !user.password) return failLogin();
-    
-    let role;
-    if (loginAs === 'super-admin') {
-        role = user.roles.find(r => r.role.id === 'super-admin')?.role;
-    } else if (loginAs === 'admin') {
-        // An "admin" login can be a 'Training Provider' or a regular 'Admin'
-        role = user.roles.find(
-            (r) => r.role.name === 'Training Provider' || r.role.name === 'Admin'
-        )?.role;
-    } else { // 'staff'
-        role = user.roles.find(
-            (r) =>
-                r.role.name.toLowerCase() === loginAs.toLowerCase() &&
-                r.role.trainingProviderId === user.trainingProviderId
-        )?.role;
-    }
+
+    const role =
+      loginAs === 'super-admin'
+        ? user.roles.find((r) => r.role.id === 'super-admin')?.role
+        : user.roles.find((r) => {
+            const roleName = r.role.name?.toLowerCase();
+            const target = loginAs.toLowerCase();
+            const roleProviderId = r.role.trainingProviderId;
+            const providerMatches = roleProviderId === user.trainingProviderId || roleProviderId == null;
+            // Allow admin login to match both Admin and Training Provider roles (provider admins)
+            if (target === 'admin') {
+              return (roleName === 'admin' || roleName === 'training provider' || r.role.id === 'provider-admin') && providerMatches;
+            }
+            return roleName === target && providerMatches;
+          })?.role;
 
     if (!role) return failLogin();
 
@@ -168,7 +167,13 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json(
       {
         isSuccess: true,
-        redirectTo,
+        redirectTo: user.passwordChangeRequired ? '/change-password' : (
+          (role.name === 'Admin' || role.name === 'Training Provider')
+            ? '/admin/analytics'
+            : role.name === 'Super Admin'
+            ? '/super-admin/dashboard'
+            : '/dashboard'
+        ),
         passwordChangeRequired: user.passwordChangeRequired,
       },
       { status: 200 }
@@ -202,20 +207,21 @@ export async function POST(req: NextRequest) {
         .update(refreshToken)
         .digest('hex');
 
-      await prisma.refreshToken.create({
-        data: { hashedToken: hashed, userId: user.id, sessionId },
-      });
-
-      await prisma.session.create({
-        data: {
-          id: sessionId,
-          userId: user.id,
-          expiresAt: new Date(
-            Date.now() + MAX_SESSION_AGE_SECONDS * 1000
-          ),
-          reauthenticatedAt: new Date(),
-        },
-      });
+      await prisma.$transaction([
+        prisma.session.create({
+          data: {
+            id: sessionId,
+            userId: user.id,
+            expiresAt: new Date(
+              Date.now() + MAX_SESSION_AGE_SECONDS * 1000
+            ),
+            reauthenticatedAt: new Date(),
+          },
+        }),
+        prisma.refreshToken.create({
+          data: { hashedToken: hashed, userId: user.id, sessionId },
+        }),
+      ]);
 
       // Audit events for session and token issuance
       try { securityLog('audit', 'session_created', { userId: user.id, sessionId, ip }); } catch (e) {}
