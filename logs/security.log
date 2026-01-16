@@ -504,3 +504,125 @@
 {"timestamp":"2026-01-16T05:46:10.680Z","level":"audit","event":"logout_revoke_access_token","pid":7660,"jti":"af46df15-d544-4cb2-b363-74ca450d3b06","userId":"user-1"}
 {"timestamp":"2026-01-16T05:46:10.680Z","level":"audit","event":"logout_success","pid":7660,"userId":"user-1","ip":"::1"}
 {"timestamp":"2026-01-16T05:46:10.680Z","level":"audit","event":"logout","pid":7660,"userId":"user-1","sessionId":"0779344b-e402-4872-9034-9803438bc6ef","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T06:25:00.119Z","level":"audit","event":"user_deleted","pid":11692,"actorId":"user-2","userId":"cmkghrivf0004olttrar0c6gv"}
+{"timestamp":"2026-01-16T06:25:54.165Z","level":"audit","event":"user_registered","pid":11692,"actorId":"user-2","userId":"cmkghvsdp0000gn8d1cn3m302","roleId":"staff"}
+{"timestamp":"2026-01-16T06:30:23.825Z","level":"audit","event":"user_deleted","pid":18032,"actorId":"user-2","userId":"cmkghvsdp0000gn8d1cn3m302"}
+{"timestamp":"2026-01-16T06:30:40.162Z","level":"audit","event":"user_registered","pid":18032,"actorId":"user-2","userId":"cmkgi1wa0000010jilxfw55a9","roleId":"staff"}
+{"timestamp":"2026-01-16T06:31:44.834Z","level":"audit","event":"logout_revoke_session","pid":18032,"userId":"user-2","sessionId":"8d91858b-b54c-4563-9c12-94b6ec8238c1"}
+{"timestamp":"2026-01-16T06:31:44.886Z","level":"audit","event":"logout_revoke_access_token","pid":18032,"jti":"e6e6e6e7-6c78-4b87-99cb-ea176d004aa0","userId":"user-2"}
+{"timestamp":"2026-01-16T06:31:44.888Z","level":"audit","event":"logout_success","pid":18032,"userId":"user-2","ip":"::1"}
+{"timestamp":"2026-01-16T06:31:44.888Z","level":"audit","event":"logout","pid":18032,"userId":"user-2","sessionId":"8d91858b-b54c-4563-9c12-94b6ec8238c1","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T06:32:12.527Z","level":"info","event":"login_attempt","pid":18032,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:32:12.653Z","level":"audit","event":"session_created","pid":18032,"userId":"user-2","sessionId":"f425f14e-9943-4831-980c-76a7ed865a02","ip":"::1"}
+{"timestamp":"2026-01-16T06:32:12.653Z","level":"audit","event":"tokens_issued","pid":18032,"userId":"user-2","sessionId":"f425f14e-9943-4831-980c-76a7ed865a02","jti":"a0a874dd-48dc-4069-8d25-76a33ed0c680"}
+{"timestamp":"2026-01-16T06:32:12.655Z","level":"audit","event":"login_success","pid":18032,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:40:19.130Z","level":"warn","event":"authorization_denied","pid":9708,"userId":null,"role":null,"requiredRole":"Admin"}
+{"timestamp":"2026-01-16T06:40:41.948Z","level":"info","event":"login_attempt","pid":9708,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:40:42.426Z","level":"audit","event":"session_created","pid":9708,"userId":"user-2","sessionId":"97c2fa2b-c738-4690-88eb-3fdf9ac7c8c9","ip":"::1"}
+{"timestamp":"2026-01-16T06:40:42.426Z","level":"audit","event":"tokens_issued","pid":9708,"userId":"user-2","sessionId":"97c2fa2b-c738-4690-88eb-3fdf9ac7c8c9","jti":"8e925d11-923c-4a4d-b4b7-10962fc853ae"}
+{"timestamp":"2026-01-16T06:40:42.479Z","level":"audit","event":"login_success","pid":9708,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:40:53.716Z","level":"audit","event":"password_change_invalidate_sessions","pid":9708,"userId":"user-2","revokedCount":1}
+{"timestamp":"2026-01-16T06:40:53.716Z","level":"audit","event":"forced_logout","pid":9708,"userId":"user-2","reason":"password_change","revokedCount":1}
+{"timestamp":"2026-01-16T06:41:01.029Z","level":"info","event":"login_attempt","pid":9708,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:41:01.103Z","level":"audit","event":"session_created","pid":9708,"userId":"user-2","sessionId":"f593cb1d-9a99-4f19-ba33-8d6a1c8ff0bb","ip":"::1"}
+{"timestamp":"2026-01-16T06:41:01.103Z","level":"audit","event":"tokens_issued","pid":9708,"userId":"user-2","sessionId":"f593cb1d-9a99-4f19-ba33-8d6a1c8ff0bb","jti":"a950544f-3e8e-4bf4-8657-47bfeaed232a"}
+{"timestamp":"2026-01-16T06:41:01.105Z","level":"audit","event":"login_success","pid":9708,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:41:32.638Z","level":"audit","event":"user_registered","pid":9708,"actorId":"user-2","userId":"cmkgifvoj000a83e9tfls95a2","roleId":"staff"}
+{"timestamp":"2026-01-16T06:44:38.075Z","level":"audit","event":"logout_revoke_session","pid":9708,"userId":"user-2","sessionId":"f593cb1d-9a99-4f19-ba33-8d6a1c8ff0bb"}
+{"timestamp":"2026-01-16T06:44:38.132Z","level":"audit","event":"logout_revoke_access_token","pid":9708,"jti":"a950544f-3e8e-4bf4-8657-47bfeaed232a","userId":"user-2"}
+{"timestamp":"2026-01-16T06:44:38.132Z","level":"audit","event":"logout","pid":9708,"userId":"user-2","sessionId":"f593cb1d-9a99-4f19-ba33-8d6a1c8ff0bb","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T06:44:38.132Z","level":"audit","event":"logout_success","pid":9708,"userId":"user-2","ip":"::1"}
+{"timestamp":"2026-01-16T06:45:09.143Z","level":"info","event":"login_attempt","pid":9708,"phoneNumber":"251900000000","loginAs":"super-admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:45:09.215Z","level":"audit","event":"session_created","pid":9708,"userId":"super-admin-user","sessionId":"820948dd-892f-40ca-a67f-49718c5f2754","ip":"::1"}
+{"timestamp":"2026-01-16T06:45:09.215Z","level":"audit","event":"tokens_issued","pid":9708,"userId":"super-admin-user","sessionId":"820948dd-892f-40ca-a67f-49718c5f2754","jti":"35ce8a5d-3695-4b4c-ba93-6a7d8de2c61a"}
+{"timestamp":"2026-01-16T06:45:09.217Z","level":"audit","event":"login_success","pid":9708,"userId":"super-admin-user","ip":"::1","role":"Super Admin","loginAs":"super-admin"}
+{"timestamp":"2026-01-16T06:45:21.260Z","level":"audit","event":"forced_logout","pid":9708,"userId":"super-admin-user","reason":"password_change","revokedCount":1}
+{"timestamp":"2026-01-16T06:45:21.260Z","level":"audit","event":"password_change_invalidate_sessions","pid":9708,"userId":"super-admin-user","revokedCount":1}
+{"timestamp":"2026-01-16T06:45:50.437Z","level":"info","event":"login_attempt","pid":9708,"phoneNumber":"251900000000","loginAs":"super-admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:45:50.588Z","level":"audit","event":"session_created","pid":9708,"userId":"super-admin-user","sessionId":"4d11e077-11cc-4713-bfea-641093c798ab","ip":"::1"}
+{"timestamp":"2026-01-16T06:45:50.588Z","level":"audit","event":"tokens_issued","pid":9708,"userId":"super-admin-user","sessionId":"4d11e077-11cc-4713-bfea-641093c798ab","jti":"4530c64e-7e92-46b4-9934-0dc25b7af547"}
+{"timestamp":"2026-01-16T06:45:50.590Z","level":"audit","event":"login_success","pid":9708,"userId":"super-admin-user","ip":"::1","role":"Super Admin","loginAs":"super-admin"}
+{"timestamp":"2026-01-16T06:47:04.048Z","level":"audit","event":"logout_revoke_session","pid":9708,"userId":"super-admin-user","sessionId":"4d11e077-11cc-4713-bfea-641093c798ab"}
+{"timestamp":"2026-01-16T06:47:04.050Z","level":"audit","event":"logout_revoke_access_token","pid":9708,"jti":"4530c64e-7e92-46b4-9934-0dc25b7af547","userId":"super-admin-user"}
+{"timestamp":"2026-01-16T06:47:04.051Z","level":"audit","event":"logout","pid":9708,"userId":"super-admin-user","sessionId":"4d11e077-11cc-4713-bfea-641093c798ab","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T06:47:04.051Z","level":"audit","event":"logout_success","pid":9708,"userId":"super-admin-user","ip":"::1"}
+{"timestamp":"2026-01-16T06:47:18.437Z","level":"info","event":"login_attempt","pid":9708,"phoneNumber":"0906030205","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:47:18.511Z","level":"audit","event":"session_created","pid":9708,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"0bc7d6c6-2b97-4e4a-ad3c-9c585a148953","ip":"::1"}
+{"timestamp":"2026-01-16T06:47:18.511Z","level":"audit","event":"tokens_issued","pid":9708,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"0bc7d6c6-2b97-4e4a-ad3c-9c585a148953","jti":"41b5c82f-f65f-439c-b567-9eaea8f0415f"}
+{"timestamp":"2026-01-16T06:47:18.513Z","level":"audit","event":"login_success","pid":9708,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1","role":"Training Provider","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:47:41.237Z","level":"audit","event":"forced_logout","pid":9708,"userId":"cmkgim43l000q83e9jruzlrsz","reason":"password_change","revokedCount":1}
+{"timestamp":"2026-01-16T06:47:41.237Z","level":"audit","event":"password_change_invalidate_sessions","pid":9708,"userId":"cmkgim43l000q83e9jruzlrsz","revokedCount":1}
+{"timestamp":"2026-01-16T06:48:14.778Z","level":"info","event":"login_attempt","pid":9708,"phoneNumber":"0906030205","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:48:14.851Z","level":"audit","event":"session_created","pid":9708,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"41d1b657-d100-432f-8081-d29920f33ed9","ip":"::1"}
+{"timestamp":"2026-01-16T06:48:14.851Z","level":"audit","event":"tokens_issued","pid":9708,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"41d1b657-d100-432f-8081-d29920f33ed9","jti":"39702d5f-ca44-4431-a2fa-40a7dcaa6c78"}
+{"timestamp":"2026-01-16T06:48:14.852Z","level":"audit","event":"login_success","pid":9708,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1","role":"Training Provider","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:55:22.267Z","level":"info","event":"login_attempt","pid":19380,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:55:23.134Z","level":"audit","event":"tokens_issued","pid":19380,"userId":"user-2","sessionId":"0c148e2f-c8ec-40e3-a758-a39b27f43a72","jti":"fb9ebcd1-1a46-4b2a-a7f7-8773bdecf794"}
+{"timestamp":"2026-01-16T06:55:23.133Z","level":"audit","event":"session_created","pid":19380,"userId":"user-2","sessionId":"0c148e2f-c8ec-40e3-a758-a39b27f43a72","ip":"::1"}
+{"timestamp":"2026-01-16T06:55:23.136Z","level":"audit","event":"login_success","pid":19380,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:55:27.320Z","level":"audit","event":"logout_revoke_session","pid":19380,"userId":"user-2","sessionId":"0c148e2f-c8ec-40e3-a758-a39b27f43a72"}
+{"timestamp":"2026-01-16T06:55:27.322Z","level":"audit","event":"logout_revoke_access_token","pid":19380,"jti":"fb9ebcd1-1a46-4b2a-a7f7-8773bdecf794","userId":"user-2"}
+{"timestamp":"2026-01-16T06:55:27.323Z","level":"audit","event":"logout_success","pid":19380,"userId":"user-2","ip":"::1"}
+{"timestamp":"2026-01-16T06:55:27.323Z","level":"audit","event":"logout","pid":19380,"userId":"user-2","sessionId":"0c148e2f-c8ec-40e3-a758-a39b27f43a72","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T06:55:42.323Z","level":"info","event":"login_attempt","pid":19380,"phoneNumber":"0906030205","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:55:42.400Z","level":"audit","event":"session_created","pid":19380,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"1926cd4b-6bd6-44c8-baf8-0c3d16fdb7e5","ip":"::1"}
+{"timestamp":"2026-01-16T06:55:42.400Z","level":"audit","event":"tokens_issued","pid":19380,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"1926cd4b-6bd6-44c8-baf8-0c3d16fdb7e5","jti":"0e63618b-f0dc-4eae-bdcc-e006f9b53e4b"}
+{"timestamp":"2026-01-16T06:55:42.402Z","level":"audit","event":"login_success","pid":19380,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1","role":"Training Provider","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:56:12.949Z","level":"info","event":"login_attempt","pid":19380,"phoneNumber":"0906030205","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:56:13.026Z","level":"audit","event":"session_created","pid":19380,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"93dfb7c7-2000-4f2e-adfa-45d5bafcc93f","ip":"::1"}
+{"timestamp":"2026-01-16T06:56:13.027Z","level":"audit","event":"tokens_issued","pid":19380,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"93dfb7c7-2000-4f2e-adfa-45d5bafcc93f","jti":"dcbf7162-caa0-448a-9c65-12ff1426bcee"}
+{"timestamp":"2026-01-16T06:56:13.028Z","level":"audit","event":"login_success","pid":19380,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1","role":"Training Provider","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:58:05.051Z","level":"info","event":"login_attempt","pid":19380,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T06:58:05.126Z","level":"audit","event":"session_created","pid":19380,"userId":"user-2","sessionId":"2c908467-29f4-4e34-b091-d1f5bbeed197","ip":"::1"}
+{"timestamp":"2026-01-16T06:58:05.126Z","level":"audit","event":"tokens_issued","pid":19380,"userId":"user-2","sessionId":"2c908467-29f4-4e34-b091-d1f5bbeed197","jti":"f61d16c5-5424-486b-908f-99a670d12d66"}
+{"timestamp":"2026-01-16T06:58:05.129Z","level":"audit","event":"login_success","pid":19380,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T06:58:13.454Z","level":"audit","event":"user_deleted","pid":19380,"actorId":"user-2","userId":"cmkgifvoj000a83e9tfls95a2"}
+{"timestamp":"2026-01-16T06:58:29.957Z","level":"audit","event":"user_registered","pid":19380,"actorId":"user-2","userId":"cmkgj1pgj000g103o9lxa1xw9","roleId":"staff"}
+{"timestamp":"2026-01-16T06:58:54.709Z","level":"audit","event":"user_registered","pid":19380,"actorId":"user-2","userId":"cmkgj28o7000l103ofcb9j3qp","roleId":"admin"}
+{"timestamp":"2026-01-16T07:12:52.776Z","level":"audit","event":"logout_revoke_session","pid":19840,"userId":"user-2","sessionId":"2c908467-29f4-4e34-b091-d1f5bbeed197"}
+{"timestamp":"2026-01-16T07:12:53.185Z","level":"audit","event":"logout","pid":19840,"userId":"user-2","sessionId":"2c908467-29f4-4e34-b091-d1f5bbeed197","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T07:12:53.185Z","level":"audit","event":"logout_success","pid":19840,"userId":"user-2","ip":"::1"}
+{"timestamp":"2026-01-16T07:12:53.184Z","level":"audit","event":"logout_revoke_access_token","pid":19840,"jti":"f61d16c5-5424-486b-908f-99a670d12d66","userId":"user-2"}
+{"timestamp":"2026-01-16T07:13:04.052Z","level":"info","event":"login_attempt","pid":19840,"phoneNumber":"251932165487","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T07:13:04.054Z","level":"warn","event":"login_failed","pid":19840,"phoneNumber":"251932165487","loginAs":"admin","ip":"::1","remainingAttempts":4}
+{"timestamp":"2026-01-16T07:13:26.820Z","level":"info","event":"login_attempt","pid":19840,"phoneNumber":"251900000000","loginAs":"super-admin","ip":"::1"}
+{"timestamp":"2026-01-16T07:13:27.607Z","level":"audit","event":"session_created","pid":19840,"userId":"super-admin-user","sessionId":"79d3dcca-a837-4744-a19e-385777a13776","ip":"::1"}
+{"timestamp":"2026-01-16T07:13:27.607Z","level":"audit","event":"tokens_issued","pid":19840,"userId":"super-admin-user","sessionId":"79d3dcca-a837-4744-a19e-385777a13776","jti":"3b47c1f8-00c9-4009-a7d5-084fbd77d066"}
+{"timestamp":"2026-01-16T07:13:27.610Z","level":"audit","event":"login_success","pid":19840,"userId":"super-admin-user","ip":"::1","role":"Super Admin","loginAs":"super-admin"}
+{"timestamp":"2026-01-16T07:13:44.104Z","level":"audit","event":"logout_revoke_session","pid":19840,"userId":"super-admin-user","sessionId":"79d3dcca-a837-4744-a19e-385777a13776"}
+{"timestamp":"2026-01-16T07:13:44.106Z","level":"audit","event":"logout_success","pid":19840,"userId":"super-admin-user","ip":"::1"}
+{"timestamp":"2026-01-16T07:13:44.106Z","level":"audit","event":"logout","pid":19840,"userId":"super-admin-user","sessionId":"79d3dcca-a837-4744-a19e-385777a13776","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T07:13:44.105Z","level":"audit","event":"logout_revoke_access_token","pid":19840,"jti":"3b47c1f8-00c9-4009-a7d5-084fbd77d066","userId":"super-admin-user"}
+{"timestamp":"2026-01-16T07:13:51.684Z","level":"info","event":"login_attempt","pid":19840,"phoneNumber":"0906030205","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T07:13:51.758Z","level":"audit","event":"session_created","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"17b1fee4-9970-4adf-a69f-6e12a1a12ab1","ip":"::1"}
+{"timestamp":"2026-01-16T07:13:51.758Z","level":"audit","event":"tokens_issued","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"17b1fee4-9970-4adf-a69f-6e12a1a12ab1","jti":"550c6bd0-3c9a-436e-9605-0fa21f16d11b"}
+{"timestamp":"2026-01-16T07:13:51.760Z","level":"audit","event":"login_success","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1","role":"Training Provider","loginAs":"admin"}
+{"timestamp":"2026-01-16T07:13:51.790Z","level":"warn","event":"authorization_denied","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","role":"Training Provider","requiredRole":"Admin"}
+{"timestamp":"2026-01-16T07:18:35.949Z","level":"audit","event":"logout_revoke_session","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"17b1fee4-9970-4adf-a69f-6e12a1a12ab1"}
+{"timestamp":"2026-01-16T07:18:35.952Z","level":"audit","event":"logout_revoke_access_token","pid":19840,"jti":"550c6bd0-3c9a-436e-9605-0fa21f16d11b","userId":"cmkgim43l000q83e9jruzlrsz"}
+{"timestamp":"2026-01-16T07:18:35.952Z","level":"audit","event":"logout","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"17b1fee4-9970-4adf-a69f-6e12a1a12ab1","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T07:18:35.952Z","level":"audit","event":"logout_success","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1"}
+{"timestamp":"2026-01-16T07:18:48.900Z","level":"info","event":"login_attempt","pid":19840,"phoneNumber":"0906030205","loginAs":"staff","ip":"::1"}
+{"timestamp":"2026-01-16T07:18:48.904Z","level":"warn","event":"login_failed","pid":19840,"phoneNumber":"0906030205","loginAs":"staff","ip":"::1","remainingAttempts":4}
+{"timestamp":"2026-01-16T07:21:32.922Z","level":"info","event":"login_attempt","pid":19840,"phoneNumber":"251912345678","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T07:21:32.999Z","level":"audit","event":"tokens_issued","pid":19840,"userId":"user-2","sessionId":"83962410-8091-4167-bb40-bb6c572391fb","jti":"991b6b44-3f0c-4e83-baa3-a87d2b818981"}
+{"timestamp":"2026-01-16T07:21:32.999Z","level":"audit","event":"session_created","pid":19840,"userId":"user-2","sessionId":"83962410-8091-4167-bb40-bb6c572391fb","ip":"::1"}
+{"timestamp":"2026-01-16T07:21:33.001Z","level":"audit","event":"login_success","pid":19840,"userId":"user-2","ip":"::1","role":"Admin","loginAs":"admin"}
+{"timestamp":"2026-01-16T07:21:45.168Z","level":"audit","event":"logout_revoke_session","pid":19840,"userId":"user-2","sessionId":"83962410-8091-4167-bb40-bb6c572391fb"}
+{"timestamp":"2026-01-16T07:21:45.171Z","level":"audit","event":"logout_success","pid":19840,"userId":"user-2","ip":"::1"}
+{"timestamp":"2026-01-16T07:21:45.171Z","level":"audit","event":"logout_revoke_access_token","pid":19840,"jti":"991b6b44-3f0c-4e83-baa3-a87d2b818981","userId":"user-2"}
+{"timestamp":"2026-01-16T07:21:45.171Z","level":"audit","event":"logout","pid":19840,"userId":"user-2","sessionId":"83962410-8091-4167-bb40-bb6c572391fb","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T07:21:53.649Z","level":"info","event":"login_attempt","pid":19840,"phoneNumber":"0906030205","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T07:21:53.725Z","level":"audit","event":"session_created","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"58acaedf-a627-4cdc-989c-a4705ce220ed","ip":"::1"}
+{"timestamp":"2026-01-16T07:21:53.725Z","level":"audit","event":"tokens_issued","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"58acaedf-a627-4cdc-989c-a4705ce220ed","jti":"4b7bfa53-c3e6-461f-9684-a345e138c67a"}
+{"timestamp":"2026-01-16T07:21:53.727Z","level":"audit","event":"login_success","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1","role":"Training Provider","loginAs":"admin"}
+{"timestamp":"2026-01-16T07:23:01.386Z","level":"audit","event":"user_updated","pid":19840,"actorId":"cmkgim43l000q83e9jruzlrsz","targetUserId":"cmkgim43l000q83e9jruzlrsz","roleId":"provider-admin","changes":{"name":"bb cc","email":"blennib12@gmail.com","phoneNumber":"0906030204"}}
+{"timestamp":"2026-01-16T07:23:01.395Z","level":"warn","event":"authorization_denied","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","role":"Training Provider","requiredRole":"Admin"}
+{"timestamp":"2026-01-16T07:23:19.668Z","level":"audit","event":"logout_revoke_session","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"58acaedf-a627-4cdc-989c-a4705ce220ed"}
+{"timestamp":"2026-01-16T07:23:19.669Z","level":"audit","event":"logout_revoke_access_token","pid":19840,"jti":"4b7bfa53-c3e6-461f-9684-a345e138c67a","userId":"cmkgim43l000q83e9jruzlrsz"}
+{"timestamp":"2026-01-16T07:23:19.670Z","level":"audit","event":"logout","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"58acaedf-a627-4cdc-989c-a4705ce220ed","reason":"user_initiated","ip":"::1"}
+{"timestamp":"2026-01-16T07:23:19.670Z","level":"audit","event":"logout_success","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1"}
+{"timestamp":"2026-01-16T07:23:30.693Z","level":"info","event":"login_attempt","pid":19840,"phoneNumber":"0906030204","loginAs":"admin","ip":"::1"}
+{"timestamp":"2026-01-16T07:23:30.764Z","level":"audit","event":"session_created","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"212a2a27-a8ed-40b7-9dd8-cdb40a5638a7","ip":"::1"}
+{"timestamp":"2026-01-16T07:23:30.764Z","level":"audit","event":"tokens_issued","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","sessionId":"212a2a27-a8ed-40b7-9dd8-cdb40a5638a7","jti":"49794362-b701-4f6f-adcd-d19ebdf2766a"}
+{"timestamp":"2026-01-16T07:23:30.766Z","level":"audit","event":"login_success","pid":19840,"userId":"cmkgim43l000q83e9jruzlrsz","ip":"::1","role":"Training Provider","loginAs":"admin"}

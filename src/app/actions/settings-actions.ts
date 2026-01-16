@@ -156,11 +156,12 @@ export async function registerUser(values: z.infer<typeof registerUserSchema>) {
             where: {
                 phoneNumber: phoneNumber,
                 trainingProviderId: session.trainingProviderId,
+                roles: { some: { roleId: roleId } }
             }
         });
 
         if(existingUser) {
-            return { success: false, message: 'A user with this phone number already exists for this training provider.' };
+            return { success: false, message: 'A user with this phone number and role already exists for this provider.' };
         }
         // Check email uniqueness scoped to role
         if (email) {

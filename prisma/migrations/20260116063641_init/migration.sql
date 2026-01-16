@@ -481,9 +481,6 @@ CREATE TABLE "_CourseBranchAssignments" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_phoneNumber_trainingProviderId_key" ON "User"("phoneNumber", "trainingProviderId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "UserRole_userId_roleId_key" ON "UserRole"("userId", "roleId");
 
 -- CreateIndex

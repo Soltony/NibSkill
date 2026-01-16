@@ -221,7 +221,7 @@ export default async function DashboardPage() {
     // Enforce Staff-only access for /dashboard (deny by default)
     const roleName = session.role?.name;
     if (roleName !== 'Staff') {
-      if (roleName === 'Admin') redirect('/admin/analytics');
+      if (roleName === 'Admin' || roleName === 'Training Provider') redirect('/admin/analytics');
       else if (roleName === 'Super Admin') redirect('/super-admin/dashboard');
       else redirect('/login');
     }

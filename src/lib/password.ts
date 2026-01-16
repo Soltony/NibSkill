@@ -48,7 +48,7 @@ export async function isPasswordInHistory(userId: string, password: string): Pro
   const history = await prisma.passwordHistory.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: PASSWORD_HISTORY_DEPTH });
   for (const h of history) {
     try {
-      if (await bcrypt.compare(password, h.hashedPassword)) return true;
+      if (await bcrypt.compare(password, h.password)) return true;
     } catch (e) {
       // ignore
     }
@@ -58,7 +58,7 @@ export async function isPasswordInHistory(userId: string, password: string): Pro
 
 export async function recordPasswordHistory(userId: string, hashedPassword: string) {
   try {
-    await prisma.passwordHistory.create({ data: { userId, hashedPassword } });
+    await prisma.passwordHistory.create({ data: { userId, password: hashedPassword } });
     // prune older entries beyond depth
     const history = await prisma.passwordHistory.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
     if (history.length > PASSWORD_HISTORY_DEPTH) {
