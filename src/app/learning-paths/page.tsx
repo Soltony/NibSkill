@@ -5,9 +5,16 @@ import { getSession } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { LearningPathsClient, type LearningPathWithProgress } from "./learning-paths-client"
 
-async function getLearningPathsData(userId?: string) {
+async function getLearningPathsData(userId?: string, trainingProviderId?: string | null, userRole?: string) {
+
+  const whereClause: any = { };
+  if (userRole !== 'Super Admin') {
+    // limit to the user's training provider
+    whereClause.trainingProviderId = trainingProviderId;
+  }
 
   const learningPaths = await prisma.learningPath.findMany({
+    where: whereClause,
     include: {
       courses: {
         include: {
@@ -65,12 +72,12 @@ export default async function LearningPathsPage() {
   // Enforce Staff-only access
   const roleName = user.role?.name;
   if (roleName !== 'Staff') {
-    if (roleName === 'Admin' || roleName === 'Training Provider') redirect('/admin/analytics');
+    if (roleName === 'Admin') redirect('/admin/analytics');
     else if (roleName === 'Super Admin') redirect('/super-admin/dashboard');
     else redirect('/login');
   }
 
-  const learningPaths = await getLearningPathsData(user.id);
+  const learningPaths = await getLearningPathsData(user.id, user.trainingProviderId, user.role?.name);
   
   return (
     <div className="space-y-8">

@@ -43,61 +43,35 @@ export async function addTrainingProvider(values: z.infer<typeof formSchema>) {
         
         const generatedPassword = generateSecurePassword();
 
-        const providerAdminRole = await prisma.role.findFirst({
-            where: { name: 'Training Provider' }
-        });
-        if (!providerAdminRole) {
-            throw new Error("Training Provider role not found.");
-        }
-
         const hashedPassword = await bcrypt.hash(generatedPassword, 10);
-        
         const defaultAdminRolePermissions = roles.find(r => r.name === 'Admin')?.permissions;
         const defaultStaffRolePermissions = roles.find(r => r.name === 'Staff')?.permissions;
 
+        // 1) Create the training provider record
         const newProvider = await prisma.trainingProvider.create({
-            data: {
-                name,
-                address,
-                accountNumber,
-                users: {
-                    create: {
-                        name: `${adminFirstName} ${adminLastName}`,
-                        email: adminEmail,
-                        password: hashedPassword,
-                        phoneNumber: adminPhoneNumber,
-                        avatarUrl: `https://picsum.photos/seed/${adminEmail}/100/100`,
-                        passwordChangeRequired: true,
-                        roles: {
-                            create: {
-                                roleId: providerAdminRole.id
-                            }
-                        }
-                    }
-                },
-                roles: {
-                    create: [
-                        { name: 'Admin', permissions: defaultAdminRolePermissions || {} },
-                        { name: 'Staff', permissions: defaultStaffRolePermissions || {} },
-                    ]
-                }
-            },
-             include: {
-                users: true // Include the created user to get their email
-            }
+            data: { name, address, accountNumber }
         });
-        
-        const newAdmin = newProvider.users[0];
 
-        await prisma.user.update({
-            where: { id: newAdmin.id },
+        // 2) Create provider-scoped roles (Admin, Staff)
+        const adminRole = await prisma.role.create({
+            data: { name: 'Admin', permissions: defaultAdminRolePermissions || {}, trainingProviderId: newProvider.id }
+        });
+        const staffRole = await prisma.role.create({
+            data: { name: 'Staff', permissions: defaultStaffRolePermissions || {}, trainingProviderId: newProvider.id }
+        });
+
+        // 3) Create the initial admin user and assign the Admin role
+        const newAdmin = await prisma.user.create({
             data: {
-                trainingProvider: {
-                    connect: {
-                        id: newProvider.id,
-                    },
-                },
-            },
+                name: `${adminFirstName} ${adminLastName}`,
+                email: adminEmail,
+                password: hashedPassword,
+                phoneNumber: adminPhoneNumber,
+                avatarUrl: `https://picsum.photos/seed/${adminEmail}/100/100`,
+                passwordChangeRequired: true,
+                trainingProviderId: newProvider.id,
+                roles: { create: { roleId: adminRole.id } }
+            }
         });
 
         if (newAdmin && newAdmin.email) {

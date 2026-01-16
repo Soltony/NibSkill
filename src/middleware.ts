@@ -144,7 +144,7 @@ export async function middleware(request: NextRequest) {
       }
 
       if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-        const requiredRoles = ['Admin', 'Super Admin', 'Training Provider'];
+        const requiredRoles = ['Admin', 'Super Admin'];
         if (!requiredRoles.includes(roleName)) {
           try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'authorization_denied', { userId, role: roleName, endpoint: pathname, requiredRoles, ip: ipAddr }); } catch (e) {}
           const loginUrl = new URL('/', request.url);

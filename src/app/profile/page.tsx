@@ -43,9 +43,12 @@ async function getProfileData(userId: string) {
         include: { badge: true }
     });
     
-    // Get all learning paths and their courses
+    // Get all learning paths and their courses (scoped to provider for non-Super Admins)
+    const lpWhere: any = { hasCertificate: true };
+    if (user.trainingProviderId) lpWhere.trainingProviderId = user.trainingProviderId;
+
     const allLearningPaths = await prisma.learningPath.findMany({
-      where: { hasCertificate: true },
+      where: lpWhere,
       include: {
         courses: {
           include: {

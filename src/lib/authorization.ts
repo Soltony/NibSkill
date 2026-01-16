@@ -14,8 +14,8 @@ export interface SessionLike {
 export function hasPermission(session: SessionLike | null | undefined, resource: string, action: Action): boolean {
   try {
     if (!session || !session.role) return false;
-    // Super Admin and Training Provider roles bypass granular permission checks
-    if (session.role.name === 'Super Admin' || session.role.name === 'Training Provider') return true;
+    // Super Admin bypasses granular permission checks
+    if (session.role.name === 'Super Admin') return true;
     if (!session.role.permissions) return false;
     const perms: any = session.role.permissions as any;
     const res = perms?.[resource];
@@ -50,8 +50,7 @@ export function requireExactRole(session: SessionLike | null | undefined, roleNa
   // Allow Super Admin to bypass exact-role checks
   if (session && session.role && session.role.name === 'Super Admin') return true;
 
-  // Treat Training Provider role as equivalent to Admin for admin-only areas
-  if (roleName === 'Admin' && session && session.role && session.role.name === 'Training Provider') return true;
+  // Super Admin handled above; otherwise require exact match
 
   if (!isRole(session, roleName)) {
     try { securityLog('warn', 'authorization_denied', { userId: session?.id ?? null, role: session?.role?.name ?? null, requiredRole: roleName }); } catch (e) {}
@@ -90,7 +89,7 @@ export async function hasAccessToCourse(prisma: PrismaClient, userId: string | n
     if (!user) return false;
 
     const roleNames = (user.roles || []).map(r => r.role?.name).filter(Boolean) as string[];
-    if (roleNames.includes('Super Admin') || roleNames.includes('Admin') || roleNames.includes('Training Provider')) return true;
+    if (roleNames.includes('Super Admin') || roleNames.includes('Admin')) return true;
 
     // Training provider must match
     if (!user.trainingProviderId || user.trainingProviderId !== course.trainingProviderId) return false;

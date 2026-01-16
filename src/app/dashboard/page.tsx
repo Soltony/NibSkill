@@ -51,6 +51,13 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
       isPublic: true, // Guests and users with no assignments only see public courses by default.
     };
 
+    const isSuperAdmin = Boolean(
+      user && (
+        (Array.isArray((user as any).roles) && (user as any).roles.some((r: any) => r.role?.name === 'Super Admin')) ||
+        ((user as any).role?.name === 'Super Admin')
+      )
+    );
+
     if (user && user.trainingProviderId) {
         // Build the authorization clause for restricted courses
         const userAssignments: Prisma.CourseWhereInput[] = [];
@@ -78,7 +85,7 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
           trainingProviderId: user.trainingProviderId,
           OR: orClauses,
         };
-    } else if (user && user.roles.some(r => r.role.name === 'Super Admin')) {
+    } else if (isSuperAdmin) {
         // Super Admin sees all published courses from all providers
         courseWhere = { status: 'PUBLISHED' };
     }
@@ -104,16 +111,19 @@ async function getDashboardData(user?: UserWithRoles | null): Promise<{
         orderBy: { name: 'asc' }
     });
 
+    const liveWhere: any = {
+      dateTime: { gte: new Date() }
+    };
+    // Guests: only public sessions. Authenticated users: scope to their provider unless Super Admin.
+    if (!user) {
+      liveWhere.isRestricted = false;
+    } else if (!isSuperAdmin) {
+      liveWhere.trainingProviderId = user.trainingProviderId;
+    }
+
     const liveSessions = await prisma.liveSession.findMany({
-        where: {
-            dateTime: {
-                gte: new Date(),
-            },
-            isRestricted: false, // Guests can only see public sessions
-        },
-        orderBy: {
-            dateTime: 'asc'
-        }
+      where: liveWhere,
+      orderBy: { dateTime: 'asc' }
     });
     
     // If no user, return public data only (progress is 0 for all)
@@ -221,7 +231,7 @@ export default async function DashboardPage() {
     // Enforce Staff-only access for /dashboard (deny by default)
     const roleName = session.role?.name;
     if (roleName !== 'Staff') {
-      if (roleName === 'Admin' || roleName === 'Training Provider') redirect('/admin/analytics');
+      if (roleName === 'Admin') redirect('/admin/analytics');
       else if (roleName === 'Super Admin') redirect('/super-admin/dashboard');
       else redirect('/login');
     }

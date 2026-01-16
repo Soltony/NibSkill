@@ -389,23 +389,6 @@ export const roles: Role[] = [
     }
   },
   {
-    id: "provider-admin",
-    name: "Training Provider",
-    permissions: {
-      dashboard: { c: true, r: true, u: true, d: true },
-      products: { c: true, r: true, u: true, d: true },
-      courses: { c: true, r: true, u: true, d: true },
-      approvals: { c: true, r: true, u: true, d: true },
-      learningPaths: { c: true, r: true, u: true, d: true },
-      quizzes: { c: true, r: true, u: true, d: true },
-      grading: { c: true, r: true, u: true, d: true },
-      liveSessions: { c: true, r: true, u: true, d: true },
-      reports: { c: true, r: true, u: true, d: true },
-      certificate: { c: true, r: true, u: true, d: true },
-      settings: { c: true, r: true, u: true, d: true },
-    }
-  },
-  {
     id: "admin",
     name: "Admin",
     permissions: {
