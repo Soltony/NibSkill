@@ -82,7 +82,6 @@ export default function SuperAdminLoginPage() {
                   id="password"
                   name="password" 
                   type={showPassword ? 'text' : 'password'} 
-                  defaultValue="superadmin123"
                   required 
                   className="pr-10"
                 />
