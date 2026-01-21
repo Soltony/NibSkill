@@ -158,7 +158,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const roleName = userRole?.name;
   const isSuperAdminRole = !isGuest && roleName === 'Super Admin';
-  const isAdminRole = !isGuest && (roleName === 'Admin' || roleName === 'Training Provider');
+  const isAdminRole = !isGuest && roleName === 'Admin';
   const isStaffRole = !isGuest && roleName === 'Staff';
 
   let currentNavItem;

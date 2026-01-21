@@ -11,8 +11,14 @@ import { SessionCard } from "./session-card-client";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
-async function getLiveSessionsData(userId?: string) {
+async function getLiveSessionsData(userId?: string, trainingProviderId?: string | null, userRole?: string) {
+  const whereClause: any = {};
+  if (userRole !== 'Super Admin') {
+    whereClause.trainingProviderId = trainingProviderId;
+  }
+
   const sessions = await prisma.liveSession.findMany({
+    where: whereClause,
     include: {
       attendedBy: {
         where: {
@@ -44,7 +50,7 @@ export default async function LiveSessionsPage() {
       else redirect('/login');
     }
 
-    const { sessions, userId } = await getLiveSessionsData(user.id);
+    const { sessions, userId } = await getLiveSessionsData(user.id, user.trainingProviderId, user.role?.name);
 
     const now = new Date();
     const oneHour = 60 * 60 * 1000;

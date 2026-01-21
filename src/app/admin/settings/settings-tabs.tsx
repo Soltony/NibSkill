@@ -167,7 +167,7 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
 
   const handleConfirmDelete = async () => {
     if (roleToDelete) {
-      if (roleToDelete.name === 'Admin' || roleToDelete.name === 'Staff' || roleToDelete.name === 'Super Admin' || roleToDelete.name === 'Training Provider') {
+      if (roleToDelete.name === 'Admin' || roleToDelete.name === 'Staff' || roleToDelete.name === 'Super Admin') {
         toast({
           title: "Cannot Delete Core Role",
           description: `The "${roleToDelete.name}" role is essential to the application and cannot be deleted.`,
@@ -250,8 +250,8 @@ export function SettingsTabs({ users, roles, registrationFields, loginHistory, d
     }
   };
 
-  const filteredRoles = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider' && role.name !== 'Staff');
-  const filteredRolesForForms = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Training Provider');
+  const filteredRoles = roles.filter(role => role.name !== 'Super Admin' && role.name !== 'Staff');
+  const filteredRolesForForms = roles.filter(role => role.name !== 'Super Admin');
   
   const watchedDistrictId = form.watch("districtId");
   const availableBranches = useMemo(() => {

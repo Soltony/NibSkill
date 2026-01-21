@@ -29,8 +29,8 @@ async function getSettingsData(trainingProviderId: string | null | undefined, us
         rolesWhere.trainingProviderId = null;
     } else {
         rolesWhere.OR = [
-            { trainingProviderId },
-            { trainingProviderId: null, name: { notIn: ['Super Admin', 'Training Provider'] } }
+          { trainingProviderId },
+          { trainingProviderId: null, name: { notIn: ['Super Admin'] } }
         ];
     }
     const roles = await prisma.role.findMany({

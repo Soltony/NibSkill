@@ -33,16 +33,16 @@ async function getProviders() {
         orderBy: { createdAt: 'desc' },
         include: {
             users: {
-                where: {
-                    roles: {
-                        some: {
-                           role: {
-                                name: 'Training Provider'
-                           }
-                        }
-                    }
-                },
-                take: 1,
+              where: {
+                roles: {
+                  some: {
+                     role: {
+                      name: 'Admin'
+                     }
+                  }
+                }
+              },
+              take: 1,
             }
         }
     });

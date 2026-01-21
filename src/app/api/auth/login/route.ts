@@ -73,10 +73,38 @@ export async function POST(req: NextRequest) {
 
     try { securityLog('info', 'login_attempt', { phoneNumber, loginAs, ip }); } catch (e) {}
 
-    const user = await prisma.user.findFirst({
-      where: { phoneNumber },
-      include: { roles: { include: { role: true } } },
-    });
+    // Prefer to find the user by phone + requested role to avoid collisions
+    // when the same phone number exists across providers.
+    const roleLookupNameMap: Record<string, string> = {
+      'staff': 'Staff',
+      'admin': 'Admin',
+      'super-admin': 'Super Admin'
+    };
+
+    const desiredRoleName = roleLookupNameMap[loginAs.toLowerCase()];
+
+    let user = null;
+    if (desiredRoleName) {
+      try {
+        user = await prisma.user.findFirst({
+          where: {
+            phoneNumber,
+            roles: { some: { role: { name: { equals: desiredRoleName, mode: 'insensitive' } } } }
+          },
+          include: { roles: { include: { role: true } } },
+        });
+      } catch (e) {
+        // ignore and fallback
+      }
+    }
+
+    // Fallback to any user with the phone number (legacy behavior)
+    if (!user) {
+      user = await prisma.user.findFirst({
+        where: { phoneNumber },
+        include: { roles: { include: { role: true } } },
+      });
+    }
 
     const failLogin = () => {
       const attempt = loginAttempts[ip] || { count: 0, lockoutUntil: 0 };
@@ -111,14 +139,25 @@ export async function POST(req: NextRequest) {
             const target = loginAs.toLowerCase();
             const roleProviderId = r.role.trainingProviderId;
             const providerMatches = roleProviderId === user.trainingProviderId || roleProviderId == null;
-            // Allow admin login to match both Admin and Training Provider roles (provider admins)
+            // Admin login should match Admin role scoped to the provider
             if (target === 'admin') {
-              return (roleName === 'admin' || roleName === 'training provider' || r.role.id === 'provider-admin') && providerMatches;
+              return roleName === 'admin' && providerMatches;
             }
             return roleName === target && providerMatches;
           })?.role;
 
-    if (!role) return failLogin();
+    // If the requested role wasn't found, attempt a sensible fallback:
+    // prefer Super Admin, then Admin, then any available role.
+    if (!role) {
+      const fallback = user.roles.find(r => r.role.name === 'Super Admin')?.role
+        || user.roles.find(r => r.role.name === 'Admin')?.role
+        || user.roles[0]?.role;
+      if (!fallback) return failLogin();
+      // Use fallback role but still verify password
+      try { securityLog('info', 'login_role_fallback', { phoneNumber, target: loginAs, fallback: fallback.name, ip }); } catch (e) {}
+      // assign fallback for subsequent logic
+      (/* mutable */ (role as any)) = fallback;
+    }
 
     const passwordOk = await bcrypt.compare(password, user.password);
     if (!passwordOk) return failLogin();
@@ -160,7 +199,7 @@ export async function POST(req: NextRequest) {
         redirectTo = '/change-password';
     } else if (role.name === 'Super Admin') {
         redirectTo = '/super-admin/dashboard';
-    } else if (role.name === 'Admin' || role.name === 'Training Provider') {
+    } else if (role.name === 'Admin') {
         redirectTo = '/admin/analytics';
     }
 
@@ -168,7 +207,7 @@ export async function POST(req: NextRequest) {
       {
         isSuccess: true,
         redirectTo: user.passwordChangeRequired ? '/change-password' : (
-          (role.name === 'Admin' || role.name === 'Training Provider')
+          role.name === 'Admin'
             ? '/admin/analytics'
             : role.name === 'Super Admin'
             ? '/super-admin/dashboard'
