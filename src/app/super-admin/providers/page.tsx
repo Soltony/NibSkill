@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils"
 import { ToggleProviderStatusButton } from "../toggle-provider-status-button"
 import { ResendAdminEmailButton } from "../resend-admin-email-button"
 import { getSession } from '@/lib/auth'
+import { DeleteProviderButton } from "../delete-provider-button"
 
 type ProviderWithAdmin = TrainingProvider & { users: User[] };
 export const dynamic = "force-dynamic";
@@ -112,6 +113,7 @@ export default async function SuperAdminProvidersPage() {
                             {admin && <ResendAdminEmailButton admin={admin} />}
                             <EditProviderDialog provider={provider} admin={admin} />
                             <ToggleProviderStatusButton provider={provider} />
+                            <DeleteProviderButton provider={provider} />
                         </div>
                       </TableCell>
                     </TableRow>
