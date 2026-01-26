@@ -48,6 +48,14 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!accessToken) {
+    // Send unauthenticated attempts to super-admin paths to the dedicated super-admin login
+    if (pathname.startsWith('/super-admin')) {
+      const loginUrl = new URL('/login/super-admin', request.url);
+      if (!pathname.startsWith('/login')) {
+        return NextResponse.redirect(loginUrl);
+      }
+    }
+
     const loginUrl = new URL('/login', request.url);
     // To prevent redirect loops, check if we are already on a login page
     if (!pathname.startsWith('/login')) {
@@ -138,7 +146,10 @@ export async function middleware(request: NextRequest) {
         const requiredRole = 'super_admin';
         if (roleName !== 'Super Admin') {
           try { const { securityLog } = await import('@/lib/logger'); securityLog('warn', 'authorization_denied', { userId, role: roleName, endpoint: pathname, requiredRole, ip: ipAddr }); } catch (e) {}
-          const loginUrl = new URL('/', request.url);
+          // If someone attempts to access super-admin pages and isn't authorized,
+          // send them to the dedicated super-admin login so they can authenticate
+          // with a super-admin account instead of being bounced to the site root.
+          const loginUrl = new URL('/login/super-admin', request.url);
           return NextResponse.redirect(loginUrl);
         }
       }

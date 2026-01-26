@@ -1,20 +1,11 @@
 
 
-import { PrismaClient, QuestionType, LiveSessionPlatform, ModuleType, FieldType, QuizType, Currency, LiveSessionStatus, RequestStatus } from '@prisma/client'
+import { PrismaClient, FieldType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { 
-    districts as initialDistricts,
-    branches as initialBranches,
-    departments as initialDepartments,
-    badges as initialBadges,
-    users as initialUsers,
-    products as initialProducts,
-    courses as initialCourses,
-    learningPaths as initialLearningPaths,
-    liveSessions as initialLiveSessions,
     roles as initialRoles,
+    users as initialUsers,
     initialRegistrationFields,
-    initialQuizzes
 } from '../src/lib/data';
 
 const prisma = new PrismaClient()
@@ -22,110 +13,50 @@ const prisma = new PrismaClient()
 async function main() {
   console.log(`Start seeding ...`)
 
-  const provider = await prisma.trainingProvider.upsert({
-    where: { name: 'NIB Training' },
-    update: {},
-    create: {
-      name: 'NIB Training',
-      address: '123 Training Ave, Skill City, USA',
-      accountNumber: 'NIB-001',
-    },
-  });
-  console.log('Upserted training provider');
-
-
-  // Seed Districts
-  for (const district of initialDistricts) {
-    await prisma.district.upsert({
-      where: { id: district.id },
-      update: { name: district.name },
-      create: { ...district, trainingProviderId: provider.id }
-    });
-  }
-  console.log('Seeded districts');
-
-  // Seed Departments
-  for (const department of initialDepartments) {
-    await prisma.department.upsert({
-      where: { id: department.id },
-      update: { name: department.name },
-      create: { ...department, trainingProviderId: provider.id }
-    });
-  }
-  console.log('Seeded departments');
-
-  // Seed Branches
-  for (const branch of initialBranches) {
-    await prisma.branch.upsert({
-      where: { id: branch.id },
-      update: { name: branch.name, districtId: branch.districtId },
-      create: { ...branch, trainingProviderId: provider.id }
-    })
-  }
-  console.log('Seeded branches');
-  
-  // Seed Roles and Permissions
-  for (const role of initialRoles) {
-    const isGlobal = role.id === 'super-admin' || role.id === 'provider-admin';
-    
+  // Seed Super Admin Role
+  const superAdminRole = initialRoles.find(role => role.id === 'super-admin');
+  if (superAdminRole) {
     await prisma.role.upsert({
-      where: { id: role.id },
+      where: { id: superAdminRole.id },
       update: {
-        permissions: role.permissions as any,
+        permissions: superAdminRole.permissions as any,
       },
       create: {
-        id: role.id,
-        name: role.name,
-        permissions: role.permissions as any,
-        trainingProviderId: isGlobal ? undefined : provider.id,
+        id: superAdminRole.id,
+        name: superAdminRole.name,
+        permissions: superAdminRole.permissions as any,
+        trainingProviderId: undefined,
       },
     });
   }
-  console.log('Seeded roles');
+  console.log('Seeded super admin role');
 
-  // Seed Users
-  for (const user of initialUsers) {
-    const { id, department, district, branch, role, ...userData } = user as any;
-
-    const departmentRecord = await prisma.department.findFirst({ where: { name: department, trainingProviderId: provider.id } });
-    const districtRecord = await prisma.district.findFirst({ where: { name: district, trainingProviderId: provider.id } });
-    const branchRecord = await prisma.branch.findFirst({ where: { name: branch, districtId: districtRecord?.id, trainingProviderId: provider.id } });
-    
-    let roleRecord;
-    if (role === 'admin') roleRecord = await prisma.role.findFirst({ where: { name: 'Admin', trainingProviderId: provider.id } });
-    else if (role === 'super-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'super-admin' } });
-    else if (role === 'provider-admin') roleRecord = await prisma.role.findUnique({ where: { id: 'provider-admin' } });
-    else roleRecord = await prisma.role.findFirst({ where: { name: 'Staff', trainingProviderId: provider.id } });
-    
-    // Securely generate and hash a password for each user
-    const password = `${user.name.split(' ')[0].toLowerCase()}123!`;
+  // Seed Super Admin User
+  const superAdminUser = initialUsers.find(user => user.role === 'super-admin');
+  if (superAdminUser) {
+    const password = `${superAdminUser.name.split(' ')[0].toLowerCase()}123!`;
     const hashedPassword = await bcrypt.hash(password, 10);
-    const isSuperAdmin = role === 'super-admin';
-
-    const requirePasswordChange = role === 'admin' || role === 'super-admin' || role === 'staff';
 
     const createdUser = await prisma.user.upsert({
-      where: { id: user.id },
+      where: { id: superAdminUser.id },
       update: {
         password: hashedPassword,
-        phoneNumber: user.phoneNumber,
-        passwordChangeRequired: requirePasswordChange,
+        phoneNumber: superAdminUser.phoneNumber,
+        passwordChangeRequired: true,
       },
       create: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        avatarUrl: user.avatarUrl,
+        id: superAdminUser.id,
+        name: superAdminUser.name,
+        email: superAdminUser.email,
+        phoneNumber: superAdminUser.phoneNumber,
+        avatarUrl: superAdminUser.avatarUrl,
         password: hashedPassword,
-        passwordChangeRequired: requirePasswordChange,
-        departmentId: departmentRecord?.id,
-        districtId: districtRecord?.id,
-        branchId: branchRecord?.id,
-        trainingProviderId: isSuperAdmin ? null : provider.id,
+        passwordChangeRequired: true,
+        trainingProviderId: null,
       },
     });
 
+    const roleRecord = await prisma.role.findUnique({ where: { id: 'super-admin' } });
     if (roleRecord) {
       await prisma.userRole.upsert({
         where: { userId_roleId: { userId: createdUser.id, roleId: roleRecord.id } },
@@ -137,271 +68,7 @@ async function main() {
       });
     }
   }
-  console.log('Seeded users');
-
-
-  // Seed Badges
-  for (const badge of initialBadges) {
-    await prisma.badge.upsert({
-        where: { id: badge.id },
-        update: {},
-        create: badge,
-    });
-  }
-  console.log('Seeded badges');
-
-  // Assign badges to user-1
-  const user1 = await prisma.user.findUnique({ where: { id: 'user-1' } });
-  const firstStepsBadge = await prisma.badge.findUnique({ where: { title: 'First Steps' }});
-  const perfectScoreBadge = await prisma.badge.findUnique({ where: { title: 'Perfect Score' }});
-
-  if (user1 && firstStepsBadge && perfectScoreBadge) {
-    await prisma.userBadge.upsert({
-        where: { userId_badgeId: { userId: user1.id, badgeId: firstStepsBadge.id } },
-        update: {},
-        create: { userId: user1.id, badgeId: firstStepsBadge.id },
-    });
-    await prisma.userBadge.upsert({
-        where: { userId_badgeId: { userId: user1.id, badgeId: perfectScoreBadge.id } },
-        update: {},
-        create: { userId: user1.id, badgeId: perfectScoreBadge.id },
-    });
-    console.log('Assigned badges to user');
-  }
-
-  // Seed Products
-  for (const product of initialProducts) {
-    await prisma.product.upsert({
-        where: { id: product.id },
-        update: {},
-        create: {
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            imageUrl: product.image.imageUrl,
-            imageHint: product.image.imageHint,
-            trainingProviderId: provider.id,
-        }
-    })
-  }
-  console.log('Seeded products');
-
-  // Seed Courses and Modules
-  for (const course of initialCourses) {
-    const { modules, image, ...courseData } = course as any;
-    const createdCourse = await prisma.course.upsert({
-      where: { id: course.id },
-      update: {
-        title: courseData.title,
-        description: courseData.description,
-        productId: courseData.productId,
-        isPaid: courseData.isPaid,
-        price: courseData.price,
-        currency: courseData.currency,
-        hasCertificate: courseData.hasCertificate,
-        status: courseData.status,
-      },
-      create: {
-        id: courseData.id,
-        title: courseData.title,
-        description: courseData.description,
-        productId: courseData.productId,
-        isPaid: courseData.isPaid,
-        price: courseData.price,
-        currency: courseData.currency,
-        imageUrl: image?.imageUrl,
-        imageDescription: image?.description,
-        imageHint: image?.imageHint,
-        hasCertificate: courseData.hasCertificate,
-        status: courseData.status || 'PENDING',
-        trainingProviderId: provider.id,
-      }
-    });
-
-    for (const module of modules) {
-      const moduleType = module.type.toUpperCase() as ModuleType;
-      await prisma.module.upsert({
-        where: { id: module.id },
-        update: { ...module, type: moduleType, courseId: createdCourse.id },
-        create: { ...module, type: moduleType, courseId: createdCourse.id },
-      });
-    }
-  }
-  console.log('Seeded courses and modules');
-
-  // Seed Quizzes
-  for (const quiz of initialQuizzes) {
-    const { questions, ...quizData } = quiz;
-    const createdQuiz = await prisma.quiz.upsert({
-        where: { courseId: quiz.courseId },
-        update: {
-            ...quizData
-        },
-        create: {
-            ...quizData
-        }
-    });
-
-    for (const q of questions) {
-        const { options, correctAnswerId, ...questionData } = q;
-        
-        let correctOptionDatabaseId = correctAnswerId;
-
-        // For multiple choice, we need to create options first to get their IDs
-        if (q.type === 'MULTIPLE_CHOICE' || q.type === 'TRUE_FALSE') {
-          const tempQuestion = await prisma.question.upsert({
-              where: { id: q.id },
-              update: { ...questionData, quizId: createdQuiz.id, correctAnswerId: 'placeholder' },
-              create: { ...questionData, quizId: createdQuiz.id, correctAnswerId: 'placeholder' }
-          });
-
-          const createdOptions = [];
-          for (const opt of options) {
-            const createdOpt = await prisma.option.upsert({
-              where: { id: opt.id },
-              update: { text: opt.text, questionId: tempQuestion.id },
-              create: { id: opt.id, text: opt.text, questionId: tempQuestion.id }
-            });
-            createdOptions.push(createdOpt);
-          }
-
-          const correctOption = createdOptions.find(opt => opt.text === correctAnswerId);
-          if (correctOption) {
-            correctOptionDatabaseId = correctOption.id;
-          } else {
-             console.error(`Could not find correct option for question: ${q.text}`);
-             continue; // Skip updating this question's correct answer if not found
-          }
-
-          await prisma.question.update({
-            where: { id: tempQuestion.id },
-            data: { correctAnswerId: correctOptionDatabaseId }
-          });
-
-        } else {
-          // For other question types, the answer is stored directly
-           await prisma.question.upsert({
-              where: { id: q.id },
-              update: { ...questionData, quizId: createdQuiz.id, correctAnswerId: correctAnswerId },
-              create: { ...questionData, quizId: createdQuiz.id, correctAnswerId: correctAnswerId }
-          });
-        }
-    }
-  }
-  console.log('Seeded quizzes and questions');
-
-  // Seed Learning Paths
-  for (const path of initialLearningPaths) {
-    await prisma.learningPath.upsert({
-      where: { id: path.id },
-      update: {
-        hasCertificate: path.hasCertificate,
-      },
-      create: {
-        id: path.id,
-        title: path.title,
-        description: path.description,
-        hasCertificate: path.hasCertificate,
-        trainingProviderId: provider.id,
-        courses: {
-          create: path.courseIds.map((courseId, index) => ({
-            order: index + 1,
-            course: {
-              connect: { id: courseId }
-            }
-          }))
-        }
-      }
-    });
-  }
-  console.log('Seeded learning paths');
-
-  // Seed Live Sessions
-  for (const session of initialLiveSessions) {
-      const { attendees, ...sessionData } = session;
-      const { allowedAttendees, ...rest } = sessionData as any;
-      const platform = session.platform.replace(' ', '_') as LiveSessionPlatform;
-      
-      const now = new Date();
-      const sessionTime = new Date(session.dateTime);
-      const endTime = new Date(sessionTime.getTime() + 60 * 60 * 1000);
-      let status: LiveSessionStatus = 'UPCOMING';
-      if (now >= sessionTime && now <= endTime) {
-        status = 'LIVE';
-      } else if (now > endTime) {
-        status = 'ENDED';
-      }
-
-      await prisma.liveSession.upsert({
-          where: { id: session.id },
-          update: {
-              ...rest,
-              platform: platform,
-              status: status
-          },
-          create: {
-              ...rest,
-              platform: platform,
-              status: status,
-              trainingProviderId: provider.id,
-          }
-      });
-  }
-  console.log('Seeded live sessions');
-  
-  // Seed UserCompletedCourse
-  const user1ForCompletion = await prisma.user.findUnique({ where: { id: 'user-1' } });
-  if (user1ForCompletion) {
-    const course4 = await prisma.course.findUnique({ where: { id: 'course-4' } });
-    if (course4) {
-      await prisma.userCompletedCourse.upsert({
-        where: { userId_courseId: { userId: user1ForCompletion.id, courseId: course4.id } },
-        update: {},
-        create: {
-          userId: user1ForCompletion.id,
-          courseId: course4.id,
-          completionDate: new Date('2024-05-10'),
-          score: 100,
-        }
-      });
-    }
-  }
-  console.log('Seeded user completed courses');
-
-  // Seed UserPurchasedCourse
-  if (user1ForCompletion) {
-      const course2 = await prisma.course.findUnique({ where: { id: 'course-2' } });
-      if (course2) {
-          await prisma.userPurchasedCourse.upsert({
-              where: { userId_courseId: { userId: user1ForCompletion.id, courseId: course2.id } },
-              update: {},
-              create: {
-                  userId: user1ForCompletion.id,
-                  courseId: course2.id,
-                  amount: course2.price || 49.99,
-                  transactionId: `seed-tx-${Math.random().toString(36).substring(7)}`,
-              }
-          });
-          console.log('Seeded user purchased courses');
-      }
-  }
-  
-  // Seed Certificate Template
-  await prisma.certificateTemplate.upsert({
-    where: { trainingProviderId: provider.id },
-    update: {},
-    create: {
-        title: "Certificate of Completion",
-        organization: provider.name,
-        body: "This certificate is proudly presented to [Student Name] for successfully completing the [Course Name] course on [Completion Date].",
-        signatoryName: "Jane Doe",
-        signatoryTitle: "Head of Training & Development",
-        logoUrl: null,
-        trainingProviderId: provider.id,
-    }
-  });
-  console.log('Seeded certificate template');
-
+  console.log('Seeded super admin user');
 
   // Seed Registration Fields
   for (const field of initialRegistrationFields) {
@@ -423,7 +90,7 @@ async function main() {
       }
     });
   }
-
+  console.log('Seeded registration fields');
 
   console.log(`Seeding finished.`);
 }
